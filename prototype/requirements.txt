@@ -1,0 +1,2 @@
+requests>=2.31
+folium>=0.15
