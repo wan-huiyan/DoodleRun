@@ -141,6 +141,42 @@
       height: 28px;
     }
 
+    /* Alternate-variant chip + family label below the active shape. */
+    .variant-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px;
+      margin: -4px 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .variant-row .chip {
+      background: var(--tint-soft);
+      color: var(--tint);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 0;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .variant-row .chip:active { transform: scale(0.96); }
+    .variant-row .chip[disabled] { opacity: .4; cursor: default; }
+
+    /* Search-mode toggle (Section 6.2 / 6.3 of the plan) */
+    .toggle-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 4px;
+      font-size: 13px;
+      color: var(--fg);
+    }
+    .toggle-row label { flex: 1; cursor: pointer; }
+    .toggle-row .hint { font-size: 11px; color: var(--muted); }
+    .toggle-row input[type=checkbox] {
+      width: 22px; height: 22px;
+      accent-color: var(--tint);
+    }
+
     .btn {
       width: 100%;
       min-height: 48px;
@@ -238,11 +274,32 @@
 
     <div id="shapes" class="shape-grid" aria-label="Pick a shape"></div>
 
+    <div id="variant-row" class="variant-row" hidden>
+      <span id="variant-label">Default style</span>
+      <button id="variant-btn" class="chip" type="button" aria-label="Try a different variant">↻ Variant</button>
+    </div>
+
     <div class="row">
       <span class="lbl">Distance</span>
       <input type="range" id="distance" min="5" max="25" step="0.5" value="10"
              aria-label="Target distance in kilometers" />
       <span class="val" id="distance-readout">10.0 km</span>
+    </div>
+
+    <div class="toggle-row">
+      <label for="search-toggle">
+        Find best area within
+        <span id="search-radius-readout">10 km</span>
+        <div class="hint">Slower (~30 s) — tries multiple centers and picks the cleanest tracing.</div>
+      </label>
+      <input type="checkbox" id="search-toggle" aria-label="Enable street-search mode" />
+    </div>
+
+    <div class="row" id="search-radius-row" hidden>
+      <span class="lbl">Radius</span>
+      <input type="range" id="search-radius" min="2" max="40" step="1" value="10"
+             aria-label="Search radius in kilometers" />
+      <span class="val" id="search-radius-val">10 km</span>
     </div>
 
     <button id="gen-btn" class="btn primary">
@@ -330,10 +387,19 @@
     const kmlBtn     = $("kml-btn");
     const shareBtn   = $("share-btn");
     const errEl      = $("err");
+    const variantRow = $("variant-row");
+    const variantLabel = $("variant-label");
+    const variantBtn = $("variant-btn");
+    const searchToggle = $("search-toggle");
+    const searchRadius = $("search-radius");
+    const searchRadiusVal = $("search-radius-val");
+    const searchRadiusReadout = $("search-radius-readout");
+    const searchRadiusRow = $("search-radius-row");
 
     // -------- State ---------------------------------------------------------
 
-    let shapes = [];
+    let shapes = [];                  // every shape returned by /shapes
+    let shapesByFamily = new Map();   // family → [shape, …] (default first)
     let selectedShape = "pig";
     let lastResponse = null;
 
@@ -368,29 +434,103 @@
       try {
         const { shapes: list } = await api("/shapes");
         shapes = list;
+        // Group by family with the default first within each family.
+        shapesByFamily = new Map();
+        for (const s of shapes) {
+          if (!shapesByFamily.has(s.family)) shapesByFamily.set(s.family, []);
+        }
+        for (const s of shapes) {
+          const arr = shapesByFamily.get(s.family);
+          if (s.is_default) arr.unshift(s);
+          else arr.push(s);
+        }
         if (!shapes.find(s => s.id === selectedShape)) selectedShape = shapes[0]?.id;
         renderShapes();
+        renderVariantRow();
       } catch (e) {
         showError("Couldn't load shape list: " + e.message);
       }
     }
 
     function renderShapes() {
+      // Picker grid shows one card per family (the default). Variants are
+      // surfaced via the chip in #variant-row when a family with alternates
+      // is selected.
       shapesEl.innerHTML = "";
-      for (const shape of shapes) {
+      for (const [family, arr] of shapesByFamily) {
+        const def = arr[0];
+        if (!def) continue;
+        const isFamilySelected =
+          shapes.find(s => s.id === selectedShape)?.family === family;
         const card = document.createElement("button");
-        card.className = "shape-card" + (shape.id === selectedShape ? " selected" : "");
+        card.className = "shape-card" + (isFamilySelected ? " selected" : "");
         card.type = "button";
-        card.title = shape.distinctive_features;
-        card.innerHTML = `<div class="emoji">${shape.emoji}</div>
-                          <div class="name">${shape.name}</div>`;
+        card.title = def.distinctive_features;
+        // Use the family default's emoji + family display name.
+        card.innerHTML = `<div class="emoji">${def.emoji}</div>
+                          <div class="name">${familyDisplayName(def)}</div>`;
         card.addEventListener("click", () => {
-          selectedShape = shape.id;
+          // Tapping a family resets to its default variant.
+          selectedShape = def.id;
           renderShapes();
+          renderVariantRow();
         });
         shapesEl.appendChild(card);
       }
     }
+
+    function familyDisplayName(defaultShape) {
+      // The server hands back "Pig (alt 3)" labels for alternates; default
+      // ones are just "Pig". We always render the default name on the card
+      // even if an alternate is currently selected.
+      return defaultShape.name;
+    }
+
+    function renderVariantRow() {
+      const current = shapes.find(s => s.id === selectedShape);
+      if (!current) { variantRow.hidden = true; return; }
+      const fam = shapesByFamily.get(current.family) || [];
+      if (fam.length <= 1) {
+        variantRow.hidden = true;
+        return;
+      }
+      variantRow.hidden = false;
+      variantLabel.textContent = current.is_default
+        ? "Default style"
+        : current.name;   // e.g. "Pig (alt 3)"
+      variantBtn.disabled = false;
+    }
+
+    variantBtn.addEventListener("click", () => {
+      const current = shapes.find(s => s.id === selectedShape);
+      if (!current) return;
+      const fam = shapesByFamily.get(current.family) || [];
+      if (fam.length <= 1) return;
+      const idx = fam.findIndex(s => s.id === selectedShape);
+      const next = fam[(idx + 1) % fam.length];
+      selectedShape = next.id;
+      renderVariantRow();
+    });
+
+    // -------- Search-mode toggle -------------------------------------------
+
+    function syncSearchRadius() {
+      const v = parseInt(searchRadius.value, 10);
+      const text = `${v} km`;
+      searchRadiusVal.textContent = text;
+      searchRadiusReadout.textContent = text;
+    }
+    searchRadius.addEventListener("input", syncSearchRadius);
+    syncSearchRadius();
+
+    searchToggle.addEventListener("change", () => {
+      searchRadiusRow.hidden = !searchToggle.checked;
+      genBtn.querySelector("#gen-label")?.replaceChildren(
+        document.createTextNode(searchToggle.checked
+          ? "Generate route (search)"
+          : "Generate route")
+      );
+    });
 
     // -------- Distance slider ----------------------------------------------
 
@@ -451,6 +591,9 @@
           lon: currentCenter.lng,
           distance_km: parseFloat(distEl.value),
         };
+        if (searchToggle.checked) {
+          body.search_radius_km = parseInt(searchRadius.value, 10);
+        }
         const resp = await api("/generate", {
           method: "POST",
           body: JSON.stringify(body),
