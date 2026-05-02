@@ -10,12 +10,17 @@ streets/trails, and you export it as GPX for Garmin/Strava.
 
 ```
 DoodleRun/
-├── prototype/      # Phase 1: Python prototype (build & verify here first)
+├── prototype/      # Phase 1: Python prototype (CLI, source of truth for routing)
 │   ├── *_shape.py  # one outline per animal
 │   ├── shapes.py   # registry that the --shape CLI flag reads
 │   └── tests/      # pytest suite (offline pieces + recorded OSRM fixture)
+├── server/         # Phase 2A: FastAPI service the iOS app calls
+│   ├── main.py     # /health, /shapes, /generate
+│   ├── models.py   # Pydantic request/response schemas
+│   ├── Dockerfile  # build context = repo root
+│   └── tests/      # endpoint tests with TestClient (OSRM mocked)
+├── ios/            # Phase 2B: SwiftUI + MapKit iPhone app (TBD)
 ├── samples/        # committed reference renders for each shape
-├── ios-app/        # Phase 2: SwiftUI + MapKit iPhone app (TBD)
 └── output/         # Generated GPX/HTML — gitignored, regenerable
 ```
 
@@ -107,8 +112,39 @@ grid did (cat 41% over) — Hyde Park, Regent's Park, the river, and railway
 crossings all create fixed-cost detours that don't shrink with the shape.
 For tighter convergence, prefer suburban grids.
 
-## Phase 2 — iOS app (TBD)
+## Phase 2A — FastAPI service
+
+```
+cd server
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+# behind corp TLS inspection on macOS:
+DOODLERUN_CA_BUNDLE=keychain uvicorn main:app --reload --port 8000
+```
+
+Endpoints:
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| `GET` | `/health` | — | `{status, shapes_loaded}` |
+| `GET` | `/shapes` | — | metadata for all 5 shapes (id, name, emoji, distinctive features) |
+| `POST` | `/generate` | `{shape, lat, lon, distance_km, waypoints?, iterations?}` | GeoJSON LineString + idealized waypoints + GPX 1.1 string |
+
+Run the test suite: `cd server && python -m pytest tests/ -v` (9 tests, OSRM
+mocked, ~1 s).
+
+Container build (context = repo root, server imports prototype/ at runtime):
+
+```
+docker build -t doodlerun-server -f server/Dockerfile .
+docker run -p 8000:8000 doodlerun-server
+```
+
+OpenAPI docs are auto-generated — visit `http://localhost:8000/docs` once
+the server is running.
+
+## Phase 2B — iOS app (TBD)
 
 SwiftUI + MapKit. Pick start point, target distance, shape; preview on map;
-export GPX via share sheet. Will likely call a small FastAPI service that
-proxies a self-hosted OSRM container.
+export GPX via share sheet. Calls the FastAPI service at a configurable
+base URL (default `http://localhost:8000` for the simulator).
