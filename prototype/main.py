@@ -16,7 +16,7 @@ import os
 from gpx_export import write_gpx
 from kml_export import write_kml
 from osrm_client import macos_keychain_bundle
-from route_generator import generate
+from route_generator import generate, generate_search
 from shapes import SHAPES
 from visualize import render
 
@@ -39,6 +39,18 @@ def parse_args() -> argparse.Namespace:
                    help="Path to a CA bundle PEM. Use 'keychain' on macOS to "
                         "auto-export the system+login keychain (needed when "
                         "behind corporate SSL inspection). Default: certifi.")
+    p.add_argument("--search-radius-km", type=float, default=None,
+                   help="Enable fidelity-first search: try multiple candidate "
+                        "centers within this radius and pick the one that "
+                        "traces the shape most accurately. Distance becomes a "
+                        "hint, not a target.")
+    p.add_argument("--candidates", type=int, default=5,
+                   help="With --search-radius-km, number of candidate centers "
+                        "to try. Default 5 (1 seed + 4 ring positions).")
+    p.add_argument("--scales", type=int, default=3,
+                   help="With --search-radius-km, number of scale candidates "
+                        "per center (geometrically spaced 0.5x..1.6x of the "
+                        "scale that would hit --distance). Default 3.")
     return p.parse_args()
 
 
@@ -59,15 +71,28 @@ def main() -> None:
     elif args.ca_bundle:
         verify = args.ca_bundle
 
-    result = generate(
-        outline=outline,
-        center_lat=args.lat,
-        center_lon=args.lon,
-        target_distance_m=target_m,
-        n_waypoints=args.waypoints,
-        max_iterations=args.iterations,
-        verify=verify,
-    )
+    if args.search_radius_km is not None:
+        result = generate_search(
+            outline=outline,
+            center_lat=args.lat,
+            center_lon=args.lon,
+            target_distance_m=target_m,
+            search_radius_km=args.search_radius_km,
+            n_candidates=args.candidates,
+            n_scales=args.scales,
+            n_waypoints=args.waypoints,
+            verify=verify,
+        )
+    else:
+        result = generate(
+            outline=outline,
+            center_lat=args.lat,
+            center_lon=args.lon,
+            target_distance_m=target_m,
+            n_waypoints=args.waypoints,
+            max_iterations=args.iterations,
+            verify=verify,
+        )
 
     gpx_path = os.path.join(args.out, f"{args.shape}_route.gpx")
     kml_path = os.path.join(args.out, f"{args.shape}_route.kml")
@@ -81,6 +106,9 @@ def main() -> None:
 
     print(f"\nDone. Routed distance: {result.distance_m / 1000:.2f} km "
           f"(target {args.distance:.2f} km)")
+    print(f"  Fidelity: {result.fidelity:.4f}  (lower=better, 0=perfect tracing)")
+    print(f"  Center:   ({result.center_lat:.4f}, {result.center_lon:.4f})  "
+          f"scale={result.scale_m_per_unit:.1f} m/unit")
     print(f"  GPX:  {os.path.abspath(gpx_path)}")
     print(f"  KML:  {os.path.abspath(kml_path)}")
     print(f"  Map:  {os.path.abspath(html_path)}")

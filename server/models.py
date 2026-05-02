@@ -30,7 +30,18 @@ class GenerateRequest(BaseModel):
     waypoints: int = Field(40, ge=10, le=80,
                            description="Resampled waypoint count sent to OSRM")
     iterations: int = Field(5, ge=1, le=10,
-                            description="Rescaling passes to hit target distance")
+                            description="Rescaling passes to hit target distance "
+                                        "(only when search_radius_km is omitted)")
+    search_radius_km: float | None = Field(
+        None, gt=0, le=200,
+        description="If set, enable fidelity-first search: try multiple candidate "
+                    "centers within this radius and pick the one that traces the "
+                    "shape most accurately. Distance becomes a hint, not a target.",
+    )
+    candidates: int = Field(5, ge=1, le=15,
+                            description="With search_radius_km set, number of candidate centers")
+    scales: int = Field(3, ge=1, le=8,
+                        description="With search_radius_km set, number of scale candidates per center")
 
 
 class GeoJSONLineString(BaseModel):
@@ -57,6 +68,15 @@ class GenerateResponse(BaseModel):
     )
     gpx: str = Field(..., description="GPX 1.1 document as a string")
     kml: str = Field(..., description="KML 2.2 document — uploadable to Google My Maps")
+    fidelity: float = Field(
+        ...,
+        description="Shape fidelity score (lower = better, 0 = perfect tracing). "
+                    "Mean nearest-neighbor distance between snapped route and "
+                    "idealized outline, normalised by the shape's bbox diagonal.",
+    )
+    chosen_lat: float = Field(..., description="Final route center lat (may differ "
+                                                "from request lat when search is on)")
+    chosen_lon: float = Field(..., description="Final route center lon")
 
 
 class ShareRequest(BaseModel):

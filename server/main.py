@@ -27,7 +27,7 @@ sys.path.insert(0, str(PROTOTYPE_DIR))
 from gpx_export import gpx_to_string                       # noqa: E402
 from kml_export import kml_to_string                       # noqa: E402
 from osrm_client import macos_keychain_bundle              # noqa: E402
-from route_generator import generate                       # noqa: E402
+from route_generator import generate, generate_search      # noqa: E402
 from shapes import SHAPES                                  # noqa: E402
 
 from models import (                                       # noqa: E402
@@ -165,15 +165,28 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
 
     target_m = req.distance_km * 1000.0
     try:
-        result = generate(
-            outline=SHAPES[req.shape],
-            center_lat=req.lat,
-            center_lon=req.lon,
-            target_distance_m=target_m,
-            n_waypoints=req.waypoints,
-            max_iterations=req.iterations,
-            verify=VERIFY,
-        )
+        if req.search_radius_km is not None:
+            result = generate_search(
+                outline=SHAPES[req.shape],
+                center_lat=req.lat,
+                center_lon=req.lon,
+                target_distance_m=target_m,
+                search_radius_km=req.search_radius_km,
+                n_candidates=req.candidates,
+                n_scales=req.scales,
+                n_waypoints=req.waypoints,
+                verify=VERIFY,
+            )
+        else:
+            result = generate(
+                outline=SHAPES[req.shape],
+                center_lat=req.lat,
+                center_lon=req.lon,
+                target_distance_m=target_m,
+                n_waypoints=req.waypoints,
+                max_iterations=req.iterations,
+                verify=VERIFY,
+            )
     except Exception as e:
         # OSRM NoRoute / network errors / etc. The CLI keeps the best
         # earlier iteration via try/except inside generate(); only a total
@@ -200,6 +213,9 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
         waypoints=result.waypoints,
         gpx=gpx_text,
         kml=kml_text,
+        fidelity=result.fidelity,
+        chosen_lat=result.center_lat,
+        chosen_lon=result.center_lon,
     )
 
 
