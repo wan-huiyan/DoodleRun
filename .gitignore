@@ -6,5 +6,11 @@ venv/
 .env
 .DS_Store
 
-# Generated route artifacts — regenerate with `python main.py`
+# Generated route artifacts — regenerate with `python main.py`. The committed
+# reference renders live in `samples/` instead.
 output/
+
+# Pytest / playwright scratch
+.pytest_cache/
+prototype/.pytest_cache/
+.playwright-mcp/

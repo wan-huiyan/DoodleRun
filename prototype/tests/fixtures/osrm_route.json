@@ -1,0 +1,197 @@
+{
+  "code": "Ok",
+  "routes": [
+    {
+      "legs": [
+        {
+          "steps": [],
+          "weight": 37.6,
+          "summary": "",
+          "duration": 37.6,
+          "distance": 275.4
+        },
+        {
+          "steps": [],
+          "weight": 24.6,
+          "summary": "",
+          "duration": 24.6,
+          "distance": 175.9
+        },
+        {
+          "steps": [],
+          "weight": 38.5,
+          "summary": "",
+          "duration": 38.5,
+          "distance": 257.6
+        }
+      ],
+      "weight_name": "routability",
+      "geometry": {
+        "coordinates": [
+          [
+            -122.482854,
+            37.753006
+          ],
+          [
+            -122.482913,
+            37.753847
+          ],
+          [
+            -122.482921,
+            37.753961
+          ],
+          [
+            -122.482824,
+            37.753965
+          ],
+          [
+            -122.482776,
+            37.753967
+          ],
+          [
+            -122.482756,
+            37.753968
+          ],
+          [
+            -122.482252,
+            37.75399
+          ],
+          [
+            -122.481971,
+            37.754003
+          ],
+          [
+            -122.481852,
+            37.754008
+          ],
+          [
+            -122.481759,
+            37.754012
+          ],
+          [
+            -122.481003,
+            37.754045
+          ],
+          [
+            -122.480942,
+            37.754048
+          ],
+          [
+            -122.480895,
+            37.75405
+          ],
+          [
+            -122.480779,
+            37.754055
+          ],
+          [
+            -122.480682,
+            37.754059
+          ],
+          [
+            -122.480618,
+            37.754062
+          ],
+          [
+            -122.479823,
+            37.754097
+          ],
+          [
+            -122.479708,
+            37.754102
+          ],
+          [
+            -122.479604,
+            37.754107
+          ],
+          [
+            -122.479547,
+            37.754109
+          ],
+          [
+            -122.47928,
+            37.754121
+          ],
+          [
+            -122.479009,
+            37.754133
+          ],
+          [
+            -122.478788,
+            37.754142
+          ],
+          [
+            -122.478737,
+            37.754144
+          ],
+          [
+            -122.478637,
+            37.754148
+          ],
+          [
+            -122.478552,
+            37.754152
+          ],
+          [
+            -122.477668,
+            37.75419
+          ],
+          [
+            -122.477566,
+            37.754195
+          ],
+          [
+            -122.477561,
+            37.754115
+          ],
+          [
+            -122.477485,
+            37.753023
+          ]
+        ],
+        "type": "LineString"
+      },
+      "weight": 100.7,
+      "duration": 100.7,
+      "distance": 708.9
+    }
+  ],
+  "waypoints": [
+    {
+      "hint": "dBNwgH8UY4ZoAAAAZQAAAA4AAAANAAAAaPq6Qi9PtEJ-w0pBzM0xQWgAAABlAAAADgAAAA0AAADveQAAWg-z-K4QQALIDrP4qBBAAgIADwsAAAAA",
+      "location": [
+        -122.482854,
+        37.753006
+      ],
+      "name": "25th Avenue",
+      "distance": 12.87984805
+    },
+    {
+      "hint": "ahNwgG4TcIAHAAAAXgAAABQAAAALAAAAH02sQJ9ohULoGWZBC0kDQQcAAABeAAAAFAAAAAsAAADveQAAlRaz-L0UQAKYFrP4kBRAAgQArxAAAAAA",
+      "location": [
+        -122.481003,
+        37.754045
+      ],
+      "name": "Noriega Street",
+      "distance": 5.001638111
+    },
+    {
+      "hint": "ZBNwgNjVgIYbAAAAIgAAABIAAAAAAAAARvebQU9Mv0HSHVVBAAAAABsAAAAiAAAAEgAAAAAAAADveQAAXx6z-BUVQAJoHrP4kBRAAgQArxAAAAAA",
+      "location": [
+        -122.479009,
+        37.754133
+      ],
+      "name": "Noriega Street",
+      "distance": 14.78324469
+    },
+    {
+      "hint": "XBNwgLlMcICuAAAAYAAAAA0AAAAQAAAA0MbyQrRJhEKpPg5B1IosQa4AAABgAAAADQAAABAAAADveQAAUySz-L8QQAJQIrP4qBBAAgIADwsAAAAA",
+      "location": [
+        -122.477485,
+        37.753023
+      ],
+      "name": "20th Avenue",
+      "distance": 45.44333057
+    }
+  ]
+}

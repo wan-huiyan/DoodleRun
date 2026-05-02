@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import List, Tuple, Union
 
 from osrm_client import RouteResult, route_through
-from pig_shape import Point, bounding_box, outline_perimeter, resample
+from shape_utils import Point, bounding_box, outline_perimeter, resample
 
 EARTH_M_PER_DEG_LAT = 111_320.0
 

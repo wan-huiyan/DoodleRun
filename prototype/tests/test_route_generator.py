@@ -1,0 +1,99 @@
+"""Tests for project_shape and the generate() rescaling loop.
+
+OSRM is mocked with a recorded /route response so these tests don't touch
+the network. The mock returns the same fixture distance regardless of
+waypoints, which is enough to exercise the iteration logic.
+"""
+
+from __future__ import annotations
+
+import math
+from unittest.mock import patch
+
+import pytest
+
+from osrm_client import RouteResult
+from route_generator import generate, m_per_deg_lon, project_shape
+
+
+class TestProjectShape:
+    def test_center_lat_lon_is_centered(self):
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        # Center of bbox is (5, 5); projecting it should produce an offset of 0
+        # so the bbox center maps exactly to the requested (lat, lon).
+        wp = project_shape(outline, 37.0, -122.0, scale_m_per_unit=100.0)
+        # bbox center maps to center: average of waypoints' midpoint
+        midpoint_lat = (min(p[0] for p in wp) + max(p[0] for p in wp)) / 2
+        midpoint_lon = (min(p[1] for p in wp) + max(p[1] for p in wp)) / 2
+        assert midpoint_lat == pytest.approx(37.0, abs=1e-6)
+        assert midpoint_lon == pytest.approx(-122.0, abs=1e-6)
+
+    def test_scale_produces_expected_meter_offset(self):
+        # A single point 5 units up from the bbox center should land 500m north
+        # at scale 100 m/unit. Use a 10x10 bbox so center is (5, 5).
+        outline = [(5, 0), (5, 10)]   # bbox is 0..10 in y, center at 5
+        wp = project_shape(outline, 37.0, -122.0, scale_m_per_unit=100.0)
+        # Top point is at y=10 → 5 units above center → 500m north.
+        # 500m / 111320 m/deg ≈ 0.00449 deg.
+        d_lat = wp[1][0] - 37.0
+        assert d_lat == pytest.approx(500.0 / 111320.0, rel=1e-3)
+
+    def test_lon_scaling_uses_cos_lat(self):
+        # At latitude 60°, longitude degrees are half the meters of latitude
+        # degrees. Verify project_shape's compensation.
+        outline = [(0, 5), (10, 5)]   # only x varies
+        wp = project_shape(outline, 60.0, 0.0, scale_m_per_unit=100.0)
+        d_lon = wp[1][1] - wp[0][1]   # 10 units → 1000 m east
+        expected = 1000.0 / m_per_deg_lon(60.0)
+        assert d_lon == pytest.approx(expected, rel=1e-4)
+
+
+def _fake_route_through(distance_m: float):
+    """Build a stand-in for osrm_client.route_through that always returns the
+    same fixed distance, so we can test the convergence loop deterministically.
+    """
+    def fake(waypoints, profile="foot", base_url="", verify=True):
+        # Polyline length isn't checked by generate(); just return the waypoints.
+        return RouteResult(
+            coordinates=list(waypoints),
+            distance_m=distance_m,
+            duration_s=distance_m,
+        )
+    return fake
+
+
+class TestGenerateConvergence:
+    def test_returns_best_iteration(self):
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        # Fake OSRM always says 5000m no matter the scale, so all iterations
+        # produce the same distance and the FIRST one ends up as "best" (tied).
+        with patch("route_generator.route_through",
+                   side_effect=_fake_route_through(5000.0)):
+            result = generate(
+                outline=outline,
+                center_lat=37.0,
+                center_lon=-122.0,
+                target_distance_m=5000.0,
+                n_waypoints=10,
+                max_iterations=3,
+            )
+        assert result.distance_m == 5000.0
+        assert len(result.waypoints) == 10
+        assert len(result.polyline) == 10
+
+    def test_stops_early_on_match(self):
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        call_count = {"n": 0}
+        def fake(waypoints, profile="foot", base_url="", verify=True):
+            call_count["n"] += 1
+            return RouteResult(coordinates=list(waypoints),
+                               distance_m=4990.0, duration_s=0)
+        with patch("route_generator.route_through", side_effect=fake):
+            generate(
+                outline=outline,
+                center_lat=37.0, center_lon=-122.0,
+                target_distance_m=5000.0,
+                n_waypoints=10, max_iterations=10,
+            )
+        # Within 3% of target on iter 1 → should stop after one call.
+        assert call_count["n"] == 1
