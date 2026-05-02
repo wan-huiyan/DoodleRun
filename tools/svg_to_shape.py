@@ -198,6 +198,111 @@ def _finish(pts: List[Point], rdp_eps: float, target_w: float,
     return normalize(simplified, target_w, flip_x, flip_y)
 
 
+def extract_interior_features(
+    svg_path: str,
+    outline_index: int = 0,
+    n_sample_per_feature: int = 24,
+    rdp_eps: float = 0.012,
+    max_size_frac: float = 0.4,
+    min_size_frac: float = 0.005,
+) -> List[List[Point]]:
+    """Generic interior-stroke extraction.
+
+    Returns a list of polylines (each a list of (x, y) points in SVG source
+    coordinates — caller is responsible for the same y-flip / x-flip /
+    scale that was applied to the outline).
+
+    Heuristic, not animal-specific: every non-background sub-path that
+    is NOT the chosen outline AND whose bounding box is meaningfully
+    smaller than the outline's bounding box is treated as an interior
+    feature. Whiskers, nostrils, eyes, mouth lines, fur tufts — whatever
+    the SVG's interior detail strokes are — get picked up uniformly.
+
+    Args:
+      outline_index: which sub-path is the outline (so we skip it).
+      max_size_frac: features bigger than this fraction of the outline's
+        bbox-diag are treated as additional silhouettes, not interior
+        details, and dropped.
+      min_size_frac: features below this size are treated as noise.
+    """
+    safe = collect_subpaths(svg_path)
+    if outline_index >= len(safe):
+        return []
+    outline_diag = _bbox_diag(safe[outline_index])
+    if outline_diag == 0:
+        return []
+    features: List[List[Point]] = []
+    for i, s in enumerate(safe):
+        if i == outline_index:
+            continue
+        d = _bbox_diag(s)
+        if d == 0:
+            continue
+        ratio = d / outline_diag
+        if ratio > max_size_frac or ratio < min_size_frac:
+            continue
+        try:
+            pts = sample_path(s, n_sample_per_feature)
+        except Exception:
+            continue
+        local_diag = math.hypot(
+            max(p[0] for p in pts) - min(p[0] for p in pts),
+            max(p[1] for p in pts) - min(p[1] for p in pts),
+        )
+        if local_diag == 0:
+            continue
+        eps_units = rdp_eps * local_diag
+        simplified = rdp(pts, eps_units)
+        if len(simplified) >= 2:
+            features.append(simplified)
+    return features
+
+
+def normalize_features(
+    features: List[List[Point]],
+    outline_raw: List[Point],
+    outline_normalized: List[Point],
+    flip_x: bool,
+    flip_y: bool,
+) -> List[List[Point]]:
+    """Apply the same flip + translate + scale the outline received, so
+    interior features stay registered to the outline. Computes the affine
+    from raw → normalized outline bboxes and applies it to every feature.
+    """
+    if not features:
+        return []
+    # Apply flips first (matching what `normalize` does to the outline)
+    flipped: List[List[Point]] = []
+    for feat in features:
+        ff = feat
+        if flip_y:
+            ff = [(x, -y) for (x, y) in ff]
+        if flip_x:
+            ff = [(-x, y) for (x, y) in ff]
+        flipped.append(ff)
+
+    # Compute outline raw (post-flip) bbox vs. normalized bbox to get scale + offset
+    raw = outline_raw
+    if flip_y:
+        raw = [(x, -y) for (x, y) in raw]
+    if flip_x:
+        raw = [(-x, y) for (x, y) in raw]
+    rmin_x = min(p[0] for p in raw); rmax_x = max(p[0] for p in raw)
+    rmin_y = min(p[1] for p in raw); rmax_y = max(p[1] for p in raw)
+    nmin_x = min(p[0] for p in outline_normalized); nmax_x = max(p[0] for p in outline_normalized)
+    nmin_y = min(p[1] for p in outline_normalized); nmax_y = max(p[1] for p in outline_normalized)
+    raw_w = rmax_x - rmin_x or 1.0
+    scale = (nmax_x - nmin_x) / raw_w
+    out: List[List[Point]] = []
+    for feat in flipped:
+        out.append([
+            ((x - rmin_x) * scale + nmin_x,
+             (y - rmin_y) * scale + nmin_y)
+            for (x, y) in feat
+        ])
+    return out
+
+
 def format_outline(points: List[Point], indent: str = "    ") -> str:
     lines = []
     for x, y in points:
@@ -227,6 +332,10 @@ if __name__ == "__main__":
                          "the top --top-n sub-paths and trace the result.")
     ap.add_argument("--top-n", type=int, default=20,
                     help="Union mode: how many largest sub-paths to merge.")
+    ap.add_argument("--with-interior", action="store_true",
+                    help="Also extract interior-feature strokes (small "
+                         "sub-paths inside the outline). Emits a second "
+                         "INTERIOR_FEATURES list after OUTLINE.")
     args = ap.parse_args()
 
     if args.mode == "union":
@@ -236,4 +345,25 @@ if __name__ == "__main__":
         pts = convert(args.svg, args.n_sample, args.rdp_eps, args.target_w,
                       args.flip_x, not args.no_flip_y, args.path_index)
     print(f"# {len(pts)} points")
-    print(format_outline(pts))
+    print("OUTLINE = " + format_outline(pts))
+
+    if args.with_interior and args.mode == "single":
+        # Re-collect raw outline + features in the SVG's own coords for
+        # accurate registration after normalization.
+        safe = collect_subpaths(args.svg)
+        raw_outline = sample_path(safe[args.path_index], args.n_sample)
+        features_raw = extract_interior_features(
+            args.svg,
+            outline_index=args.path_index,
+            n_sample_per_feature=max(24, args.n_sample // 4),
+            rdp_eps=args.rdp_eps,
+        )
+        features_norm = normalize_features(
+            features_raw, raw_outline, pts,
+            args.flip_x, not args.no_flip_y,
+        )
+        print(f"\n# {len(features_norm)} interior feature(s)")
+        print("INTERIOR_FEATURES = [")
+        for f in features_norm:
+            print("    " + format_outline(f, indent="        ") + ",")
+        print("]")
