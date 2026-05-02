@@ -1,17 +1,24 @@
-"""Convert an SVG silhouette into a normalized DoodleRun shape outline.
+"""Convert an SVG cartoon/silhouette into a normalized DoodleRun outline.
 
-Pipeline:
-1. Pick the longest path in the SVG (the main outer outline).
-2. Sample N points uniformly by arc-length.
-3. Apply Ramer-Douglas-Peucker simplification so we end up with ~40-60
-   points that capture the silhouette without redundancy.
-4. Y-flip (SVG is y-down, our shape is y-up).
-5. Optional X-flip so the animal faces right (controlled per-shape).
-6. Translate to origin (min x, min y at zero), then optionally scale to
-   target width.
+Two strategies:
 
-The output is printed as a Python list literal ready to paste into a
-shape file.
+* `--mode single` (default) — pick one sub-path (largest non-bg-rect by
+  bbox diagonal, or `--path-index N` to override) and trace it. Good for
+  silhouette SVGs where the outer outline is one closed path.
+
+* `--mode union` — sample the top `--top-n` sub-paths into polygons and
+  shapely-union them, then take the exterior of the largest piece. Good
+  for cartoon SVGs where body/head/legs/tail are separate paths and we
+  want their silhouette merged into one kawaii blob.
+
+After the source-coordinate outline is picked, both modes share the
+finishing pipeline:
+
+1. Sample by arc length / use shapely exterior.
+2. Ramer-Douglas-Peucker simplification (~30-70 points).
+3. Y-flip (SVG y-down → math y-up).
+4. Optional X-flip to face right.
+5. Translate to origin, scale to target width.
 """
 from __future__ import annotations
 
@@ -78,29 +85,114 @@ def normalize(points: List[Point], target_w: float, flip_x: bool, flip_y: bool) 
 
 
 def _bbox_diag(path) -> float:
-    xmin, xmax, ymin, ymax = path.bbox()
+    try:
+        xmin, xmax, ymin, ymax = path.bbox()
+    except Exception:
+        return 0.0
     return math.hypot(xmax - xmin, ymax - ymin)
 
 
+def _is_bg_rect(s) -> bool:
+    """Detect axis-aligned rectangle paths (canvas background frames).
+
+    Heuristic: arc length matches bbox perimeter to within 3%. These
+    almost always come from <rect> background fills converted to paths
+    and would otherwise dominate the bbox-diag ranking on cartoon SVGs.
+    """
+    try:
+        xmin, xmax, ymin, ymax = s.bbox()
+    except Exception:
+        return False
+    bw, bh = xmax - xmin, ymax - ymin
+    if bw == 0 or bh == 0:
+        return False
+    try:
+        length = s.length()
+    except Exception:
+        return False
+    peri = 2 * (bw + bh)
+    return peri > 0 and abs(length - peri) / peri < 0.03
+
+
+def collect_subpaths(svg_path: str):
+    """Flatten an SVG into all continuous sub-paths, skipping bg rects."""
+    paths, _, _ = svg2paths2(svg_path)
+    subs = []
+    for p in paths:
+        try:
+            ss = p.continuous_subpaths() if hasattr(p, "continuous_subpaths") else [p]
+        except Exception:
+            ss = [p]
+        subs.extend(ss)
+    safe = [s for s in subs if _bbox_diag(s) > 0 and not _is_bg_rect(s)]
+    safe.sort(key=_bbox_diag, reverse=True)
+    return safe
+
+
 def convert(svg_path: str, n_sample: int, rdp_eps: float,
-            target_w: float, flip_x: bool, flip_y: bool) -> List[Point]:
-    paths, attrs, _ = svg2paths2(svg_path)
-    # Longest path = main outline (smaller paths are usually eyes/mouth).
-    main = max(paths, key=lambda p: p.length())
-    # Many SVG silhouettes pack the outer outline + interior holes (eye,
-    # mouth) into a single path with `M` (move) commands separating sub-
-    # paths. Sampling the joined path produces phantom straight lines
-    # connecting the sub-shapes. Split and keep only the OUTER sub-path,
-    # identified by largest bbox diagonal.
-    subs = main.continuous_subpaths() if hasattr(main, "continuous_subpaths") else [main]
-    main = max(subs, key=_bbox_diag)
+            target_w: float, flip_x: bool, flip_y: bool,
+            path_index: int = 0) -> List[Point]:
+    """Single-path mode: pick the (path_index)th sub-path by bbox-diag-
+    descending after filtering out background rectangles, sample it, RDP-
+    simplify, then normalize. path_index=0 == default longest-non-bg sub-
+    path."""
+    safe = collect_subpaths(svg_path)
+    if not safe:
+        raise ValueError(f"no usable sub-paths in {svg_path}")
+    if path_index >= len(safe):
+        raise IndexError(f"path-index {path_index} out of range "
+                         f"(only {len(safe)} non-bg sub-paths)")
+    main = safe[path_index]
     sampled = sample_path(main, n_sample)
-    # RDP works in source units; epsilon is a fraction of bbox diagonal.
-    xs = [p[0] for p in sampled]; ys = [p[1] for p in sampled]
+    return _finish(sampled, rdp_eps, target_w, flip_x, flip_y)
+
+
+def convert_union(svg_path: str, top_n: int, n_sample: int, rdp_eps: float,
+                  target_w: float, flip_x: bool, flip_y: bool,
+                  area_min_frac: float = 0.005) -> List[Point]:
+    """Union-mode: sample the top `top_n` non-bg sub-paths into polygons,
+    shapely-union them, take the exterior of the largest resulting piece,
+    then RDP-simplify and normalize. Use this for cartoon SVGs where
+    body/head/legs/tail are separate paths whose silhouette we want
+    merged into one kawaii blob."""
+    from shapely.geometry import Polygon, MultiPolygon
+    from shapely.ops import unary_union
+
+    safe = collect_subpaths(svg_path)
+    if not safe:
+        raise ValueError(f"no usable sub-paths in {svg_path}")
+    biggest_area = (_bbox_diag(safe[0]) ** 2) or 1.0
+    polys = []
+    for s in safe[:top_n]:
+        try:
+            pts = sample_path(s, n_sample)
+            poly = Polygon(pts)
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+            if poly.is_empty:
+                continue
+            if poly.area < area_min_frac * biggest_area:
+                continue
+            polys.append(poly)
+        except Exception:
+            continue
+    if not polys:
+        raise ValueError(f"no valid polygons after sampling {svg_path}")
+    u = unary_union(polys)
+    if isinstance(u, MultiPolygon):
+        u = max(u.geoms, key=lambda p: p.area)
+    pts = list(u.exterior.coords)
+    return _finish(pts, rdp_eps, target_w, flip_x, flip_y)
+
+
+def _finish(pts: List[Point], rdp_eps: float, target_w: float,
+            flip_x: bool, flip_y: bool) -> List[Point]:
+    """Shared tail of single + union modes: RDP simplify, ensure closed,
+    then normalize (flip + translate to origin + scale to target width)."""
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
     diag = math.hypot(max(xs) - min(xs), max(ys) - min(ys))
     eps_units = rdp_eps * diag
-    simplified = rdp(sampled, eps_units)
-    # Ensure closed.
+    simplified = rdp(pts, eps_units)
     if simplified[0] != simplified[-1]:
         simplified.append(simplified[0])
     return normalize(simplified, target_w, flip_x, flip_y)
@@ -127,9 +219,21 @@ if __name__ == "__main__":
                     help="Mirror horizontally (use to make animal face right)")
     ap.add_argument("--no-flip-y", action="store_true",
                     help="Skip the SVG y-down → math y-up flip")
+    ap.add_argument("--path-index", type=int, default=0,
+                    help="Pick the Nth sub-path after sorting non-bg-rect "
+                         "sub-paths by bbox diagonal descending (default 0).")
+    ap.add_argument("--mode", choices=["single", "union"], default="single",
+                    help="single: trace one sub-path. union: shapely-union "
+                         "the top --top-n sub-paths and trace the result.")
+    ap.add_argument("--top-n", type=int, default=20,
+                    help="Union mode: how many largest sub-paths to merge.")
     args = ap.parse_args()
 
-    pts = convert(args.svg, args.n_sample, args.rdp_eps, args.target_w,
-                  args.flip_x, not args.no_flip_y)
+    if args.mode == "union":
+        pts = convert_union(args.svg, args.top_n, args.n_sample, args.rdp_eps,
+                            args.target_w, args.flip_x, not args.no_flip_y)
+    else:
+        pts = convert(args.svg, args.n_sample, args.rdp_eps, args.target_w,
+                      args.flip_x, not args.no_flip_y, args.path_index)
     print(f"# {len(pts)} points")
     print(format_outline(pts))
