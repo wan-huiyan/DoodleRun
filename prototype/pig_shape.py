@@ -1,17 +1,19 @@
-"""Pig outline as ordered (x, y) waypoints for a continuous tracing path.
+"""Pig outline — doodle style.
 
-Pig faces right. The path starts at the snout tip, traces clockwise:
-snout → forehead → ear → top of back → curly tail → rump → back leg →
-belly → front leg → chest → underside of snout → close.
+Faces RIGHT. Signature features (in order of importance):
+1. Curly spiral tail rising up from the rump — the silhouette that screams
+   "pig". Drawn as a self-intersecting spiral (~1.5 turns) — visible as a
+   crossing-line curl when rendered as a polyline (the way a runner traces
+   it on the map).
+2. Round snout sticking out at the front.
+3. Two small pointy ears on top of the head.
+4. Big oval body, two stubby legs.
 
-Design choices for street-routing readability:
-- 2 visible legs (side-profile convention) instead of 4. Four legs collapse
-  into a fence pattern when each leg is shorter than two city blocks.
-- Wide legs (~2.5 units) and tall (~1.8 units) so each foot is a clear
-  out-and-back of 2-3 blocks.
-- Ear poking above the back line by ~1.0 units so the head silhouette
-  registers when projected to a city grid.
-- Curly tail with 4 control points to suggest a spiral.
+Drawn as a single closed polyline. Traced clockwise starting at the snout
+tip. The tail spiral coils OUT, AROUND, then INWARD, then exits back to
+the body — the in-and-out is the whole point of "curly".
+
+Coordinate system: x grows right, y grows up.
 """
 
 from __future__ import annotations
@@ -21,56 +23,75 @@ from typing import List
 from shape_utils import Point
 
 PIG_OUTLINE: List[Point] = [
-    # Snout tip and top of snout
-    (13.0, 4.0),
-    (13.0, 4.8),
-    (12.0, 5.1),
+    # Snout tip
+    (14.0, 4.0),
+    # Top of snout up to forehead
+    (13.8, 4.8),
+    (13.2, 5.2),
 
-    # Forehead, top of head, ear
-    (11.0, 5.4),
-    (10.2, 5.7),
-    (9.8, 6.8),    # ear back
-    (10.7, 7.2),   # ear tip
-    (11.0, 5.9),   # ear front (back to head)
+    # Ear 1 (front, closer to snout) — pointy triangle
+    (12.6, 5.4),
+    (12.5, 7.2),     # ear 1 tip
+    (11.7, 5.4),
 
-    # Top of back from head to tail base
-    (9.0, 5.7),
-    (7.0, 5.8),
-    (5.0, 5.7),
-    (3.0, 5.5),
+    # Across the brow
+    (11.2, 5.4),
 
-    # Curly tail
-    (1.8, 5.7),
-    (1.0, 6.3),    # outer top of curl
-    (0.4, 5.8),    # outer left
-    (0.4, 5.0),    # outer bottom
-    (1.0, 4.8),    # inner bottom
-    (1.4, 5.2),    # inner side
-    (1.7, 5.4),    # back near base
+    # Ear 2 (rear) — pointy triangle
+    (10.8, 5.4),
+    (10.7, 7.2),     # ear 2 tip
+    (10.0, 5.4),
+
+    # Top of back: smooth arc from head to where the tail rises
+    (8.5, 5.7),
+    (6.5, 6.0),
+    (4.5, 5.9),
+    (3.2, 5.6),
+
+    # ---- Curly spiral tail ------------------------------------------------
+    # Stem rising from the back, then 1.5 turns of an outward-then-inward
+    # spiral. Self-intersecting on purpose: when traced as a line on a map,
+    # the crossings ARE the curl.
+    (3.0, 6.5),      # stem rises
+    (3.0, 7.2),      # top of stem
+    (2.2, 7.6),      # outer spiral — top
+    (1.0, 7.3),      # outer spiral — left
+    (0.4, 6.4),      # outer spiral — bottom-left
+    (0.7, 5.5),      # outer spiral — bottom
+    (1.7, 5.3),      # outer spiral — bottom-right (closes outer loop)
+    (2.5, 6.0),      # second turn — going up inside the outer loop
+    (2.0, 6.7),      # second turn — top inside
+    (1.2, 6.4),      # second turn — left inside
+    (1.5, 5.8),      # innermost
+    # Exit the spiral back toward the body
+    (2.6, 5.5),
 
     # Rump down to back leg
-    (2.0, 4.5),
-    (2.2, 3.0),
+    (2.7, 4.0),
+    (2.8, 2.4),
 
-    # Back leg (wide, deep out-and-back)
-    (2.5, 1.5),
-    (2.5, 0.2),    # foot bottom outer
-    (5.0, 0.2),    # foot bottom inner
-    (5.0, 1.8),    # leg inner top
+    # Back leg (stubby, wide foot)
+    (2.8, 0.6),
+    (2.8, 0.2),
+    (4.6, 0.2),
+    (4.6, 0.6),
+    (4.4, 1.8),
 
-    # Belly between legs
-    (7.0, 2.0),
-    (8.5, 2.0),
+    # Belly
+    (6.2, 1.6),
+    (8.4, 1.6),
+    (10.5, 1.7),
 
-    # Front leg
-    (9.0, 1.8),
-    (9.0, 0.2),    # foot bottom outer
-    (11.5, 0.2),   # foot bottom inner
-    (11.5, 1.8),   # leg inner top
+    # Front leg (stubby)
+    (11.0, 2.0),
+    (11.2, 0.6),
+    (11.2, 0.2),
+    (13.0, 0.2),
+    (13.0, 0.6),
+    (12.8, 2.2),
 
-    # Chest curve up to chin
-    (12.0, 2.5),
-    (12.5, 3.2),
-    (12.8, 3.7),
-    (13.0, 4.0),   # close to snout tip
+    # Chest curving up to underside of snout
+    (13.3, 2.9),
+    (13.7, 3.5),
+    (14.0, 4.0),
 ]

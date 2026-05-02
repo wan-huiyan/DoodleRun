@@ -27,6 +27,7 @@ sys.path.insert(0, str(PROTOTYPE_DIR))
 from gpx_export import gpx_to_string                       # noqa: E402
 from kml_export import kml_to_string                       # noqa: E402
 from osrm_client import macos_keychain_bundle              # noqa: E402
+from preview import project_outline, scale_for_distance    # noqa: E402
 from route_generator import generate, generate_search      # noqa: E402
 from shapes import SHAPES                                  # noqa: E402
 
@@ -35,6 +36,8 @@ from models import (                                       # noqa: E402
     GenerateResponse,
     GeoJSONLineString,
     HealthResponse,
+    PreviewRequest,
+    PreviewResponse,
     ShapeMeta,
     ShapesResponse,
     ShareRequest,
@@ -216,6 +219,31 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
         fidelity=result.fidelity,
         chosen_lat=result.center_lat,
         chosen_lon=result.center_lon,
+    )
+
+
+# ---- Preview (no OSRM) -----------------------------------------------------
+
+@app.post("/preview", response_model=PreviewResponse)
+def preview_shape(req: PreviewRequest) -> PreviewResponse:
+    """Project the idealized outline at the given center+distance and return
+    the waypoints WITHOUT calling OSRM. Lets the web/iOS clients render a
+    doodle preview before the user commits to a (rate-limited) /generate."""
+    if req.shape not in SHAPES:
+        raise HTTPException(404, f"Unknown shape '{req.shape}'. "
+                                 f"See GET /shapes for available shapes.")
+    outline = SHAPES[req.shape]
+    target_m = req.distance_km * 1000.0
+    scale = scale_for_distance(outline, target_m)
+    waypoints = project_outline(outline, req.lat, req.lon, scale)
+    geojson_coords = [(lon, lat) for lat, lon in waypoints]
+    return PreviewResponse(
+        shape=req.shape,
+        scale_m_per_unit=scale,
+        center_lat=req.lat,
+        center_lon=req.lon,
+        waypoints=waypoints,
+        geojson=GeoJSONLineString(coordinates=geojson_coords),
     )
 
 
