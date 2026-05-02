@@ -24,7 +24,7 @@ DoodleRun/
 ```
 cd prototype
 pip install -r requirements.txt
-python main.py --shape pig --lat 37.7530 --lon -122.4830 --distance 10.0
+python main.py --shape pig --lat 51.75 --lon -0.34 --distance 10.0
 ```
 
 `--shape` accepts `pig`, `cat`, `dog`, `dino`, or `chicken`. Outputs land in
@@ -49,11 +49,16 @@ Street snapping inflates the routed distance well above the shape's geometric
 perimeter, especially around the leg "spikes" which force out-and-back
 detours. Empirically:
 
-- **Grid neighborhoods (Sunset, Richmond, Manhattan):** converges within
-  ±15% for ~10 km targets across all five shapes.
-- **Dense/hilly downtown (SOMA, Civic Center):** features get warped into
-  multi-block loops; bump the target to ~15 km+ for the shape to stay
-  recognizable.
+- **Suburban grids (St Albans, Hatfield, US Sunset/Richmond):** converges
+  within ±20% for ~10 km targets across all five shapes.
+- **Dense central cities (central London, SF SOMA):** features get warped
+  into multi-block loops; bump the target to ~15 km+ to stay recognizable.
+- **Avoid centers inside large parks (Hyde Park, Regent's Park, Golden
+  Gate Park):** OSRM's foot graph treats park interiors as disconnected
+  pockets, so a centered shape will project waypoints onto unsnappable
+  land and OSRM returns `NoRoute`. Move the center to an adjacent street
+  grid; the iteration loop also keeps the best earlier result if a later
+  iteration's smaller scale lands waypoints in such a pocket.
 - **Realistic minimum:** legs need to span ~2 city blocks each for the
   silhouette to read, which puts the floor around 8 km on a regular grid.
 
@@ -78,23 +83,29 @@ pip install pytest
 python -m pytest tests/ -v
 ```
 
-36 tests cover the offline pieces (resample, projection, GPX writer, all five
-shape definitions). OSRM is exercised against a recorded fixture
+38 tests cover the offline pieces (resample, projection, GPX writer, all five
+shape definitions, and the iteration loop's resilience to mid-iteration OSRM
+failures). OSRM is exercised against a recorded fixture
 (`tests/fixtures/osrm_route.json`) so the suite never touches the network.
 
 ## Sample outputs
 
-`samples/` contains a 10 km reference render of every shape, generated around
-the SF Sunset District grid. Open the HTML files in a browser to see the
-snapped route overlaid on the idealized outline:
+`samples/` contains a 10 km reference render of every shape, generated across
+London and Hertfordshire. Open the HTML files in a browser to see the snapped
+route overlaid on the idealized outline:
 
-| Shape | Routed | File |
-|---|---|---|
-| pig 🐷 | 11.44 km | [samples/pig_route.html](samples/pig_route.html) |
-| cat 🐱 | 11.03 km | [samples/cat_route.html](samples/cat_route.html) |
-| dog 🐶 | 10.72 km | [samples/dog_route.html](samples/dog_route.html) |
-| dino 🦖 | 11.59 km | [samples/dino_route.html](samples/dino_route.html) |
-| chicken 🐔 | 10.60 km | [samples/chicken_route.html](samples/chicken_route.html) |
+| Shape | Center | Routed | File |
+|---|---|---|---|
+| pig 🐷 | St Albans, Hertfordshire | 11.54 km | [samples/pig_route.html](samples/pig_route.html) |
+| cat 🐱 | Knightsbridge, central London | 14.10 km | [samples/cat_route.html](samples/cat_route.html) |
+| dog 🐶 | Hampstead Heath, north London | 12.53 km | [samples/dog_route.html](samples/dog_route.html) |
+| dino 🦖 | Hatfield, Hertfordshire | 12.06 km | [samples/dino_route.html](samples/dino_route.html) |
+| chicken 🐔 | Clapham Common, south London | 12.21 km | [samples/chicken_route.html](samples/chicken_route.html) |
+
+Central London routes overshoot the 10 km target more than the SF Sunset
+grid did (cat 41% over) — Hyde Park, Regent's Park, the river, and railway
+crossings all create fixed-cost detours that don't shrink with the shape.
+For tighter convergence, prefer suburban grids.
 
 ## Phase 2 — iOS app (TBD)
 

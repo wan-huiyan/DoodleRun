@@ -82,7 +82,17 @@ def generate(
     best_err = float("inf")
     for i in range(max_iterations):
         waypoints = project_shape(sampled, center_lat, center_lon, scale)
-        result = route_through(waypoints, verify=verify)
+        try:
+            result = route_through(waypoints, verify=verify)
+        except Exception as e:
+            # Late iterations can fail when the scale shrinks waypoints onto
+            # parks/water/private land where the OSRM foot graph has no edges.
+            # Keep the best previous iteration rather than blowing up.
+            print(f"  iter {i + 1}: scale={scale:.2f} m/unit FAILED ({e.__class__.__name__}); "
+                  f"stopping with best so far")
+            if best is None:
+                raise
+            break
         ratio = target_distance_m / result.distance_m
         err = abs(result.distance_m - target_distance_m) / target_distance_m
         print(f"  iter {i + 1}: scale={scale:.2f} m/unit, routed={result.distance_m:.0f}m, "

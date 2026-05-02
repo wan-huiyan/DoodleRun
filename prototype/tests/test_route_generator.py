@@ -97,3 +97,39 @@ class TestGenerateConvergence:
             )
         # Within 3% of target on iter 1 → should stop after one call.
         assert call_count["n"] == 1
+
+    def test_returns_best_when_later_iteration_raises(self):
+        """If a late iteration raises (e.g. OSRM NoRoute when scale shrinks
+        waypoints onto unconnected park interiors), we should keep the best
+        earlier iteration rather than propagating the error."""
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        calls = {"n": 0}
+        def fake(waypoints, profile="foot", base_url="", verify=True):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return RouteResult(coordinates=list(waypoints),
+                                   distance_m=20000.0, duration_s=0)
+            raise RuntimeError("OSRM NoRoute on iter 2")
+        with patch("route_generator.route_through", side_effect=fake):
+            result = generate(
+                outline=outline,
+                center_lat=37.0, center_lon=-122.0,
+                target_distance_m=10000.0,
+                n_waypoints=10, max_iterations=5,
+            )
+        # iter 1 succeeded with 20km, iter 2 failed → return iter 1's best.
+        assert result.distance_m == 20000.0
+
+    def test_raises_when_first_iteration_fails(self):
+        """If we never get a successful route at all, the error should still
+        propagate — there's nothing to fall back to."""
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        with patch("route_generator.route_through",
+                   side_effect=RuntimeError("OSRM down")):
+            with pytest.raises(RuntimeError, match="OSRM down"):
+                generate(
+                    outline=outline,
+                    center_lat=37.0, center_lon=-122.0,
+                    target_distance_m=10000.0,
+                    n_waypoints=10, max_iterations=5,
+                )
