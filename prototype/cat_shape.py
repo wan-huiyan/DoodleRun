@@ -1,14 +1,12 @@
 """Cat outline — doodle style.
 
-Faces RIGHT. Signature features (in order of importance):
-1. Two BIG pointy triangle ears on top of the head — exaggerated, ~2.5 units
-   tall, much taller than realistic anatomy.
-2. Long curving tail held UP HIGH, curling forward at the tip.
-3. Arched back rising in the middle.
-4. Slim body, small round head, two legs.
+Faces RIGHT. Designed by the "ONE signature feature" principle:
+two HUGE pointy triangle EARS dominate the silhouette — ~3 units tall,
+roughly half the body height. Slim curving body, long graceful tail
+rising from the rump and curling at the tip.
 
-Cat reads as "cat" mostly because of ears + raised tail. Everything else is
-just oval body.
+The pointy triangle ears are the primary cat-vs-dog distinguisher in
+GPS art (Strava cats consistently use them oversized).
 """
 
 from __future__ import annotations
@@ -19,65 +17,64 @@ from shape_utils import Point
 
 CAT_OUTLINE: List[Point] = [
     # Nose tip
-    (11.0, 4.0),
-    # Top of nose up to forehead
-    (10.7, 4.6),
-    (10.2, 5.1),
+    (10.0, 4.0),
+    # Top of nose, forehead
+    (9.7, 4.6),
+    (9.3, 5.0),
 
-    # Big right ear (closer to snout) — tall pointy triangle
-    (10.0, 5.2),
-    (10.4, 8.0),     # ear 1 tip — TALL
-    (9.4, 5.4),
+    # HUGE pointy ear 1 (front) — ~3 units tall
+    (9.0, 5.1),
+    (9.5, 8.0),
+    (8.5, 5.2),
 
     # Forehead between ears
-    (9.0, 5.4),
+    (8.2, 5.2),
 
-    # Big left ear (rear) — tall pointy triangle
-    (8.6, 5.4),
-    (8.1, 8.0),      # ear 2 tip — TALL
-    (7.6, 5.4),
+    # HUGE pointy ear 2 (rear)
+    (7.9, 5.2),
+    (7.5, 8.0),
+    (7.0, 5.2),
 
-    # Arched back: rises in the middle, then descends to rump
-    (7.0, 5.7),
-    (5.5, 6.4),      # arch peak
-    (4.0, 6.0),
-    (3.0, 5.6),
+    # Slight arched back
+    (6.0, 5.5),
+    (4.5, 5.8),
+    (3.0, 5.5),
 
-    # Tail rising HIGH from the rump, curling forward at the tip
-    (2.6, 5.9),
+    # Tail rising from rump and curling forward at the tip
+    (2.5, 5.8),
     (1.9, 6.7),
     (1.4, 7.7),
-    (1.5, 8.7),      # top of tail
-    (2.3, 9.0),      # tail tip (curled forward)
-    (2.9, 8.4),
-    (2.7, 7.4),
-    (3.1, 6.2),
+    (1.5, 8.6),      # top
+    (2.2, 8.9),      # tail tip (curled forward)
+    (2.7, 8.3),
+    (2.5, 7.3),
+    (2.9, 6.0),
 
-    # Rump down to back leg
-    (3.5, 4.6),
-    (3.5, 2.4),
+    # Rump down
+    (3.3, 4.5),
+    (3.3, 2.5),
 
     # Back leg (slim)
-    (3.5, 0.5),
-    (3.5, 0.2),
-    (4.7, 0.2),
-    (4.7, 0.5),
-    (4.6, 1.9),
+    (3.3, 0.4),
+    (3.3, 0.2),
+    (4.3, 0.2),
+    (4.3, 0.4),
+    (4.2, 2.0),
 
     # Belly
-    (6.2, 1.9),
-    (8.0, 1.9),
+    (5.6, 2.0),
+    (7.5, 2.0),
 
     # Front leg (slim)
-    (8.5, 2.0),
-    (8.5, 0.5),
-    (8.5, 0.2),
-    (9.7, 0.2),
-    (9.7, 0.5),
-    (9.6, 1.9),
+    (8.0, 2.0),
+    (8.0, 0.4),
+    (8.0, 0.2),
+    (9.0, 0.2),
+    (9.0, 0.4),
+    (8.9, 2.0),
 
     # Chest, throat, close
-    (10.1, 2.7),
-    (10.5, 3.4),
-    (11.0, 4.0),
+    (9.3, 2.7),
+    (9.6, 3.4),
+    (10.0, 4.0),
 ]
