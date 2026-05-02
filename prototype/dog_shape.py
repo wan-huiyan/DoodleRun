@@ -1,13 +1,15 @@
-"""Dog outline — doodle style.
+"""Dog outline — beagle-stance side-profile dog with one big floppy ear.
 
-Faces RIGHT. Designed by the "ONE signature feature" principle:
-ONE big floppy EAR drooping forward from the back of the head — the cat-
-vs-dog distinguisher. Side-profile convention shows one ear (the visible
-one); two competing ear-loops just looked like duplicated front legs in
-the v1 design.
+Promoted from `dog_candidate_1` per the SHAPE_OVERHAUL_PLAN review: the
+drooping floppy ear is the key cat-vs-dog differentiator at thumbnail
+scale. The sitting/perky-eared candidate (3) is preserved as an alternate
+— see `dog_candidate_3.py`.
 
-Long horizontal body (beagle/dachshund stance), long rectangular snout,
-tail held UP and slightly forward.
+Faces RIGHT. Long horizontal body (beagle/dachshund stance), long
+rectangular snout, tail held UP and slightly forward.
+
+Format: standard shape-file interface (OUTLINE + INTERIOR_FEATURES +
+METADATA — see `prototype/shapes.py` for the registry contract).
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ from typing import List
 
 from shape_utils import Point
 
-DOG_OUTLINE: List[Point] = [
+OUTLINE: List[Point] = [
     # Snout tip
     (13.0, 3.5),
     # Top of long rectangular snout
@@ -28,14 +30,13 @@ DOG_OUTLINE: List[Point] = [
     (11.0, 5.5),
 
     # ONE BIG FLOPPY EAR — drooping forward from the back of the head,
-    # integrated into the head silhouette as a downward U-shape. Tip
-    # ends at y=2.7, well clear of the front leg's x range.
-    (10.5, 5.2),     # ear front, going down
+    # integrated into the head silhouette as a downward U-shape.
+    (10.5, 5.2),
     (9.8, 4.0),
-    (9.5, 2.8),      # ear tip (drooped low)
+    (9.5, 2.8),
     (10.2, 2.6),
     (10.5, 4.0),
-    (10.7, 5.0),     # back to head
+    (10.7, 5.0),
 
     # Top of head behind ear, then long top of back
     (10.5, 5.7),
@@ -46,7 +47,7 @@ DOG_OUTLINE: List[Point] = [
     # Tail UP and slightly forward (wagging)
     (3.0, 5.7),
     (2.5, 6.6),
-    (2.5, 7.6),      # tail tip
+    (2.5, 7.6),
     (3.2, 7.6),
     (3.5, 6.6),
     (3.7, 5.5),
@@ -55,14 +56,14 @@ DOG_OUTLINE: List[Point] = [
     (4.0, 4.0),
     (4.0, 2.5),
 
-    # Back leg (longer than cat — dog stance)
+    # Back leg
     (4.0, 0.4),
     (4.0, 0.2),
     (5.3, 0.2),
     (5.3, 0.4),
     (5.2, 2.0),
 
-    # Belly (long body)
+    # Belly
     (6.8, 1.8),
     (9.3, 1.8),
 
@@ -80,3 +81,21 @@ DOG_OUTLINE: List[Point] = [
     (12.6, 3.3),
     (13.0, 3.5),
 ]
+
+# Single eye dot near the head — tiny out-and-back stroke.
+INTERIOR_FEATURES: List[List[Point]] = [
+    [
+        (11.4, 4.8),
+        (11.5, 4.9),
+        (11.4, 4.8),
+    ],
+]
+
+METADATA = {
+    "description": "Side-profile dog with one big floppy ear, long body, tail-up.",
+    "source": "promoted from dog_candidate_1 (hand-crafted)",
+    "license": "internal",
+}
+
+# Legacy alias.
+DOG_OUTLINE: List[Point] = OUTLINE
