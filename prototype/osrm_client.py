@@ -34,7 +34,7 @@ def macos_keychain_bundle(cache_path: Optional[str] = None) -> str:
     if sys.platform != "darwin":
         raise RuntimeError("macos_keychain_bundle is only meaningful on macOS")
     if cache_path is None:
-        cache_path = os.path.join(tempfile.gettempdir(), "gps-art-runner-ca.pem")
+        cache_path = os.path.join(tempfile.gettempdir(), "doodlerun-ca.pem")
     if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
         return cache_path
 

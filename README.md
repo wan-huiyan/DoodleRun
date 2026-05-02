@@ -1,4 +1,4 @@
-# gps-art-runner
+# DoodleRun
 
 Plan running routes that draw animal shapes on the map. Set a target distance,
 the app generates a route that traces an animal outline snapped to real
@@ -9,7 +9,7 @@ streets/trails, and you export it as GPX for Garmin/Strava.
 ## Layout
 
 ```
-gps-art-runner/
+DoodleRun/
 ├── prototype/      # Phase 1: Python prototype (build & verify here first)
 ├── ios-app/        # Phase 2: SwiftUI + MapKit iPhone app (TBD)
 └── output/         # Generated GPX files and HTML map previews
