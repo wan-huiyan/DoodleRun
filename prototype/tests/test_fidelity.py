@@ -9,9 +9,12 @@ import pytest
 
 from fidelity import (
     bbox_diagonal_m,
+    combined_score,
     densify,
     fidelity_score,
+    frechet_score,
     haversine,
+    iou_score,
 )
 
 
@@ -119,3 +122,78 @@ class TestFidelityScore:
         s_big = fidelity_score(big_ideal, big_snap)
         # Same absolute deviation, 10x larger bbox → score ~10x lower.
         assert s_big < s_small / 5
+
+
+class TestFrechetScore:
+    def test_perfect_tracing_scores_zero(self):
+        ideal = [(51.5, -0.1), (51.501, -0.099), (51.502, -0.098)]
+        assert frechet_score(ideal, ideal) == pytest.approx(0.0, abs=1e-3)
+
+    def test_order_matters(self):
+        """Hausdorff is order-blind — Fréchet isn't. Reversing the snap
+        should leave Hausdorff unchanged but bump Fréchet sharply."""
+        ideal = [(51.500, -0.10), (51.510, -0.09), (51.520, -0.10),
+                 (51.530, -0.09)]
+        forward = ideal[:]
+        backward = list(reversed(ideal))
+        h_fwd = fidelity_score(ideal, forward)
+        h_bwd = fidelity_score(ideal, backward)
+        f_fwd = frechet_score(ideal, forward)
+        f_bwd = frechet_score(ideal, backward)
+        # Hausdorff doesn't care about direction.
+        assert h_fwd == pytest.approx(h_bwd, abs=1e-6)
+        # Fréchet does — the reversed traversal can't track in lockstep.
+        assert f_bwd > f_fwd
+
+    def test_empty_inputs_return_inf(self):
+        assert frechet_score([], [(51.5, -0.1)]) == float("inf")
+
+
+class TestIouScore:
+    def test_identical_polylines_score_zero(self):
+        ideal = [(51.500, -0.10), (51.510, -0.09), (51.520, -0.10)]
+        assert iou_score(ideal, ideal) == pytest.approx(0.0, abs=1e-3)
+
+    def test_offset_line_scores_higher(self):
+        ideal = [(51.500, -0.10), (51.510, -0.09), (51.520, -0.10)]
+        # Shifted ~500m north → buffered overlap drops.
+        offset = 500 / 111_320.0
+        snap = [(lat + offset, lon) for lat, lon in ideal]
+        s_close = iou_score(ideal, ideal, buffer_m=30)
+        s_far = iou_score(ideal, snap, buffer_m=30)
+        assert s_far > s_close
+
+
+class TestCombinedScore:
+    def test_returns_components(self):
+        ideal = [(51.500, -0.10), (51.510, -0.09), (51.520, -0.10)]
+        out = combined_score(ideal, ideal)
+        assert {"hausdorff", "frechet", "iou", "combined"} <= set(out.keys())
+
+    def test_distance_hard_cap_returns_inf(self):
+        """A route 3x the target distance must fail the 2x hard cap."""
+        ideal = [(51.500, -0.10), (51.510, -0.09)]
+        out = combined_score(
+            ideal, ideal,
+            routed_distance_m=30_000,
+            target_distance_m=10_000,
+            max_distance_m=20_000,
+        )
+        assert out["combined"] == float("inf")
+
+    def test_distance_soft_penalty_grows_with_deviation(self):
+        ideal = [(51.500, -0.10), (51.510, -0.09)]
+        on_target = combined_score(
+            ideal, ideal,
+            routed_distance_m=10_000,
+            target_distance_m=10_000,
+            max_distance_m=20_000,
+        )
+        off_target = combined_score(
+            ideal, ideal,
+            routed_distance_m=15_000,
+            target_distance_m=10_000,
+            max_distance_m=20_000,
+        )
+        # Same shape (perfect tracing of itself), but 50% over → penalty ≥ 0.15.
+        assert off_target["combined"] > on_target["combined"]

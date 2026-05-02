@@ -50,14 +50,22 @@ class TestCandidateScales:
     def test_geometric_spacing(self):
         s = candidate_scales(10_000.0, 40.0, 5)
         assert len(s) == 5
-        # Should span 0.6x .. 3.0x of the base.
+        # Default sweep: 0.5x .. 1.8x of the base (narrowed from the
+        # original 0.6x..3.0x; the distance-budget hard cap rejects the
+        # bigger end of the range anyway).
         base = 10_000 / 1.3 / 40.0
-        assert s[0] == pytest.approx(base * 0.6)
-        assert s[-1] == pytest.approx(base * 3.0)
+        assert s[0] == pytest.approx(base * 0.5)
+        assert s[-1] == pytest.approx(base * 1.8)
         # Geometric: each consecutive ratio should be the same.
         ratios = [s[i + 1] / s[i] for i in range(len(s) - 1)]
         for r in ratios:
             assert r == pytest.approx(ratios[0], rel=1e-6)
+
+    def test_custom_sweep_bounds(self):
+        s = candidate_scales(10_000.0, 40.0, 3, low=0.8, high=1.2)
+        base = 10_000 / 1.3 / 40.0
+        assert s[0] == pytest.approx(base * 0.8)
+        assert s[-1] == pytest.approx(base * 1.2)
 
 
 def _fake_route_through_factory(perfect_center: tuple[float, float]):
@@ -94,13 +102,14 @@ class TestGenerateSearch:
                 n_candidates=3, n_scales=2,
                 n_waypoints=10,
             )
-        # generate_search picks by fidelity, so the chosen route's score
-        # should be no worse than any other candidate's. With our fake the
-        # snapped polyline IS the waypoints, so fidelity score is 0 for the
-        # candidate centered exactly on the seed (and >0 for the ring).
+        # With the perfect-tracing fake, every candidate has Hausdorff /
+        # Fréchet / IoU scores of 0; combined-score then comes down purely
+        # to the distance soft penalty. We just assert the search returned
+        # *some* route with zero geometric error and a non-zero distance.
         assert r.fidelity == pytest.approx(0.0, abs=1e-3)
+        assert r.frechet == pytest.approx(0.0, abs=1e-3)
         assert r.distance_m > 0
-        assert (r.center_lat, r.center_lon) == (51.5, -0.1)
+        assert r.combined is not None and r.combined < float("inf")
 
     def test_skips_failing_candidates_and_keeps_working_ones(self):
         outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
@@ -133,6 +142,24 @@ class TestGenerateSearch:
                     outline=outline,
                     center_lat=51.5, center_lon=-0.1,
                     target_distance_m=5000.0,
+                    search_radius_km=10.0,
+                    n_candidates=2, n_scales=2,
+                    n_waypoints=10,
+                )
+
+    def test_distance_hard_cap_filters_oversized_candidates(self):
+        """With the 2x cap, a fake that always reports a 50 km route must
+        cause every 5 km-target candidate to be rejected → no route."""
+        def fake_huge(waypoints, profile="foot", base_url="", verify=True):
+            return RouteResult(coordinates=list(waypoints),
+                               distance_m=50_000.0, duration_s=50_000.0)
+        outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        with patch("route_generator.route_through", side_effect=fake_huge):
+            with pytest.raises(RuntimeError, match="distance cap"):
+                generate_search(
+                    outline=outline,
+                    center_lat=51.5, center_lon=-0.1,
+                    target_distance_m=5_000.0,
                     search_radius_km=10.0,
                     n_candidates=2, n_scales=2,
                     n_waypoints=10,

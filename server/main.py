@@ -29,7 +29,7 @@ from kml_export import kml_to_string                       # noqa: E402
 from osrm_client import macos_keychain_bundle              # noqa: E402
 from preview import project_outline, scale_for_distance    # noqa: E402
 from route_generator import generate, generate_search      # noqa: E402
-from shapes import SHAPES                                  # noqa: E402
+from shapes import SHAPES, SHAPES_FULL                     # noqa: E402
 
 from models import (                                       # noqa: E402
     GenerateRequest,
@@ -47,13 +47,30 @@ from store import ShareStore                               # noqa: E402
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-SHAPE_METADATA: Dict[str, Dict[str, str]] = {
-    "pig":     {"name": "Pig",     "emoji": "🐷", "distinctive_features": "curly tail, ear bump, two wide legs"},
-    "cat":     {"name": "Cat",     "emoji": "🐱", "distinctive_features": "twin pointed ears, tail curling up over back"},
+# Per-family display metadata. Alternates inherit the family entry plus a
+# numeric suffix; the picker UI groups by family so the user picks an
+# animal first, then optionally a variant.
+FAMILY_METADATA: Dict[str, Dict[str, str]] = {
+    "pig":     {"name": "Pig",     "emoji": "🐷", "distinctive_features": "floppy round ear, side-profile silhouette"},
+    "cat":     {"name": "Cat",     "emoji": "🐱", "distinctive_features": "pointy ears, tail curling up over back"},
     "dog":     {"name": "Dog",     "emoji": "🐶", "distinctive_features": "floppy ear, long snout, longer body"},
-    "dino":    {"name": "Dino",    "emoji": "🦖", "distinctive_features": "three back spikes, long tapering tail"},
-    "chicken": {"name": "Chicken", "emoji": "🐔", "distinctive_features": "three-peak comb, beak, layered tail feathers"},
+    "dino":    {"name": "Dino",    "emoji": "🦖", "distinctive_features": "long neck, three back plates"},
+    "chicken": {"name": "Chicken", "emoji": "🐔", "distinctive_features": "jagged comb, beak, layered tail feathers"},
 }
+
+
+def _shape_meta_for(shape_id: str) -> Dict[str, str]:
+    """Best-effort lookup: family metadata first, then per-shape METADATA
+    description. Falls back to a generic entry so the API never 500s on
+    a newly-added shape that isn't in FAMILY_METADATA yet."""
+    s = SHAPES_FULL.get(shape_id)
+    family = s.family if s else shape_id.split("_")[0]
+    fam_meta = FAMILY_METADATA.get(family, {
+        "name": family.capitalize(),
+        "emoji": "🏃",
+        "distinctive_features": (s.metadata.get("description", "") if s else ""),
+    })
+    return {**fam_meta, "family": family}
 
 
 def _resolve_verify() -> object:
@@ -150,13 +167,48 @@ def health() -> HealthResponse:
     return HealthResponse(status="ok", shapes_loaded=len(SHAPES))
 
 
+def _build_shape_meta(shape_id: str) -> ShapeMeta:
+    s = SHAPES_FULL.get(shape_id)
+    fam_meta = _shape_meta_for(shape_id)
+    is_default = (shape_id == fam_meta["family"])
+    description = (s.metadata.get("description", "") if s else "")
+    # Alternates get a "Pig (alt 3)" style label so the picker can render
+    # them under the same family heading without colliding.
+    label = fam_meta["name"]
+    if not is_default and "_candidate_" in shape_id:
+        n = shape_id.rsplit("_", 1)[-1]
+        label = f"{fam_meta['name']} (alt {n})"
+    return ShapeMeta(
+        id=shape_id,
+        name=label,
+        emoji=fam_meta["emoji"],
+        distinctive_features=fam_meta["distinctive_features"],
+        family=fam_meta["family"],
+        is_default=is_default,
+        description=description,
+    )
+
+
 @app.get("/shapes", response_model=ShapesResponse)
 def list_shapes() -> ShapesResponse:
+    """List every registered shape. Defaults come first per family,
+    alternates after, ordered by family name."""
+    family_order = list(FAMILY_METADATA.keys())
+
+    def sort_key(sid: str):
+        s = SHAPES_FULL.get(sid)
+        family = s.family if s else sid
+        # Defaults sort first within family (by putting "" before any
+        # candidate suffix).
+        suffix = "" if sid == family else sid[len(family):]
+        try:
+            fi = family_order.index(family)
+        except ValueError:
+            fi = len(family_order)
+        return (fi, family, suffix)
+
     return ShapesResponse(
-        shapes=[
-            ShapeMeta(id=sid, **SHAPE_METADATA[sid])
-            for sid in sorted(SHAPES.keys())
-        ]
+        shapes=[_build_shape_meta(sid) for sid in sorted(SHAPES.keys(), key=sort_key)]
     )
 
 
@@ -202,7 +254,7 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
     # Render GPX + KML into strings so the client can offer share-sheet
     # exports without a second roundtrip. KML is the format Google My Maps
     # imports natively.
-    name = f"{SHAPE_METADATA[req.shape]['name']} Run"
+    name = f"{_shape_meta_for(req.shape)['name']} Run"
     desc = f"GPS-art {req.shape}, ~{result.distance_m / 1000:.2f} km"
     gpx_text = gpx_to_string(result.polyline, name=name, description=desc)
     kml_text = kml_to_string(result.polyline, name=name, description=desc)
@@ -285,7 +337,7 @@ def download_shared_gpx(share_id: str) -> Response:
     if payload is None:
         raise HTTPException(404, "Share link not found or expired")
     polyline = _polyline_from_share(payload)
-    name = f"{SHAPE_METADATA.get(payload['shape'], {}).get('name', payload['shape'])} Run"
+    name = f"{_shape_meta_for(payload['shape'])['name']} Run"
     text = gpx_to_string(polyline, name=name,
                          description=f"GPS-art {payload['shape']}")
     return Response(
@@ -301,7 +353,7 @@ def download_shared_kml(share_id: str) -> Response:
     if payload is None:
         raise HTTPException(404, "Share link not found or expired")
     polyline = _polyline_from_share(payload)
-    name = f"{SHAPE_METADATA.get(payload['shape'], {}).get('name', payload['shape'])} Run"
+    name = f"{_shape_meta_for(payload['shape'])['name']} Run"
     text = kml_to_string(polyline, name=name,
                          description=f"GPS-art {payload['shape']}")
     return Response(

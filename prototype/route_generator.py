@@ -12,7 +12,7 @@ import math
 from dataclasses import dataclass
 from typing import List, Tuple, Union
 
-from fidelity import fidelity_score
+from fidelity import combined_score, fidelity_score
 from osrm_client import RouteResult, route_through
 from shape_utils import Point, bounding_box, outline_perimeter, resample
 
@@ -21,13 +21,18 @@ EARTH_M_PER_DEG_LAT = 111_320.0
 
 @dataclass
 class GeneratedRoute:
-    waypoints: List[Tuple[float, float]]   # the snapped pig-shape waypoints (lat, lon)
+    waypoints: List[Tuple[float, float]]   # the snapped shape waypoints (lat, lon)
     polyline: List[Tuple[float, float]]    # full street-level polyline (lat, lon)
     distance_m: float
     scale_m_per_unit: float
     center_lat: float = 0.0
     center_lon: float = 0.0
-    fidelity: float = float("inf")        # lower is better; see fidelity.py
+    fidelity: float = float("inf")        # primary score (Hausdorff). Lower=better.
+    # Optional component scores from combined_score(). Populated only when the
+    # search loop is used; the deterministic generate() leaves them at None.
+    frechet: float | None = None
+    iou: float | None = None
+    combined: float | None = None
 
 
 def m_per_deg_lon(lat_deg: float) -> float:
@@ -156,21 +161,22 @@ def candidate_centers(center_lat: float,
 
 def candidate_scales(target_distance_m: float,
                      perimeter_units: float,
-                     n: int) -> List[float]:
+                     n: int,
+                     low: float = 0.5,
+                     high: float = 1.8) -> List[float]:
     """N geometrically-spaced scales (m/unit) bracketing the scale that
-    would produce target_distance_m if the route exactly followed the
-    shape perimeter. The 1.3x inflation factor matches typical
-    street-snap behaviour.
+    would produce target_distance_m if the route followed the shape
+    perimeter (with a 1.3x street-snap inflation factor).
 
-    Range spans 0.6x to 3.0x of the base — empirically, fidelity
-    improves with scale (each animal feature needs to span multiple city
-    blocks to read), so we want to probe well above the user's nominal
-    target distance.
+    Default sweep is 0.5x..1.8x of the base — narrowed from the original
+    0.6x..3.0x because the distance-budget hard cap (Section 6.2 of the
+    overhaul plan) rejects routes above 2x target anyway, so probing
+    bigger scales burns OSRM calls on candidates that will be discarded.
     """
     base = (target_distance_m / 1.3) / perimeter_units
     if n <= 1:
         return [base]
-    factors = [0.6 * (3.0 / 0.6) ** (i / (n - 1)) for i in range(n)]
+    factors = [low * (high / low) ** (i / (n - 1)) for i in range(n)]
     return [base * f for f in factors]
 
 
@@ -184,14 +190,23 @@ def generate_search(
     n_scales: int = 3,
     n_waypoints: int = 40,
     verify: Union[bool, str] = True,
+    *,
+    distance_cap_factor: float = 2.0,
+    distance_weight: float = 0.3,
+    score_weights: Tuple[float, float, float] = (0.5, 0.3, 0.2),
 ) -> GeneratedRoute:
     """Search candidate (center, scale) pairs and return the route with the
-    best shape fidelity score. Distance is treated as a hint, not a target —
-    `target_distance_m` only seeds the scale grid.
+    best combined fidelity-plus-distance score.
+
+    The combined score blends Modified Hausdorff (Section 3.1A), discrete
+    Fréchet (3.1A), and buffered IoU (3.1B), then applies a soft penalty
+    for routes that deviate from `target_distance_m` and a hard cap at
+    `distance_cap_factor × target_distance_m` (Section 6.2). Routes above
+    the cap are discarded outright — this prevents the 45–70 km blow-up
+    runs that pure fidelity-maximization produced.
 
     Total OSRM calls: n_candidates × n_scales. With the 1.1s/call rate
-    limit, a 5×3 grid takes ~17s; a 9×4 grid ~40s. Prefer fewer candidates
-    for interactive use, more for offline sample regeneration.
+    limit, a 5×3 grid takes ~17s; a 9×4 grid ~40s.
     """
     if n_candidates < 1 or n_scales < 1:
         raise ValueError("n_candidates and n_scales must be >= 1")
@@ -200,9 +215,13 @@ def generate_search(
     perimeter_units = outline_perimeter(sampled)
     centers = candidate_centers(center_lat, center_lon, search_radius_km, n_candidates)
     scales = candidate_scales(target_distance_m, perimeter_units, n_scales)
+    max_distance_m = distance_cap_factor * target_distance_m
 
     best: GeneratedRoute | None = None
-    print(f"  fidelity search: {len(centers)} centers × {len(scales)} scales = {len(centers) * len(scales)} candidates")
+    best_combined = float("inf")
+    print(f"  fidelity search: {len(centers)} centers × {len(scales)} scales "
+          f"= {len(centers) * len(scales)} candidates "
+          f"(target={target_distance_m/1000:.1f}km, cap={max_distance_m/1000:.1f}km)")
     for ci, (lat, lon) in enumerate(centers):
         for si, scale in enumerate(scales):
             try:
@@ -210,13 +229,25 @@ def generate_search(
                 result = route_through(waypoints, verify=verify)
             except Exception as e:
                 print(f"    cand {ci+1}/{len(centers)} scale {si+1}/{len(scales)} "
-                      f"@ ({lat:.4f},{lon:.4f}) scale={scale:.0f}m/u FAILED ({e.__class__.__name__})")
+                      f"@ ({lat:.4f},{lon:.4f}) scale={scale:.0f}m/u "
+                      f"FAILED ({e.__class__.__name__})")
                 continue
-            score = fidelity_score(waypoints, result.coordinates)
+            scores = combined_score(
+                waypoints, result.coordinates,
+                routed_distance_m=result.distance_m,
+                target_distance_m=target_distance_m,
+                max_distance_m=max_distance_m,
+                weights=score_weights,
+                distance_weight=distance_weight,
+            )
+            cap_marker = " ✗ over cap" if scores["combined"] == float("inf") else ""
             print(f"    cand {ci+1}/{len(centers)} scale {si+1}/{len(scales)} "
                   f"@ ({lat:.4f},{lon:.4f}) scale={scale:.0f}m/u "
-                  f"routed={result.distance_m/1000:.1f}km fidelity={score:.4f}")
-            if best is None or score < best.fidelity:
+                  f"routed={result.distance_m/1000:.1f}km "
+                  f"H={scores['hausdorff']:.4f} F={scores['frechet']:.4f} "
+                  f"IoU={scores['iou']:.3f} → {scores['combined']:.4f}{cap_marker}")
+            if scores["combined"] < best_combined:
+                best_combined = scores["combined"]
                 best = GeneratedRoute(
                     waypoints=waypoints,
                     polyline=result.coordinates,
@@ -224,12 +255,19 @@ def generate_search(
                     scale_m_per_unit=scale,
                     center_lat=lat,
                     center_lon=lon,
-                    fidelity=score,
+                    fidelity=scores["hausdorff"],
+                    frechet=scores["frechet"],
+                    iou=scores["iou"],
+                    combined=scores["combined"],
                 )
 
     if best is None:
-        raise RuntimeError("Every candidate failed; check connectivity / search radius")
+        raise RuntimeError("Every candidate failed (or all over the distance cap); "
+                           "increase --distance, increase search-radius-km, or "
+                           "raise distance_cap_factor")
     print(f"  best: ({best.center_lat:.4f},{best.center_lon:.4f}) "
           f"scale={best.scale_m_per_unit:.0f}m/u "
-          f"routed={best.distance_m/1000:.2f}km fidelity={best.fidelity:.4f}")
+          f"routed={best.distance_m/1000:.2f}km "
+          f"H={best.fidelity:.4f} F={best.frechet:.4f} IoU={best.iou:.3f} "
+          f"combined={best.combined:.4f}")
     return best

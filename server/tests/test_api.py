@@ -53,21 +53,34 @@ class TestHealth:
         assert r.status_code == 200
         body = r.json()
         assert body["status"] == "ok"
-        assert body["shapes_loaded"] == 5
+        # 5 defaults + alternates (currently pig_3, dog_3, dino_2, dino_4).
+        # Assert ≥5 rather than ==5 so adding alternates doesn't break tests.
+        assert body["shapes_loaded"] >= 5
 
 
 class TestShapes:
-    def test_lists_all_five(self, client):
+    def test_lists_all_default_animals(self, client):
         r = client.get("/shapes")
         assert r.status_code == 200
         ids = [s["id"] for s in r.json()["shapes"]]
-        assert sorted(ids) == ["cat", "chicken", "dino", "dog", "pig"]
+        # Every default family must be present.
+        for required in ("cat", "chicken", "dino", "dog", "pig"):
+            assert required in ids, f"missing default family {required}"
 
     def test_each_shape_has_metadata(self, client):
         for shape in client.get("/shapes").json()["shapes"]:
             assert shape["name"]
             assert shape["emoji"]
             assert shape["distinctive_features"]
+            assert shape["family"]
+            assert "is_default" in shape
+
+    def test_defaults_are_flagged(self, client):
+        shapes = client.get("/shapes").json()["shapes"]
+        defaults = [s for s in shapes if s["is_default"]]
+        # One default per registered family.
+        families = {s["family"] for s in shapes}
+        assert len(defaults) == len(families)
 
 
 class TestGenerate:

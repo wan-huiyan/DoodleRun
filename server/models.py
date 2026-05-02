@@ -8,7 +8,12 @@ from pydantic import BaseModel, Field
 
 
 class ShapeMeta(BaseModel):
-    """Metadata about a single available animal shape."""
+    """Metadata about a single available shape (defaults + alternates).
+
+    `family` groups related shapes (e.g. all dog candidates have family
+    "dog") so the UI can render them together. `is_default` flags the
+    one shape per family that the picker should highlight first.
+    """
     id: str = Field(..., examples=["pig"])
     name: str = Field(..., examples=["Pig"])
     emoji: str = Field(..., examples=["🐷"])
@@ -16,6 +21,9 @@ class ShapeMeta(BaseModel):
         ...,
         examples=["curly tail, ear bump, two wide legs"],
     )
+    family: str = Field(default="", examples=["pig"])
+    is_default: bool = Field(default=True)
+    description: str = Field(default="")
 
 
 class ShapesResponse(BaseModel):
