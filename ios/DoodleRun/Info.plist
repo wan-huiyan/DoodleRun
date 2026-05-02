@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Permission rationale shown when requestWhenInUseAuthorization fires.
+         Required by CoreLocation; the app crashes on first authorization
+         request without it. -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>DoodleRun uses your location to centre the generated route on where you are.</string>
+
+    <!-- App Transport Security: allow plaintext HTTP to the local dev server
+         (http://localhost:8000) and to Bonjour/.local hosts for testing on a
+         physical device on the same Wi-Fi. Tighten or remove these for
+         production by switching the API to HTTPS. -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>localhost</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+
+    <!-- Bonjour service discovery for finding a dev API on the LAN, optional. -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>DoodleRun connects to a development API server on your local network.</string>
+</dict>
+</plist>
