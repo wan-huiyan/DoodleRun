@@ -10,21 +10,23 @@ streets/trails, and you export it as GPX for Garmin/Strava.
 
 ```
 DoodleRun/
-├── prototype/      # Phase 1: Python prototype (CLI, source of truth for routing)
-│   ├── *_shape.py  # one outline per animal
-│   ├── shapes.py   # registry that the --shape CLI flag reads
+├── prototype/         # Phase 1: Python prototype (CLI, source of truth for routing)
+│   ├── *_shape.py     # one outline per animal
+│   ├── shapes.py      # registry that the --shape CLI flag reads
 │   ├── gpx_export.py / kml_export.py
-│   └── tests/      # pytest suite (offline pieces + recorded OSRM fixture)
-├── server/         # Phase 2A: FastAPI service the iOS app calls
-│   ├── main.py     # /health, /shapes, /generate, /share, /v/{id}, /shared/{id}{,.gpx,.kml}
-│   ├── models.py   # Pydantic request/response schemas
-│   ├── store.py    # in-memory share store with TTL
-│   ├── static/viewer.html  # mobile-friendly Leaflet viewer
-│   ├── Dockerfile  # build context = repo root
-│   └── tests/      # endpoint tests with TestClient (OSRM mocked)
-├── ios/            # Phase 2B: SwiftUI + MapKit iPhone app
-├── samples/        # committed reference renders (HTML + GPX + KML for each shape)
-└── output/         # Generated GPX/KML/HTML — gitignored, regenerable
+│   └── tests/         # pytest suite (offline pieces + recorded OSRM fixture)
+├── server/            # Phase 2A: FastAPI service + mobile web app
+│   ├── main.py        # GET /, /health, /shapes, /generate, /share, /v/{id}, /shared/{id}{,.gpx,.kml}
+│   ├── models.py      # Pydantic request/response schemas
+│   ├── store.py       # in-memory share store with TTL
+│   ├── static/
+│   │   ├── app.html   # mobile-first Leaflet SPA (open `/` on phone)
+│   │   └── viewer.html # read-only Leaflet viewer for /v/{id} shared links
+│   ├── Dockerfile     # build context = repo root
+│   └── tests/         # endpoint tests with TestClient (OSRM mocked)
+├── ios/               # Phase 2B: SwiftUI + MapKit iPhone app (native alternative)
+├── samples/           # committed reference renders (HTML + GPX + KML for each shape)
+└── output/            # Generated GPX/KML/HTML — gitignored, regenerable
 ```
 
 ## Phase 1 — Python prototype
@@ -117,7 +119,7 @@ grid did (cat 41% over) — Hyde Park, Regent's Park, the river, and railway
 crossings all create fixed-cost detours that don't shrink with the shape.
 For tighter convergence, prefer suburban grids.
 
-## Phase 2A — FastAPI service
+## Phase 2A — FastAPI service + mobile web app
 
 ```
 cd server
@@ -127,15 +129,37 @@ uvicorn main:app --reload --port 8000
 DOODLERUN_CA_BUNDLE=keychain uvicorn main:app --reload --port 8000
 ```
 
+On startup the server prints a **phone-friendly URL** with the LAN IP:
+
+```
+  ┌─────────────────────────────────────────────────┐
+  │ 🏃 DoodleRun ready                              │
+  │ open on your phone: http://192.168.5.69:8000    │
+  │ on this computer:   http://localhost:8000       │
+  └─────────────────────────────────────────────────┘
+```
+
+Open `/` on your phone (same Wi-Fi as the laptop) to use the
+mobile-first **Leaflet SPA** — pick a shape, slide for distance, tap the
+map (or the 📍 button) for a location, hit Generate, and download GPX/KML
+or share a link via the system share sheet. The SPA is in
+`server/static/app.html`.
+
+> **Geolocation needs HTTPS or `localhost`.** Tapping 📍 from
+> `http://192.168.x.x:...` won't trigger the iOS prompt; tap the map
+> instead, or terminate TLS in front of the server (Caddy, ngrok, …) for
+> production access.
+
 Endpoints:
 
 | Method | Path | Body / params | Returns |
 |---|---|---|---|
+| `GET` | `/` | — | Mobile-first Leaflet SPA (`server/static/app.html`) |
 | `GET` | `/health` | — | `{status, shapes_loaded}` |
 | `GET` | `/shapes` | — | metadata for all 5 shapes (id, name, emoji, distinctive features) |
 | `POST` | `/generate` | `{shape, lat, lon, distance_km, waypoints?, iterations?}` | GeoJSON LineString + waypoints + **GPX** 1.1 string + **KML** 2.2 string |
 | `POST` | `/share` | `{shape, geojson, waypoints, routed_distance_m}` | `{id, viewer_url, json_url, expires_in_seconds}` — stashes the route in memory and returns a short-lived shareable URL |
-| `GET` | `/v/{id}` | — | Mobile-friendly Leaflet HTML viewer with the route loaded |
+| `GET` | `/v/{id}` | — | Read-only Leaflet HTML viewer with the route loaded |
 | `GET` | `/shared/{id}` | — | Raw JSON payload for the viewer to fetch |
 | `GET` | `/shared/{id}.gpx` | — | GPX download with `Content-Disposition: attachment` |
 | `GET` | `/shared/{id}.kml` | — | KML download (Google My Maps imports it directly) |
@@ -144,7 +168,7 @@ The share store is in-memory with a 7-day TTL and a 1024-entry cap; restarts
 wipe it. Drop in a Redis or SQLite backend in `server/store.py` if you ever
 deploy multiple instances.
 
-Run the test suite: `cd server && python -m pytest tests/ -v` (16 tests,
+Run the test suite: `cd server && python -m pytest tests/ -v` (17 tests,
 OSRM mocked, ~1 s).
 
 Container build (context = repo root, server imports prototype/ at runtime):

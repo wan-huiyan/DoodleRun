@@ -34,6 +34,19 @@ def _fake_route_through(distance_m: float = 10500.0):
     return fake
 
 
+class TestRoot:
+    def test_serves_spa(self, client):
+        r = client.get("/")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/html")
+        body = r.text
+        # Sanity-check the SPA's distinctive markers.
+        assert "<title>DoodleRun</title>" in body
+        assert 'id="map"' in body
+        assert 'id="shapes"' in body  # shape picker container
+        assert "leaflet" in body.lower()
+
+
 class TestHealth:
     def test_returns_ok(self, client):
         r = client.get("/health")

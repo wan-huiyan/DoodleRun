@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#1a73e8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>DoodleRun</title>
+
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    :root {
+      --tint:           #1a73e8;
+      --tint-soft:      #1a73e81a;
+      --bg:             #f2f2f7;
+      --surface:        #ffffff;
+      --fg:             #111;
+      --muted:          #5f6368;
+      --error:          #b00020;
+      --error-bg:       #fde8e8;
+      --outline:        #d93025;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                   "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      overscroll-behavior: none;
+    }
+
+    /* Map fills the screen behind everything else. */
+    #map {
+      position: fixed; inset: 0;
+      z-index: 0;
+    }
+
+    /* Floating round button anchored top-right under the safe-area inset. */
+    .fab {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 14px);
+      right: 14px;
+      z-index: 500;
+      width: 44px; height: 44px;
+      border: 0;
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: 0 2px 10px rgba(0,0,0,.18);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    .fab:disabled { opacity: 0.5; }
+
+    /* Bottom sheet that holds all the controls. */
+    #sheet {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 1000;
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,.12);
+      padding: 6px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+      max-height: 75vh;
+      overflow-y: auto;
+      transition: transform .25s ease;
+    }
+    #sheet.collapsed {
+      transform: translateY(calc(100% - 60px));
+    }
+    .handle {
+      width: 40px; height: 5px;
+      border-radius: 3px;
+      background: #d0d0d6;
+      margin: 8px auto 6px;
+      cursor: grab;
+    }
+    .handle-row {
+      display: flex; align-items: center; justify-content: center;
+      padding: 6px 0;
+      cursor: pointer;
+    }
+    .handle-row .title {
+      position: absolute; left: 16px;
+      font-size: 0.85rem; color: var(--muted); font-weight: 500;
+    }
+
+    /* Shape picker — 5-column grid on phones, scrolls on tiny screens. */
+    .shape-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin: 10px 0 14px;
+    }
+    .shape-card {
+      padding: 10px 4px 8px;
+      text-align: center;
+      border-radius: 12px;
+      background: var(--bg);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color .12s, color .12s, transform .08s;
+      border: 0;
+      font-family: inherit;
+    }
+    .shape-card:active { transform: scale(0.96); }
+    .shape-card.selected {
+      background: var(--tint);
+      color: #fff;
+    }
+    .shape-card .emoji { font-size: 24px; line-height: 1; }
+    .shape-card .name {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .row {
+      display: flex; align-items: center; gap: 10px;
+      margin: 10px 0;
+    }
+    .row .lbl { font-size: 14px; color: var(--muted); flex: 0 0 auto; }
+    .row .val {
+      font-size: 14px; color: var(--fg);
+      font-variant-numeric: tabular-nums;
+      flex: 0 0 auto; min-width: 64px; text-align: right;
+      font-weight: 600;
+    }
+    input[type=range] {
+      flex: 1;
+      accent-color: var(--tint);
+      height: 28px;
+    }
+
+    .btn {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity .12s, transform .08s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn[disabled] { opacity: .5; cursor: not-allowed; }
+    .btn.primary { background: var(--tint); color: #fff; }
+    .btn.secondary { background: var(--bg); color: var(--fg); }
+
+    /* The grid of three secondary export actions after a route is generated. */
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .actions .btn { font-size: 14px; min-height: 44px; }
+
+    .summary {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 8px 4px 12px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .summary .km {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .err {
+      background: var(--error-bg);
+      color: var(--error);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    /* Spinner used inside the Generate button. */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Landscape: dock the sheet to the right side. */
+    @media (orientation: landscape) and (min-width: 700px) {
+      #sheet {
+        left: auto;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 380px;
+        max-height: none;
+        border-radius: 20px 0 0 20px;
+        padding: calc(16px + env(safe-area-inset-top, 0px))
+                 16px
+                 calc(16px + env(safe-area-inset-bottom, 0px));
+      }
+      #sheet.collapsed {
+        transform: translateX(calc(100% - 60px));
+      }
+      .fab { right: 400px; }   /* keep it visible to the left of the sheet */
+    }
+
+    /* Hide elements without animation churn. */
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <button id="loc-btn" class="fab" aria-label="Use my location" title="Use my location">📍</button>
+
+  <div id="sheet">
+    <div class="handle-row" id="sheet-toggle" role="button" tabindex="0" aria-label="Toggle controls">
+      <div class="handle"></div>
+    </div>
+
+    <div id="shapes" class="shape-grid" aria-label="Pick a shape"></div>
+
+    <div class="row">
+      <span class="lbl">Distance</span>
+      <input type="range" id="distance" min="5" max="25" step="0.5" value="10"
+             aria-label="Target distance in kilometers" />
+      <span class="val" id="distance-readout">10.0 km</span>
+    </div>
+
+    <button id="gen-btn" class="btn primary">
+      <span id="gen-label">Generate route</span>
+    </button>
+
+    <div id="summary" class="summary" hidden>
+      <span id="summary-shape"></span>
+      <span class="km" id="summary-km"></span>
+    </div>
+
+    <div id="actions" class="actions" hidden>
+      <button id="gpx-btn" class="btn secondary">⬇️ GPX</button>
+      <button id="kml-btn" class="btn secondary">⬇️ KML</button>
+      <button id="share-btn" class="btn secondary">🔗 Share</button>
+    </div>
+
+    <div id="err" class="err" hidden role="alert"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    const DEFAULT_CENTER = [51.75, -0.34];      // St Albans, matches the pig sample
+    const DEFAULT_ZOOM   = 14;
+    const TINT           = "#1a73e8";
+    const OUTLINE        = "#d93025";
+
+    // -------- Map setup -----------------------------------------------------
+
+    const map = L.map("map", { zoomControl: true, attributionControl: true })
+                 .setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    let centerMarker = L.marker(DEFAULT_CENTER, { draggable: true })
+                        .addTo(map)
+                        .bindPopup("Drag me, or tap the map to move");
+    centerMarker.on("dragend", () => updateCenter(centerMarker.getLatLng()));
+
+    map.on("click", (ev) => {
+      centerMarker.setLatLng(ev.latlng);
+      updateCenter(ev.latlng);
+    });
+
+    let currentCenter = { lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] };
+    function updateCenter(latlng) {
+      currentCenter = { lat: latlng.lat, lng: latlng.lng };
+    }
+
+    // Layers we redraw on each generate.
+    let routeLayer = null;
+    let outlineLayer = null;
+    let startMarker = null;
+    let finishMarker = null;
+
+    function clearRoute() {
+      [routeLayer, outlineLayer, startMarker, finishMarker].forEach(l => {
+        if (l) map.removeLayer(l);
+      });
+      routeLayer = outlineLayer = startMarker = finishMarker = null;
+    }
+
+    // -------- DOM refs ------------------------------------------------------
+
+    const $ = (id) => document.getElementById(id);
+    const shapesEl   = $("shapes");
+    const distEl     = $("distance");
+    const distReadout = $("distance-readout");
+    const genBtn     = $("gen-btn");
+    const genLabel   = $("gen-label");
+    const sheet      = $("sheet");
+    const sheetToggle = $("sheet-toggle");
+    const locBtn     = $("loc-btn");
+    const summary    = $("summary");
+    const summaryShape = $("summary-shape");
+    const summaryKm  = $("summary-km");
+    const actions    = $("actions");
+    const gpxBtn     = $("gpx-btn");
+    const kmlBtn     = $("kml-btn");
+    const shareBtn   = $("share-btn");
+    const errEl      = $("err");
+
+    // -------- State ---------------------------------------------------------
+
+    let shapes = [];
+    let selectedShape = "pig";
+    let lastResponse = null;
+
+    // -------- API helpers ---------------------------------------------------
+
+    async function api(path, opts = {}) {
+      const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+      const res = await fetch(path, { ...opts, headers });
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body.detail) detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+        } catch {}
+        throw new Error(detail);
+      }
+      return res.json();
+    }
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.hidden = false;
+    }
+    function clearError() {
+      errEl.hidden = true;
+      errEl.textContent = "";
+    }
+
+    // -------- Shape picker --------------------------------------------------
+
+    async function loadShapes() {
+      try {
+        const { shapes: list } = await api("/shapes");
+        shapes = list;
+        if (!shapes.find(s => s.id === selectedShape)) selectedShape = shapes[0]?.id;
+        renderShapes();
+      } catch (e) {
+        showError("Couldn't load shape list: " + e.message);
+      }
+    }
+
+    function renderShapes() {
+      shapesEl.innerHTML = "";
+      for (const shape of shapes) {
+        const card = document.createElement("button");
+        card.className = "shape-card" + (shape.id === selectedShape ? " selected" : "");
+        card.type = "button";
+        card.title = shape.distinctive_features;
+        card.innerHTML = `<div class="emoji">${shape.emoji}</div>
+                          <div class="name">${shape.name}</div>`;
+        card.addEventListener("click", () => {
+          selectedShape = shape.id;
+          renderShapes();
+        });
+        shapesEl.appendChild(card);
+      }
+    }
+
+    // -------- Distance slider ----------------------------------------------
+
+    function syncDistanceReadout() {
+      distReadout.textContent = `${parseFloat(distEl.value).toFixed(1)} km`;
+    }
+    distEl.addEventListener("input", syncDistanceReadout);
+    syncDistanceReadout();
+
+    // -------- Location ------------------------------------------------------
+
+    locBtn.addEventListener("click", useMyLocation);
+
+    function useMyLocation() {
+      if (!navigator.geolocation) {
+        showError("Geolocation is not available in this browser.");
+        return;
+      }
+      // iOS/Chrome require a secure context (HTTPS or localhost) for the
+      // Geolocation API. http://192.168.x.x:8000 won't trigger the prompt
+      // and the call will fail silently or with a permission error.
+      locBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          locBtn.disabled = false;
+          const { latitude, longitude } = pos.coords;
+          currentCenter = { lat: latitude, lng: longitude };
+          centerMarker.setLatLng([latitude, longitude]);
+          map.setView([latitude, longitude], 15);
+        },
+        (err) => {
+          locBtn.disabled = false;
+          if (window.isSecureContext) {
+            showError("Couldn't get your location: " + err.message);
+          } else {
+            showError("Tap the map to set the route center. " +
+                      "(Geolocation needs HTTPS — try connecting via " +
+                      "localhost on your laptop, or set up HTTPS for " +
+                      "phone access.)");
+          }
+        },
+        { enableHighAccuracy: false, timeout: 8000 }
+      );
+    }
+
+    // -------- Generate ------------------------------------------------------
+
+    genBtn.addEventListener("click", generate);
+
+    async function generate() {
+      clearError();
+      genBtn.disabled = true;
+      genLabel.replaceWith(spinnerNode());
+      try {
+        const body = {
+          shape: selectedShape,
+          lat: currentCenter.lat,
+          lon: currentCenter.lng,
+          distance_km: parseFloat(distEl.value),
+        };
+        const resp = await api("/generate", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        lastResponse = resp;
+        showRoute(resp);
+        showSummary(resp);
+      } catch (e) {
+        showError("Generate failed: " + e.message);
+      } finally {
+        genBtn.disabled = false;
+        const label = document.createElement("span");
+        label.id = "gen-label";
+        label.textContent = "Generate route";
+        const inside = genBtn.querySelector(".spinner");
+        if (inside) inside.replaceWith(label);
+      }
+    }
+
+    function spinnerNode() {
+      const sp = document.createElement("span");
+      sp.className = "spinner";
+      return sp;
+    }
+
+    function showRoute(resp) {
+      clearRoute();
+
+      // GeoJSON LineString = [lon, lat]; Leaflet wants [lat, lon].
+      const route = (resp.geojson?.coordinates || []).map(([lon, lat]) => [lat, lon]);
+      const ideal = (resp.waypoints || []);  // already [lat, lon]
+
+      if (ideal.length) {
+        outlineLayer = L.polyline(ideal, {
+          color: OUTLINE,
+          weight: 2,
+          opacity: 0.65,
+          dashArray: "6,8",
+        }).addTo(map);
+      }
+      if (route.length) {
+        routeLayer = L.polyline(route, {
+          color: TINT, weight: 5, opacity: 0.9,
+        }).addTo(map);
+        startMarker = L.marker(route[0]).addTo(map).bindPopup("Start");
+        finishMarker = L.marker(route[route.length - 1]).addTo(map).bindPopup("Finish");
+        map.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+      }
+    }
+
+    function showSummary(resp) {
+      const meta = shapes.find(s => s.id === resp.shape);
+      summaryShape.innerHTML = meta
+        ? `${meta.emoji} ${meta.name} run`
+        : `${resp.shape} run`;
+      summaryKm.textContent = (resp.routed_distance_m / 1000).toFixed(2) + " km";
+      summary.hidden = false;
+      actions.hidden = false;
+    }
+
+    // -------- Downloads -----------------------------------------------------
+
+    function downloadText(text, filename, mime) {
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoke after a tick so iOS Safari has a chance to start the download.
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    gpxBtn.addEventListener("click", () => {
+      if (!lastResponse) return;
+      downloadText(lastResponse.gpx,
+                   `${lastResponse.shape}_route.gpx`,
+                   "application/gpx+xml");
+    });
+
+    kmlBtn.addEventListener("click", () => {
+      if (!lastResponse) return;
+      downloadText(lastResponse.kml,
+                   `${lastResponse.shape}_route.kml`,
+                   "application/vnd.google-earth.kml+xml");
+    });
+
+    // -------- Share via /share endpoint ------------------------------------
+
+    shareBtn.addEventListener("click", async () => {
+      if (!lastResponse) return;
+      shareBtn.disabled = true;
+      try {
+        const body = {
+          shape: lastResponse.shape,
+          geojson: lastResponse.geojson,
+          waypoints: lastResponse.waypoints,
+          routed_distance_m: lastResponse.routed_distance_m,
+        };
+        const { viewer_url } = await api("/share", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        const fullUrl = new URL(viewer_url, window.location.origin).href;
+
+        if (navigator.share) {
+          // iOS Safari → opens the system share sheet (Messages, AirDrop, …).
+          await navigator.share({
+            title: "DoodleRun route",
+            text: `${(lastResponse.routed_distance_m / 1000).toFixed(1)} km ${lastResponse.shape} run`,
+            url: fullUrl,
+          });
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(fullUrl);
+          flashOnButton(shareBtn, "Link copied!");
+        } else {
+          // Fallback: open the link in a new tab so the user can share manually.
+          window.open(fullUrl, "_blank");
+        }
+      } catch (e) {
+        // AbortError is fired when the user cancels the share sheet — not an
+        // actual error from our perspective.
+        if (e.name !== "AbortError") {
+          showError("Share failed: " + e.message);
+        }
+      } finally {
+        shareBtn.disabled = false;
+      }
+    });
+
+    function flashOnButton(btn, msg) {
+      const original = btn.textContent;
+      btn.textContent = msg;
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    }
+
+    // -------- Bottom-sheet collapse toggle ---------------------------------
+
+    sheetToggle.addEventListener("click", () => {
+      sheet.classList.toggle("collapsed");
+    });
+
+    // -------- Boot ----------------------------------------------------------
+
+    loadShapes();
+  })();
+  </script>
+</body>
+</html>

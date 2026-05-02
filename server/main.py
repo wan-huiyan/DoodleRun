@@ -9,7 +9,9 @@ of truth for shape definitions and routing logic.
 from __future__ import annotations
 
 import os
+import socket
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict
 
@@ -68,10 +70,49 @@ def _resolve_verify() -> object:
 
 VERIFY = _resolve_verify()
 
+
+def _local_ip() -> str:
+    """Best-effort LAN IP for printing a phone-friendly URL on startup.
+
+    Connects a UDP socket to a public address — no packets are actually sent,
+    but this forces the OS to pick the routable interface and we read its
+    bound address. Falls back to localhost if there's no network.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Best-guess port: uvicorn's default is 8000; if you launched with a
+    # different --port, the displayed URL lies — but the line right above
+    # uvicorn's own log makes the actual port obvious. Worth it for the
+    # convenience of having the LAN URL printed at startup.
+    ip = _local_ip()
+    port = os.environ.get("UVICORN_PORT", "8000")
+    banner = (
+        "\n"
+        "  ┌─────────────────────────────────────────────────┐\n"
+        f"  │ 🏃 DoodleRun ready                              │\n"
+        f"  │ open on your phone: http://{ip}:{port}".ljust(53) + "│\n"
+        f"  │ on this computer:   http://localhost:{port}".ljust(53) + "│\n"
+        "  └─────────────────────────────────────────────────┘\n"
+    )
+    print(banner, flush=True)
+    yield
+
+
 app = FastAPI(
     title="DoodleRun",
     description="Generate animal-shaped running routes snapped to streets.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Allow the iOS simulator and any localhost-served preview to call us
@@ -88,6 +129,17 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 share_store = ShareStore()
+
+
+@app.get("/", response_class=HTMLResponse)
+def root() -> HTMLResponse:
+    """Serve the Leaflet SPA. Users open `http://<server>:8000/` on their
+    phone to get a polished mobile interface for picking a shape, distance,
+    and start point — no Xcode required."""
+    template = STATIC_DIR / "app.html"
+    if not template.exists():
+        raise HTTPException(500, "app.html missing")
+    return HTMLResponse(template.read_text(encoding="utf-8"))
 
 
 @app.get("/health", response_model=HealthResponse)
