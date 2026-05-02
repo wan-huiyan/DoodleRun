@@ -20,8 +20,9 @@ struct ContentView: View {
     @State private var idealOutline: [CLLocationCoordinate2D] = []
     @State private var lastResponse: GenerateResponse?
     @State private var isGenerating = false
+    @State private var isSharing = false
     @State private var errorMessage: String?
-    @State private var showShareSheet = false
+    @State private var sharePayload: RouteShareSheet.Payload?
 
     @StateObject private var routeService = RouteService()
     @StateObject private var locationManager = LocationManager()
@@ -47,14 +48,18 @@ struct ContentView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let gpx = lastResponse?.gpx {
-                GPXShareSheet(
-                    gpxText: gpx,
-                    suggestedFileName: "\(selectedShape)_route.gpx"
-                )
+        .sheet(isPresented: shareSheetBinding) {
+            if let payload = sharePayload {
+                RouteShareSheet(payload: payload)
             }
         }
+    }
+
+    private var shareSheetBinding: Binding<Bool> {
+        Binding(
+            get: { sharePayload != nil },
+            set: { if !$0 { sharePayload = nil } }
+        )
     }
 
     // MARK: - Subviews
@@ -112,14 +117,39 @@ struct ContentView: View {
             }
             .padding(.horizontal)
 
-            if lastResponse != nil {
-                Button {
-                    showShareSheet = true
-                } label: {
-                    Label("Export GPX", systemImage: "square.and.arrow.up")
-                        .frame(maxWidth: .infinity)
+            if let resp = lastResponse {
+                HStack(spacing: 8) {
+                    Button {
+                        sharePayload = .textFile(content: resp.gpx,
+                                                 fileName: "\(resp.shape)_route.gpx")
+                    } label: {
+                        Label("GPX", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        sharePayload = .textFile(content: resp.kml,
+                                                 fileName: "\(resp.shape)_route.kml")
+                    } label: {
+                        Label("KML", systemImage: "globe.europe.africa")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        Task { await shareWebLink(for: resp) }
+                    } label: {
+                        if isSharing {
+                            ProgressView().frame(maxWidth: .infinity)
+                        } else {
+                            Label("Link", systemImage: "link")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isSharing)
                 }
-                .buttonStyle(.bordered)
                 .padding(.horizontal)
             }
         }
@@ -193,6 +223,17 @@ struct ContentView: View {
             lastResponse = resp
             routePolyline = resp.geojson.locationCoordinates
             idealOutline = resp.idealWaypoints
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func shareWebLink(for resp: GenerateResponse) async {
+        isSharing = true
+        defer { isSharing = false }
+        do {
+            let url = try await routeService.share(ShareRequest(from: resp))
+            sharePayload = .url(url)
         } catch {
             errorMessage = error.localizedDescription
         }

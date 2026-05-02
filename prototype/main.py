@@ -14,6 +14,7 @@ import argparse
 import os
 
 from gpx_export import write_gpx
+from kml_export import write_kml
 from osrm_client import macos_keychain_bundle
 from route_generator import generate
 from shapes import SHAPES
@@ -69,16 +70,19 @@ def main() -> None:
     )
 
     gpx_path = os.path.join(args.out, f"{args.shape}_route.gpx")
+    kml_path = os.path.join(args.out, f"{args.shape}_route.kml")
     html_path = os.path.join(args.out, f"{args.shape}_route.html")
 
-    write_gpx(gpx_path, result.polyline, name=name,
-              description=f"GPS-art {args.shape}, ~{result.distance_m / 1000:.2f} km")
+    desc = f"GPS-art {args.shape}, ~{result.distance_m / 1000:.2f} km"
+    write_gpx(gpx_path, result.polyline, name=name, description=desc)
+    write_kml(kml_path, result.polyline, name=name, description=desc)
     render(result.polyline, result.waypoints, html_path,
            title=f"{name} — {result.distance_m / 1000:.2f} km")
 
     print(f"\nDone. Routed distance: {result.distance_m / 1000:.2f} km "
           f"(target {args.distance:.2f} km)")
     print(f"  GPX:  {os.path.abspath(gpx_path)}")
+    print(f"  KML:  {os.path.abspath(kml_path)}")
     print(f"  Map:  {os.path.abspath(html_path)}")
 
 

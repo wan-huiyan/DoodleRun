@@ -54,6 +54,27 @@ final class RouteService: ObservableObject {
         }
     }
 
+    /// Stash the route on the server and get back a viewer URL the user can
+    /// open in any mobile browser. Returns the absolute URL (baseURL + path).
+    func share(_ req: ShareRequest) async throws -> URL {
+        let url = baseURL.appendingPathComponent("share")
+        var urlReq = URLRequest(url: url)
+        urlReq.httpMethod = "POST"
+        urlReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlReq.httpBody = try encoder.encode(req)
+
+        let (data, response) = try await transport(urlReq)
+        try checkStatus(response, data: data)
+        let body: ShareResponse
+        do {
+            body = try decoder.decode(ShareResponse.self, from: data)
+        } catch {
+            throw APIError.decoding(error)
+        }
+        // Server returns a relative path like "/v/abc123" — prepend our base URL.
+        return baseURL.appendingPathComponent(body.viewerUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+    }
+
     // MARK: - Helpers
 
     private func transport(_ request: URLRequest) async throws -> (Data, URLResponse) {

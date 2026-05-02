@@ -44,7 +44,7 @@ struct GenerateRequest: Encodable {
 }
 
 /// GeoJSON-shaped: coordinates are [lon, lat] (NOT [lat, lon]).
-struct GeoJSONLineString: Decodable {
+struct GeoJSONLineString: Codable {
     let type: String
     let coordinates: [[Double]]
 
@@ -65,6 +65,7 @@ struct GenerateResponse: Decodable {
     let geojson: GeoJSONLineString
     let waypoints: [[Double]]    // [lat, lon] pairs
     let gpx: String
+    let kml: String
 
     var routedDistanceKm: Double { routedDistanceM / 1000.0 }
     var idealWaypoints: [CLLocationCoordinate2D] {
@@ -73,6 +74,27 @@ struct GenerateResponse: Decodable {
             return CLLocationCoordinate2D(latitude: pair[0], longitude: pair[1])
         }
     }
+}
+
+struct ShareRequest: Encodable {
+    let shape: String
+    let geojson: GeoJSONLineString
+    let waypoints: [[Double]]
+    let routedDistanceM: Double
+
+    init(from response: GenerateResponse) {
+        self.shape = response.shape
+        self.geojson = response.geojson
+        self.waypoints = response.waypoints
+        self.routedDistanceM = response.routedDistanceM
+    }
+}
+
+struct ShareResponse: Decodable {
+    let id: String
+    let viewerUrl: String
+    let jsonUrl: String
+    let expiresInSeconds: Int
 }
 
 /// Surfaces user-friendly messages for HTTP / decoding / network errors.

@@ -13,15 +13,18 @@ DoodleRun/
 ├── prototype/      # Phase 1: Python prototype (CLI, source of truth for routing)
 │   ├── *_shape.py  # one outline per animal
 │   ├── shapes.py   # registry that the --shape CLI flag reads
+│   ├── gpx_export.py / kml_export.py
 │   └── tests/      # pytest suite (offline pieces + recorded OSRM fixture)
 ├── server/         # Phase 2A: FastAPI service the iOS app calls
-│   ├── main.py     # /health, /shapes, /generate
+│   ├── main.py     # /health, /shapes, /generate, /share, /v/{id}, /shared/{id}{,.gpx,.kml}
 │   ├── models.py   # Pydantic request/response schemas
+│   ├── store.py    # in-memory share store with TTL
+│   ├── static/viewer.html  # mobile-friendly Leaflet viewer
 │   ├── Dockerfile  # build context = repo root
 │   └── tests/      # endpoint tests with TestClient (OSRM mocked)
-├── ios/            # Phase 2B: SwiftUI + MapKit iPhone app (TBD)
-├── samples/        # committed reference renders for each shape
-└── output/         # Generated GPX/HTML — gitignored, regenerable
+├── ios/            # Phase 2B: SwiftUI + MapKit iPhone app
+├── samples/        # committed reference renders (HTML + GPX + KML for each shape)
+└── output/         # Generated GPX/KML/HTML — gitignored, regenerable
 ```
 
 ## Phase 1 — Python prototype
@@ -33,9 +36,11 @@ python main.py --shape pig --lat 51.75 --lon -0.34 --distance 10.0
 ```
 
 `--shape` accepts `pig`, `cat`, `dog`, `dino`, or `chicken`. Outputs land in
-`../output/<shape>_route.gpx` (Garmin/Strava import) and
-`../output/<shape>_route.html` (interactive Folium preview with the snapped
-route in blue overlaid on the idealized outline in red dashed).
+`../output/<shape>_route.{gpx,kml,html}`:
+- `.gpx` — GPX 1.1 for Garmin Connect / Strava import
+- `.kml` — KML 2.2 for Google My Maps / Google Earth import
+- `.html` — interactive Folium preview with the snapped route in blue
+  overlaid on the idealized outline in red dashed
 
 ### Corporate SSL inspection (macOS)
 
@@ -88,9 +93,9 @@ pip install pytest
 python -m pytest tests/ -v
 ```
 
-38 tests cover the offline pieces (resample, projection, GPX writer, all five
-shape definitions, and the iteration loop's resilience to mid-iteration OSRM
-failures). OSRM is exercised against a recorded fixture
+45 tests cover the offline pieces (resample, projection, GPX + KML writers,
+all five shape definitions, and the iteration loop's resilience to
+mid-iteration OSRM failures). OSRM is exercised against a recorded fixture
 (`tests/fixtures/osrm_route.json`) so the suite never touches the network.
 
 ## Sample outputs
@@ -124,14 +129,23 @@ DOODLERUN_CA_BUNDLE=keychain uvicorn main:app --reload --port 8000
 
 Endpoints:
 
-| Method | Path | Body | Returns |
+| Method | Path | Body / params | Returns |
 |---|---|---|---|
 | `GET` | `/health` | — | `{status, shapes_loaded}` |
 | `GET` | `/shapes` | — | metadata for all 5 shapes (id, name, emoji, distinctive features) |
-| `POST` | `/generate` | `{shape, lat, lon, distance_km, waypoints?, iterations?}` | GeoJSON LineString + idealized waypoints + GPX 1.1 string |
+| `POST` | `/generate` | `{shape, lat, lon, distance_km, waypoints?, iterations?}` | GeoJSON LineString + waypoints + **GPX** 1.1 string + **KML** 2.2 string |
+| `POST` | `/share` | `{shape, geojson, waypoints, routed_distance_m}` | `{id, viewer_url, json_url, expires_in_seconds}` — stashes the route in memory and returns a short-lived shareable URL |
+| `GET` | `/v/{id}` | — | Mobile-friendly Leaflet HTML viewer with the route loaded |
+| `GET` | `/shared/{id}` | — | Raw JSON payload for the viewer to fetch |
+| `GET` | `/shared/{id}.gpx` | — | GPX download with `Content-Disposition: attachment` |
+| `GET` | `/shared/{id}.kml` | — | KML download (Google My Maps imports it directly) |
 
-Run the test suite: `cd server && python -m pytest tests/ -v` (9 tests, OSRM
-mocked, ~1 s).
+The share store is in-memory with a 7-day TTL and a 1024-entry cap; restarts
+wipe it. Drop in a Redis or SQLite backend in `server/store.py` if you ever
+deploy multiple instances.
+
+Run the test suite: `cd server && python -m pytest tests/ -v` (16 tests,
+OSRM mocked, ~1 s).
 
 Container build (context = repo root, server imports prototype/ at runtime):
 
@@ -143,8 +157,16 @@ docker run -p 8000:8000 doodlerun-server
 OpenAPI docs are auto-generated — visit `http://localhost:8000/docs` once
 the server is running.
 
-## Phase 2B — iOS app (TBD)
+## Phase 2B — iOS app
 
 SwiftUI + MapKit. Pick start point, target distance, shape; preview on map;
-export GPX via share sheet. Calls the FastAPI service at a configurable
-base URL (default `http://localhost:8000` for the simulator).
+export. The export row offers three buttons:
+
+- **GPX** — share sheet with a `.gpx` file (Garmin Connect, Strava, …)
+- **KML** — share sheet with a `.kml` file (Google My Maps, Google Earth)
+- **Link** — POST to `/share`, get back a `/v/{id}` URL, share it via the
+  system share sheet (Messages, AirDrop, copy to clipboard, …)
+
+Calls the FastAPI service at a configurable base URL (default
+`http://localhost:8000` for the simulator). See `ios/README.md` for the
+Xcode bootstrap instructions.

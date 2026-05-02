@@ -83,6 +83,10 @@ class TestGenerate:
         assert body["gpx"].startswith("<?xml")
         assert "<gpx" in body["gpx"]
         assert "<rte>" in body["gpx"]
+        # KML field present and parseable.
+        assert body["kml"].startswith("<?xml")
+        assert '<kml xmlns="http://www.opengis.net/kml/2.2">' in body["kml"]
+        assert "<LineString>" in body["kml"]
 
     def test_unknown_shape_returns_404(self, client):
         r = client.post("/generate", json={
@@ -126,3 +130,75 @@ class TestCors:
         # Starlette returns 200 for handled CORS preflight.
         assert r.status_code == 200
         assert r.headers.get("access-control-allow-origin") == "*"
+
+
+@pytest.fixture
+def share_payload():
+    """A minimal share-request body that round-trips through /share + /shared."""
+    return {
+        "shape": "pig",
+        "geojson": {
+            "type": "LineString",
+            "coordinates": [
+                [-0.34, 51.75], [-0.339, 51.751], [-0.338, 51.752],
+                [-0.337, 51.751], [-0.34, 51.75],
+            ],
+        },
+        "waypoints": [[51.75, -0.34], [51.751, -0.339], [51.752, -0.338],
+                      [51.751, -0.337], [51.75, -0.34]],
+        "routed_distance_m": 10500.0,
+    }
+
+
+class TestShare:
+    def test_create_returns_id_and_urls(self, client, share_payload):
+        r = client.post("/share", json=share_payload)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["id"]
+        assert body["viewer_url"] == f"/v/{body['id']}"
+        assert body["json_url"] == f"/shared/{body['id']}"
+        assert body["expires_in_seconds"] > 0
+
+    def test_get_shared_returns_payload(self, client, share_payload):
+        share_id = client.post("/share", json=share_payload).json()["id"]
+        r = client.get(f"/shared/{share_id}")
+        assert r.status_code == 200
+        got = r.json()
+        assert got["shape"] == "pig"
+        assert got["routed_distance_m"] == 10500.0
+        assert got["geojson"]["coordinates"] == share_payload["geojson"]["coordinates"]
+
+    def test_unknown_share_id_404(self, client):
+        r = client.get("/shared/does-not-exist")
+        assert r.status_code == 404
+
+    def test_viewer_html_substitutes_share_id(self, client, share_payload):
+        share_id = client.post("/share", json=share_payload).json()["id"]
+        r = client.get(f"/v/{share_id}")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/html")
+        # The page must reference the share id so the JS can fetch /shared/{id}.
+        assert share_id in r.text
+        # And the placeholder must be gone.
+        assert "__SHARE_ID__" not in r.text
+
+    def test_viewer_html_404_for_missing_share(self, client):
+        r = client.get("/v/does-not-exist")
+        assert r.status_code == 404
+
+    def test_shared_gpx_download(self, client, share_payload):
+        share_id = client.post("/share", json=share_payload).json()["id"]
+        r = client.get(f"/shared/{share_id}.gpx")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("application/gpx+xml")
+        assert "attachment" in r.headers["content-disposition"]
+        assert r.text.startswith("<?xml")
+        assert "<rte>" in r.text
+
+    def test_shared_kml_download(self, client, share_payload):
+        share_id = client.post("/share", json=share_payload).json()["id"]
+        r = client.get(f"/shared/{share_id}.kml")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("application/vnd.google-earth.kml+xml")
+        assert "<LineString>" in r.text

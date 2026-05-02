@@ -56,6 +56,26 @@ class GenerateResponse(BaseModel):
         description="Idealized outline waypoints (lat, lon) before street snapping",
     )
     gpx: str = Field(..., description="GPX 1.1 document as a string")
+    kml: str = Field(..., description="KML 2.2 document — uploadable to Google My Maps")
+
+
+class ShareRequest(BaseModel):
+    """Caller may either pass a previously-generated route inline OR pass
+    the same fields as /generate to have the server compute one and store it.
+    Inline is preferred — avoids a second OSRM call when the iOS app already
+    holds a result.
+    """
+    shape: str
+    geojson: GeoJSONLineString
+    waypoints: List[Tuple[float, float]]
+    routed_distance_m: float
+
+
+class ShareResponse(BaseModel):
+    id: str = Field(..., description="Opaque share id")
+    viewer_url: str = Field(..., description="Path on this server that renders the route in a Leaflet viewer (mobile-friendly)")
+    json_url: str = Field(..., description="Path that returns the raw route as JSON for the viewer to fetch")
+    expires_in_seconds: int
 
 
 class HealthResponse(BaseModel):
