@@ -14,3 +14,9 @@ output/
 .pytest_cache/
 prototype/.pytest_cache/
 .playwright-mcp/
+
+# DoodleRun v2 (Quick Draw + strav.art template pipeline)
+# Raw upstream data is gitignored; only extracted normalized templates are committed.
+quickdraw_v2/data/*.recognized.ndjson
+quickdraw_v2/data/strav_raw/
+quickdraw_v2/refs/

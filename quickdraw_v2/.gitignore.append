@@ -1,0 +1,4 @@
+
+# strav.art raw images — used transiently for template extraction, not redistributed
+quickdraw_v2/data/strav_raw/
+quickdraw_v2/data/*.recognized.ndjson
