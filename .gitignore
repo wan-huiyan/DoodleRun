@@ -14,3 +14,8 @@ output/
 .pytest_cache/
 prototype/.pytest_cache/
 .playwright-mcp/
+
+# strav.art source-image cache — fair-use scratch, not redistributed.
+# Re-fetch with `python tools/stravart_extract/scrape.py`. The extracted
+# normalized templates live under `templates_stravart/` and are tracked.
+scratch/

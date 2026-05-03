@@ -1,0 +1,42 @@
+{
+  "birds": {
+    "kept": 138,
+    "skipped": 60,
+    "total": 198
+  },
+  "cats-dogs": {
+    "kept": 115,
+    "skipped": 61,
+    "total": 176
+  },
+  "dinosaurs": {
+    "kept": 30,
+    "skipped": 30,
+    "total": 60
+  },
+  "elephants": {
+    "kept": 57,
+    "skipped": 22,
+    "total": 79
+  },
+  "mammals": {
+    "kept": 192,
+    "skipped": 126,
+    "total": 318
+  },
+  "misc": {
+    "kept": 180,
+    "skipped": 53,
+    "total": 233
+  },
+  "reptiles": {
+    "kept": 27,
+    "skipped": 15,
+    "total": 42
+  },
+  "sea-life": {
+    "kept": 88,
+    "skipped": 45,
+    "total": 133
+  }
+}
