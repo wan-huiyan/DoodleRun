@@ -42,7 +42,7 @@ def build_grid(word: str, ndjson_path: Path, out_png: Path, out_meta: Path,
             spine.set_color('#cccccc')
             spine.set_linewidth(0.5)
         ax.set_title(
-            f'#{i:02d}  ({t.n_strokes} strokes, {len(t.coords)} pts)',
+            f'#{i:02d}  kept {t.n_kept_strokes}/{t.n_strokes}  ({len(t.coords)} pts)',
             fontsize=9,
             color='#222222',
         )
@@ -50,14 +50,16 @@ def build_grid(word: str, ndjson_path: Path, out_png: Path, out_meta: Path,
             'number': i,
             'word': word,
             'key_id': t.key_id,
-            'n_strokes': t.n_strokes,
+            'n_strokes_original': t.n_strokes,
+            'n_kept_strokes': t.n_kept_strokes,
+            'n_discarded_strokes': t.n_discarded_strokes,
             'n_points': len(t.coords),
         })
     for ax in axes[len(templates):]:
         ax.axis('off')
 
     fig.suptitle(
-        f'"{word}" — vote: keep (k), reject (x), maybe (?)',
+        f'"{word}" — OUTLINE ONLY — vote: keep (k), reject (x), maybe (?)',
         fontsize=14,
         color='#222222',
     )
@@ -79,12 +81,13 @@ def build_vote_sheet(all_meta: dict, out_md: Path):
         lines.append('')
         lines.append('![grid](voting/' + f'{word}_grid.png)')
         lines.append('')
-        lines.append('| # | strokes | pts | key_id | vote |')
+        lines.append('| # | kept/orig strokes | pts | key_id | vote |')
         lines.append('|---|---|---|---|---|')
         for it in items:
             lines.append(
-                f'| {it["number"]:02d} | {it["n_strokes"]} | {it["n_points"]} | '
-                f'`{it["key_id"]}` | _ |'
+                f'| {it["number"]:02d} | '
+                f'{it["n_kept_strokes"]}/{it["n_strokes_original"]} | '
+                f'{it["n_points"]} | `{it["key_id"]}` | _ |'
             )
         lines.append('')
     out_md.write_text('\n'.join(lines))

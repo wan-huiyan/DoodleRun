@@ -2,211 +2,271 @@
   {
     "number": 1,
     "word": "cat",
-    "key_id": "6016825164824576",
-    "n_strokes": 1,
+    "key_id": "5627759021785088",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
     "n_points": 56
   },
   {
     "number": 2,
     "word": "cat",
-    "key_id": "5627759021785088",
-    "n_strokes": 1,
+    "key_id": "6016825164824576",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
     "n_points": 56
   },
   {
     "number": 3,
     "word": "cat",
-    "key_id": "5313347471802368",
-    "n_strokes": 1,
-    "n_points": 44
+    "key_id": "5647014836568064",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 56
   },
   {
     "number": 4,
     "word": "cat",
-    "key_id": "4939591528218624",
-    "n_strokes": 1,
-    "n_points": 40
+    "key_id": "4951575292280832",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 54
   },
   {
     "number": 5,
     "word": "cat",
-    "key_id": "5236975952986112",
-    "n_strokes": 1,
-    "n_points": 22
+    "key_id": "5313347471802368",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 44
   },
   {
     "number": 6,
     "word": "cat",
-    "key_id": "5079326208819200",
-    "n_strokes": 1,
-    "n_points": 14
+    "key_id": "4939591528218624",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 40
   },
   {
     "number": 7,
     "word": "cat",
-    "key_id": "6117278204559360",
-    "n_strokes": 2,
-    "n_points": 47
+    "key_id": "5236975952986112",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 22
   },
   {
     "number": 8,
     "word": "cat",
-    "key_id": "6306904936546304",
-    "n_strokes": 2,
-    "n_points": 56
+    "key_id": "5079326208819200",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 14
   },
   {
     "number": 9,
     "word": "cat",
     "key_id": "5270944601866240",
-    "n_strokes": 2,
-    "n_points": 63
+    "n_strokes_original": 2,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 1,
+    "n_points": 56
   },
   {
     "number": 10,
     "word": "cat",
-    "key_id": "5795667328892928",
-    "n_strokes": 2,
-    "n_points": 51
+    "key_id": "6647701166882816",
+    "n_strokes_original": 2,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 1,
+    "n_points": 42
   },
   {
     "number": 11,
     "word": "cat",
-    "key_id": "6084383830179840",
-    "n_strokes": 2,
-    "n_points": 30
+    "key_id": "5795667328892928",
+    "n_strokes_original": 2,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 1,
+    "n_points": 32
   },
   {
     "number": 12,
     "word": "cat",
-    "key_id": "6498613758787584",
-    "n_strokes": 2,
-    "n_points": 28
+    "key_id": "6117278204559360",
+    "n_strokes_original": 2,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 1,
+    "n_points": 27
   },
   {
     "number": 13,
     "word": "cat",
-    "key_id": "5547679645958144",
-    "n_strokes": 2,
-    "n_points": 44
+    "key_id": "5706494718771200",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 39
   },
   {
     "number": 14,
     "word": "cat",
-    "key_id": "5408501427863552",
-    "n_strokes": 3,
-    "n_points": 37
+    "key_id": "4645228948488192",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 32
   },
   {
     "number": 15,
     "word": "cat",
-    "key_id": "4716789898412032",
-    "n_strokes": 3,
-    "n_points": 42
+    "key_id": "6008423885832192",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 30
   },
   {
     "number": 16,
     "word": "cat",
-    "key_id": "6042570251567104",
-    "n_strokes": 3,
-    "n_points": 45
+    "key_id": "6578320734945280",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 30
   },
   {
     "number": 17,
     "word": "cat",
-    "key_id": "6719494007291904",
-    "n_strokes": 3,
-    "n_points": 38
+    "key_id": "6252830811750400",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 29
   },
   {
     "number": 18,
     "word": "cat",
-    "key_id": "6109829439422464",
-    "n_strokes": 3,
-    "n_points": 43
+    "key_id": "5447449000804352",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 29
   },
   {
     "number": 19,
     "word": "cat",
-    "key_id": "4651766794682368",
-    "n_strokes": 3,
-    "n_points": 36
+    "key_id": "6072539614806016",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 24
   },
   {
     "number": 20,
     "word": "cat",
-    "key_id": "4826895445131264",
-    "n_strokes": 3,
-    "n_points": 48
+    "key_id": "5900783738421248",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 20
   },
   {
     "number": 21,
     "word": "cat",
-    "key_id": "4999808328663040",
-    "n_strokes": 3,
-    "n_points": 36
+    "key_id": "5152391471038464",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 61
   },
   {
     "number": 22,
     "word": "cat",
-    "key_id": "5800772136599552",
-    "n_strokes": 3,
-    "n_points": 41
+    "key_id": "4749313576009728",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 40
   },
   {
     "number": 23,
     "word": "cat",
-    "key_id": "5339619027582976",
-    "n_strokes": 3,
-    "n_points": 40
+    "key_id": "5433073153867776",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 37
   },
   {
     "number": 24,
     "word": "cat",
-    "key_id": "4547506450989056",
-    "n_strokes": 3,
-    "n_points": 34
+    "key_id": "5931097160417280",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 36
   },
   {
     "number": 25,
     "word": "cat",
-    "key_id": "5829972541308928",
-    "n_strokes": 3,
-    "n_points": 54
+    "key_id": "4630035333906432",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 34
   },
   {
     "number": 26,
     "word": "cat",
-    "key_id": "6451911454621696",
-    "n_strokes": 3,
-    "n_points": 35
+    "key_id": "6557807245524992",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 33
   },
   {
     "number": 27,
     "word": "cat",
-    "key_id": "6252830811750400",
-    "n_strokes": 3,
-    "n_points": 44
+    "key_id": "4596581552619520",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 31
   },
   {
     "number": 28,
     "word": "cat",
-    "key_id": "6394535124926464",
-    "n_strokes": 3,
-    "n_points": 33
+    "key_id": "5175643870330880",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 31
   },
   {
     "number": 29,
     "word": "cat",
-    "key_id": "6686927505850368",
-    "n_strokes": 3,
-    "n_points": 59
+    "key_id": "5336018351816704",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 31
   },
   {
     "number": 30,
     "word": "cat",
-    "key_id": "6353640707063808",
-    "n_strokes": 3,
-    "n_points": 47
+    "key_id": "5918055693549568",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 31
   }
 ]

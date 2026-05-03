@@ -3,210 +3,270 @@
     "number": 1,
     "word": "pig",
     "key_id": "5734348785451008",
-    "n_strokes": 1,
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
     "n_points": 25
   },
   {
     "number": 2,
     "word": "pig",
-    "key_id": "5301402433748992",
-    "n_strokes": 1,
-    "n_points": 21
+    "key_id": "5959084475940864",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 25
   },
   {
     "number": 3,
     "word": "pig",
-    "key_id": "4697412754997248",
-    "n_strokes": 1,
-    "n_points": 17
+    "key_id": "6654828795133952",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 22
   },
   {
     "number": 4,
     "word": "pig",
-    "key_id": "4915464117420032",
-    "n_strokes": 1,
-    "n_points": 15
+    "key_id": "5301402433748992",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 21
   },
   {
     "number": 5,
     "word": "pig",
-    "key_id": "5700355297902592",
-    "n_strokes": 1,
-    "n_points": 16
+    "key_id": "4697412754997248",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 17
   },
   {
     "number": 6,
     "word": "pig",
-    "key_id": "6523357879074816",
-    "n_strokes": 1,
-    "n_points": 14
+    "key_id": "5700355297902592",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 16
   },
   {
     "number": 7,
     "word": "pig",
-    "key_id": "6349167049834496",
-    "n_strokes": 2,
-    "n_points": 83
+    "key_id": "4915464117420032",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 15
   },
   {
     "number": 8,
     "word": "pig",
-    "key_id": "5837470195253248",
-    "n_strokes": 2,
-    "n_points": 53
+    "key_id": "6523357879074816",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 14
   },
   {
     "number": 9,
     "word": "pig",
-    "key_id": "6233025362788352",
-    "n_strokes": 2,
-    "n_points": 40
+    "key_id": "5512014673739776",
+    "n_strokes_original": 1,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 0,
+    "n_points": 13
   },
   {
     "number": 10,
     "word": "pig",
-    "key_id": "5171526942851072",
-    "n_strokes": 2,
-    "n_points": 32
+    "key_id": "6349167049834496",
+    "n_strokes_original": 2,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 1,
+    "n_points": 46
   },
   {
     "number": 11,
     "word": "pig",
-    "key_id": "6200609139064832",
-    "n_strokes": 2,
-    "n_points": 56
+    "key_id": "6233025362788352",
+    "n_strokes_original": 2,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 1,
+    "n_points": 38
   },
   {
     "number": 12,
     "word": "pig",
-    "key_id": "4783839547228160",
-    "n_strokes": 3,
-    "n_points": 56
+    "key_id": "6429791903285248",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 42
   },
   {
     "number": 13,
     "word": "pig",
-    "key_id": "5894734276984832",
-    "n_strokes": 3,
-    "n_points": 46
+    "key_id": "6711342218084352",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 29
   },
   {
     "number": 14,
     "word": "pig",
-    "key_id": "4963148266209280",
-    "n_strokes": 3,
-    "n_points": 47
+    "key_id": "5806843337113600",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 25
   },
   {
     "number": 15,
     "word": "pig",
-    "key_id": "5806843337113600",
-    "n_strokes": 3,
-    "n_points": 54
+    "key_id": "5089921930887168",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 23
   },
   {
     "number": 16,
     "word": "pig",
-    "key_id": "6601972826243072",
-    "n_strokes": 3,
-    "n_points": 45
+    "key_id": "6456316929245184",
+    "n_strokes_original": 3,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 2,
+    "n_points": 20
   },
   {
     "number": 17,
     "word": "pig",
-    "key_id": "4663168171245568",
-    "n_strokes": 3,
-    "n_points": 51
+    "key_id": "6697195325620224",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 49
   },
   {
     "number": 18,
     "word": "pig",
-    "key_id": "6308630540320768",
-    "n_strokes": 3,
-    "n_points": 55
+    "key_id": "5893516913803264",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 45
   },
   {
     "number": 19,
     "word": "pig",
-    "key_id": "6137392689840128",
-    "n_strokes": 3,
-    "n_points": 45
+    "key_id": "4600478774067200",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 43
   },
   {
     "number": 20,
     "word": "pig",
-    "key_id": "6711342218084352",
-    "n_strokes": 3,
-    "n_points": 45
+    "key_id": "4664332623282176",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 43
   },
   {
     "number": 21,
     "word": "pig",
-    "key_id": "4540537996574720",
-    "n_strokes": 3,
-    "n_points": 52
+    "key_id": "5516610666233856",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 41
   },
   {
     "number": 22,
     "word": "pig",
-    "key_id": "6006883355721728",
-    "n_strokes": 3,
-    "n_points": 41
+    "key_id": "5598210582118400",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 40
   },
   {
     "number": 23,
     "word": "pig",
-    "key_id": "5908213159428096",
-    "n_strokes": 3,
-    "n_points": 33
+    "key_id": "5100791582949376",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 40
   },
   {
     "number": 24,
     "word": "pig",
-    "key_id": "6429791903285248",
-    "n_strokes": 3,
-    "n_points": 46
+    "key_id": "5406192585146368",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 39
   },
   {
     "number": 25,
     "word": "pig",
-    "key_id": "5166580734361600",
-    "n_strokes": 3,
-    "n_points": 43
+    "key_id": "4926861689749504",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 36
   },
   {
     "number": 26,
     "word": "pig",
-    "key_id": "4967162882031616",
-    "n_strokes": 3,
-    "n_points": 51
+    "key_id": "6020334085996544",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 36
   },
   {
     "number": 27,
     "word": "pig",
-    "key_id": "5167070515822592",
-    "n_strokes": 3,
-    "n_points": 57
+    "key_id": "5650027743543296",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 36
   },
   {
     "number": 28,
     "word": "pig",
-    "key_id": "5083401897902080",
-    "n_strokes": 3,
-    "n_points": 51
+    "key_id": "5202838126854144",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 35
   },
   {
     "number": 29,
     "word": "pig",
-    "key_id": "5333341618307072",
-    "n_strokes": 3,
-    "n_points": 42
+    "key_id": "5193262564376576",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 35
   },
   {
     "number": 30,
     "word": "pig",
-    "key_id": "4881148968697856",
-    "n_strokes": 3,
-    "n_points": 49
+    "key_id": "6059012250402816",
+    "n_strokes_original": 4,
+    "n_kept_strokes": 1,
+    "n_discarded_strokes": 3,
+    "n_points": 35
   }
 ]
