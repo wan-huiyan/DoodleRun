@@ -40,6 +40,12 @@ if sys.platform == "darwin" and os.environ.get("DOODLERUN_TRUST_KEYCHAIN", "1") 
     except Exception as _exc:
         print(f"[warn] could not export keychain CA bundle: {_exc}")
 
+import optuna  # noqa: E402
+
+# Suppress per-trial INFO logs from Optuna; the smoke prints its own
+# per-variant summary.
+optuna.logging.set_verbosity(optuna.logging.WARNING)
+
 from route_generator import generate_search_v2_multi  # noqa: E402
 from shapes import SHAPE_VARIANTS  # noqa: E402
 
@@ -52,9 +58,16 @@ CITIES = [
     ("sf_sunset",  "SF Sunset",  37.7559, -122.4828),
 ]
 ANIMAL = "pig"
-N_TRIALS = 50
-TIMEOUT_S_PER_VARIANT = 90.0  # 90s × up to 6 variants × 1 city ≤ 9 min budget
-MAX_VARIANTS = 3              # cap to keep total wall-clock under 5 min/city
+N_TRIALS = 30                 # TPE converges by ~20; 30 leaves headroom
+TIMEOUT_S_PER_VARIANT = 60.0
+MAX_VARIANTS = 2              # canonical + 1 quickdraw exemplar
+# Tighter scale band so most trials land in the soft band [14, 26] km
+# instead of being pruned at the 1.5× hard cap. Plan §3.5 calibrates the
+# 1.3× perimeter heuristic for 20 km targets, so factor ∈ [0.5, 1.3]
+# brackets that comfortably.
+SCALE_FACTOR_MIN = 0.5
+SCALE_FACTOR_MAX = 1.3
+HARD_CAP_FACTOR = 1.5         # prune anything > 30 km for a 20 km target
 
 
 def _polyline_to_geojson(polyline, waypoints, *, name: str, distance_m: float, fidelity: float) -> dict:
@@ -125,6 +138,9 @@ def main():
                 graph_radius_m=15_000,
                 n_trials=N_TRIALS,
                 timeout_s=TIMEOUT_S_PER_VARIANT,
+                scale_factor_min=SCALE_FACTOR_MIN,
+                scale_factor_max=SCALE_FACTOR_MAX,
+                hard_cap_factor=HARD_CAP_FACTOR,
             )
         except Exception as exc:
             print(f"  FAILED: {exc.__class__.__name__}: {exc}")

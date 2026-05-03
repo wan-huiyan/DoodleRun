@@ -406,6 +406,10 @@ def generate_search_v2(
     seed: int | None = 42,
     use_prescreener: bool = True,
     graph=None,
+    scale_factor_min: float = 0.5,
+    scale_factor_max: float = 3.0,
+    hard_cap_factor: float = 2.0,
+    soft_penalty_weight: float = 0.3,
 ) -> GeneratedRoute:
     """Optuna TPE search over (offset_lat, offset_lon, scale, rotation).
 
@@ -473,7 +477,9 @@ def generate_search_v2(
     def objective(trial: "optuna.Trial") -> float:
         offset_lat = trial.suggest_float("offset_lat", -0.15, 0.15)
         offset_lon = trial.suggest_float("offset_lon", -0.15, 0.15)
-        scale_factor = trial.suggest_float("scale_factor", 0.5, 3.0, log=True)
+        scale_factor = trial.suggest_float("scale_factor",
+                                           scale_factor_min, scale_factor_max,
+                                           log=True)
         rotation_deg = trial.suggest_float("rotation_deg", 0.0, 360.0)
 
         scale = base_scale * scale_factor
@@ -496,7 +502,11 @@ def generate_search_v2(
 
         fid, breakdown = combined_score(waypoints, r.polyline,
                                         return_breakdown=True)
-        score = _distance_adjusted_score(fid, r.distance_m, target_distance_m)
+        score = _distance_adjusted_score(
+            fid, r.distance_m, target_distance_m,
+            soft_weight=soft_penalty_weight,
+            hard_cap_factor=hard_cap_factor,
+        )
         if not math.isfinite(score):
             raise optuna.TrialPruned()
 
@@ -561,6 +571,10 @@ def generate_search_v2_multi(
     use_prescreener: bool = True,
     graph=None,
     n_startup_trials: int = 10,
+    scale_factor_min: float = 0.5,
+    scale_factor_max: float = 3.0,
+    hard_cap_factor: float = 2.0,
+    soft_penalty_weight: float = 0.3,
 ) -> GeneratedRoute:
     """Run ``generate_search_v2`` for each variant outline and return the
     overall best route.
@@ -624,6 +638,10 @@ def generate_search_v2_multi(
                 seed=seed,
                 use_prescreener=use_prescreener and i == 0,  # prescreen once
                 graph=G,
+                scale_factor_min=scale_factor_min,
+                scale_factor_max=scale_factor_max,
+                hard_cap_factor=hard_cap_factor,
+                soft_penalty_weight=soft_penalty_weight,
             )
         except Exception as exc:
             n_failed += 1
