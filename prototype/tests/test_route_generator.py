@@ -13,7 +13,16 @@ from unittest.mock import patch
 import pytest
 
 from osrm_client import RouteResult
-from route_generator import generate, m_per_deg_lon, project_shape
+from route_generator import (
+    V2_DEFAULT_SEARCH_RADIUS_M,
+    V2_DEFAULT_TARGET_DISTANCE_M,
+    V2_MIN_TARGET_DISTANCE_M,
+    V2_MAX_TARGET_DISTANCE_M,
+    generate,
+    generate_v2,
+    m_per_deg_lon,
+    project_shape,
+)
 
 
 class TestProjectShape:
@@ -133,3 +142,102 @@ class TestGenerateConvergence:
                     target_distance_m=10000.0,
                     n_waypoints=10, max_iterations=5,
                 )
+
+
+# ---------------------------------------------------------------------------
+# generate_v2 — the W-K + OSMnx pipeline
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateV2Defaults:
+    """The plan §0 defaults are non-negotiable; pin them with tests."""
+
+    def test_target_distance_default_is_20km(self):
+        assert V2_DEFAULT_TARGET_DISTANCE_M == 20_000
+
+    def test_search_radius_default_is_30km(self):
+        assert V2_DEFAULT_SEARCH_RADIUS_M == 30_000
+
+    def test_distance_bounds_are_15_to_30km(self):
+        assert V2_MIN_TARGET_DISTANCE_M == 15_000
+        assert V2_MAX_TARGET_DISTANCE_M == 30_000
+
+
+class TestGenerateV2Validation:
+    def test_rejects_distance_below_15km(self):
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        with pytest.raises(ValueError, match="15-30 km"):
+            generate_v2(outline, 37.0, -122.0, target_distance_m=10_000)
+
+    def test_rejects_distance_above_30km(self):
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        with pytest.raises(ValueError, match="15-30 km"):
+            generate_v2(outline, 37.0, -122.0, target_distance_m=40_000)
+
+    def test_rejects_search_radius_below_30km(self):
+        outline = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        with pytest.raises(ValueError, match="30 km"):
+            generate_v2(
+                outline, 37.0, -122.0,
+                target_distance_m=20_000,
+                search_radius_m=10_000,
+            )
+
+
+class TestGenerateV2Pipeline:
+    """End-to-end with `osmnx_router.load_graph` patched to a synthetic
+    grid; verifies that generate_v2 wires the pieces together."""
+
+    def _grid(self, n=8, spacing_m=200.0,
+              origin_lat=37.0, origin_lon=-122.0):
+        import networkx as nx
+        m_per_deg_lat = 111_320.0
+        m_per_deg_lon_v = m_per_deg_lat * math.cos(math.radians(origin_lat))
+        G = nx.MultiDiGraph()
+        for i in range(n):
+            for j in range(n):
+                G.add_node(i * n + j,
+                           y=origin_lat + (i * spacing_m) / m_per_deg_lat,
+                           x=origin_lon + (j * spacing_m) / m_per_deg_lon_v)
+        for i in range(n):
+            for j in range(n):
+                here = i * n + j
+                for di, dj in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    ni, nj = i + di, j + dj
+                    if 0 <= ni < n and 0 <= nj < n:
+                        G.add_edge(here, ni * n + nj, length=spacing_m, key=0)
+        G.graph["crs"] = "EPSG:4326"
+        return G
+
+    def test_returns_generated_route(self):
+        # Centre the synthetic grid on the seed point so the projected
+        # outline lands inside it.
+        G = self._grid(n=12)
+        with patch("osmnx_router.load_graph", return_value=G):
+            outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+            result = generate_v2(
+                outline,
+                center_lat=37.001,    # near grid origin
+                center_lon=-122.001,
+                target_distance_m=15_000,
+            )
+        assert result.distance_m > 0
+        assert len(result.polyline) > 4
+        # Fidelity should be a real number (not inf), even if not great
+        # on an artificial grid.
+        assert result.fidelity != float("inf")
+
+    def test_uses_default_search_radius(self):
+        """Defaults flow through to load_graph — pin the call so future
+        regressions that silently shrink the radius are caught."""
+        G = self._grid(n=12)
+        captured = {}
+
+        def fake_load(lat, lon, radius_m=None, use_cache=True):
+            captured["radius_m"] = radius_m
+            return G
+
+        with patch("osmnx_router.load_graph", side_effect=fake_load):
+            outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+            generate_v2(outline, 37.001, -122.001, target_distance_m=20_000)
+        assert captured["radius_m"] == V2_DEFAULT_SEARCH_RADIUS_M

@@ -233,3 +233,108 @@ def generate_search(
           f"scale={best.scale_m_per_unit:.0f}m/u "
           f"routed={best.distance_m/1000:.2f}km fidelity={best.fidelity:.4f}")
     return best
+
+
+# --- v2: Waschk & Krüger shape-aware routing on a local OSMnx graph ---------
+#
+# This is the Phase 1 algorithm: project the outline once, load a single
+# walking graph, then route segment-by-segment with a shape-aware Dijkstra
+# weight. The legacy `generate()` / `generate_search()` functions above
+# remain available as a safety net while the new path bakes in.
+
+
+# Defaults are non-negotiable per plan §0; never lower these without
+# updating the plan first.
+V2_DEFAULT_TARGET_DISTANCE_M = 20_000      # 20 km is the sweet spot
+V2_DEFAULT_SEARCH_RADIUS_M = 30_000        # 30 km area for the OSMnx graph
+V2_MIN_TARGET_DISTANCE_M = 15_000          # below 15 km, shape features stop reading
+V2_MAX_TARGET_DISTANCE_M = 30_000
+
+
+def generate_v2(
+    outline: List[Point],
+    center_lat: float,
+    center_lon: float,
+    target_distance_m: float = V2_DEFAULT_TARGET_DISTANCE_M,
+    *,
+    n_waypoints: int = 35,
+    search_radius_m: int = V2_DEFAULT_SEARCH_RADIUS_M,
+    alpha: float = 1.0,
+    beta: float = 0.5,
+    gamma: float = 4.0,
+    use_cache: bool = True,
+) -> GeneratedRoute:
+    """Generate a road-snapped animal route with the W-K shape-aware router.
+
+    Pipeline:
+      1. Resample the outline to ``n_waypoints`` (default 35 — Phase 2
+         will sweep this).
+      2. Project the outline onto (lat, lon) at the seed center using
+         the same scale heuristic as v1 (perimeter ~ 1.3× shape scale).
+      3. Load (or pull from disk cache) a 30 km OSMnx walking graph.
+      4. Route segment-by-segment with the Waschk-Krüger weight; the
+         router naturally hugs roads that parallel the outline.
+      5. Score with the Phase-1 ensemble (Hausdorff + Fréchet + IoU).
+
+    No HTTP calls, no rate limit, no SSL trust dance — everything runs
+    against the on-disk cached graph after the first download for the
+    area.
+
+    Distance is currently a one-shot heuristic: a single graph search
+    per call. Phase 2 wraps this in an Optuna multi-candidate search
+    that probes (center, scale, rotation) jointly.
+    """
+    # Lazy imports so unit tests of older code don't pull in osmnx /
+    # similaritymeasures unless they actually exercise v2.
+    from fidelity import combined_score
+    from osmnx_router import (
+        DEFAULT_RADIUS_M,
+        load_graph,
+        shape_aware_route,
+    )
+
+    if not (V2_MIN_TARGET_DISTANCE_M <= target_distance_m <= V2_MAX_TARGET_DISTANCE_M):
+        raise ValueError(
+            f"target_distance_m={target_distance_m:.0f} outside the "
+            f"validated 15-30 km range; see plan §0."
+        )
+    if search_radius_m < DEFAULT_RADIUS_M:
+        # Make the bug loud if a caller tries to shrink the radius.
+        raise ValueError(
+            f"search_radius_m={search_radius_m} < {DEFAULT_RADIUS_M} (30 km). "
+            "Smaller radii systematically fail to produce recognisable routes."
+        )
+
+    sampled = resample(outline, n_waypoints)
+    perimeter_units = outline_perimeter(sampled)
+    # Same scale heuristic as v1: target_distance ≈ 1.3 × shape_perimeter.
+    scale = (target_distance_m / 1.3) / perimeter_units
+    waypoints = project_shape(sampled, center_lat, center_lon, scale)
+
+    G = load_graph(center_lat, center_lon, radius_m=search_radius_m, use_cache=use_cache)
+
+    result = shape_aware_route(
+        G,
+        waypoints,
+        alpha=alpha,
+        beta=beta,
+        gamma=gamma,
+        closed=True,
+    )
+
+    if not result.polyline:
+        raise RuntimeError(
+            "shape_aware_route returned no polyline — outline likely outside "
+            "the loaded graph footprint"
+        )
+
+    score = combined_score(waypoints, result.polyline)
+    return GeneratedRoute(
+        waypoints=waypoints,
+        polyline=result.polyline,
+        distance_m=result.distance_m,
+        scale_m_per_unit=scale,
+        center_lat=center_lat,
+        center_lon=center_lon,
+        fidelity=score,
+    )

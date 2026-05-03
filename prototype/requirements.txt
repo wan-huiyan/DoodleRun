@@ -1,2 +1,16 @@
+# Existing
 requests>=2.31
 folium>=0.15
+
+# Phase 1 (Waschk-Krüger shape-aware routing on a local OSM graph)
+# All four below replace network/HTTP work or hand-rolled algorithms with mature libraries.
+osmnx>=2.0              # OSM graph download + cache + nearest-node + NetworkX integration
+shapely>=2.0            # buffered area-IoU, geometry primitives
+simplification>=0.7     # Rust-backed Visvalingam-Whyatt + RDP polyline simplification
+similaritymeasures>=1.0 # Fréchet, area-between-curves, DTW, MAE, PCM
+numpy>=1.24             # transitive but pin explicitly
+scikit-learn>=1.3       # osmnx.distance.nearest_nodes uses BallTree on unprojected graphs
+
+# Phase 2 (will install when needed)
+# optuna>=3.0
+# turning-function>=0.1

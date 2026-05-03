@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from shape_utils import bounding_box, outline_perimeter, resample
+from shape_utils import bounding_box, outline_perimeter, resample, simplify_vw
 
 
 class TestOutlinePerimeter:
@@ -88,3 +88,41 @@ class TestActualShapes:
         from shapes import SHAPES
         # Need at least ~30 points for any animal silhouette to resolve.
         assert len(SHAPES[shape_name]) >= 30
+
+
+class TestSimplifyVW:
+    def test_returns_input_when_already_short(self):
+        line = [(0, 0), (1, 0), (2, 0)]
+        out = simplify_vw(line, target_count=5)
+        assert out == line
+
+    def test_reduces_to_target_count_within_tolerance(self):
+        # Dense circle approximation, 200 points.
+        circle = [
+            (math.cos(t), math.sin(t))
+            for t in [i * math.pi / 100 for i in range(201)]
+        ]
+        out = simplify_vw(circle, target_count=30)
+        # ±10% target tolerance per docstring.
+        assert 27 <= len(out) <= 33
+        # First/last points preserved (VW preserves endpoints).
+        assert out[0] == circle[0]
+        assert out[-1] == circle[-1]
+
+    def test_target_too_small_raises(self):
+        with pytest.raises(ValueError):
+            simplify_vw([(0, 0), (1, 0), (2, 0), (3, 0)], target_count=2)
+
+    def test_preserves_visual_area_better_than_endpoints_only(self):
+        """A 200-point circle simplified to 20 points should still cover
+        most of the original perimeter — this catches obvious regressions
+        where the binary search collapses to the bounding-box corners."""
+        circle = [
+            (math.cos(t), math.sin(t))
+            for t in [i * math.pi / 100 for i in range(201)]
+        ]
+        original = outline_perimeter(circle)
+        out = simplify_vw(circle, target_count=20)
+        simplified = outline_perimeter(out)
+        # 20 points around a circle should preserve >95% of the perimeter.
+        assert simplified > 0.95 * original
