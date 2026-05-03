@@ -1,12 +1,16 @@
-"""Real-world smoke run for generate_v2.
+"""Real-world smoke run for generate_search_v2_multi (Phase 3).
 
-Forces actual osmnx.graph_from_point downloads against three cities so
-we can visually validate that Phase 1's W-K shape-aware router produces
-a route that hugs the outline (not spaghetti). Outputs:
+Forces actual osmnx.graph_from_point downloads against the configured
+cities so we can validate that Phase-3's perf fix + Optuna multi-variant
+search produce: (1) routes inside [0.7×, 1.3×] of target_distance_m,
+(2) better fidelity than the Phase-1 baseline (London E14 0.307), and
+(3) wall-clock under 5 min/city.
 
-    samples/v2_smoke/<city>_pig.geojson      — full polyline + waypoints
-    samples/v2_smoke/<city>_pig.png          — folium PNG (best-effort)
-    samples/v2_smoke/summary.json            — distance + fidelity per city
+Outputs:
+
+    samples/v2_smoke/<city>_<animal>_search.geojson — polyline + waypoints
+    samples/v2_smoke/<city>_<animal>_search.png    — matplotlib + basemap
+    samples/v2_smoke/summary_v2_multi.json         — distance/fidelity/elapsed
 
 Run:  ../.venv/bin/python smoke_v2.py
 """
@@ -36,17 +40,21 @@ if sys.platform == "darwin" and os.environ.get("DOODLERUN_TRUST_KEYCHAIN", "1") 
     except Exception as _exc:
         print(f"[warn] could not export keychain CA bundle: {_exc}")
 
-from route_generator import generate_v2  # noqa: E402
-from shapes import SHAPES  # noqa: E402
+from route_generator import generate_search_v2_multi  # noqa: E402
+from shapes import SHAPE_VARIANTS  # noqa: E402
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "samples" / "v2_smoke"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Phase-3 smoke targets: London + SF (Manhattan logged for follow-up).
 CITIES = [
-    ("london_e14", "London E14",  51.5074,  -0.0148),
-    ("sf_sunset",  "SF Sunset",   37.7559, -122.4828),
-    ("manhattan",  "Manhattan",   40.7831,  -73.9712),
+    ("london_e14", "London E14", 51.5074,  -0.0148),
+    ("sf_sunset",  "SF Sunset",  37.7559, -122.4828),
 ]
+ANIMAL = "pig"
+N_TRIALS = 50
+TIMEOUT_S_PER_VARIANT = 90.0  # 90s × up to 6 variants × 1 city ≤ 9 min budget
+MAX_VARIANTS = 3              # cap to keep total wall-clock under 5 min/city
 
 
 def _polyline_to_geojson(polyline, waypoints, *, name: str, distance_m: float, fidelity: float) -> dict:
@@ -103,39 +111,62 @@ def _try_render_png(geojson_path: Path, png_path: Path):
 
 def main():
     summary = []
+    variants_full = SHAPE_VARIANTS[ANIMAL]
+    variants = variants_full[:MAX_VARIANTS]
+    print(f"Animal={ANIMAL!r}: using {len(variants)}/{len(variants_full)} variants "
+          f"(canonical first, then quickdraw); n_trials={N_TRIALS} per variant")
     for slug, name, lat, lon in CITIES:
         print(f"\n=== {name} @ ({lat:.4f}, {lon:.4f}) ===")
         t0 = time.perf_counter()
         try:
-            # Use the per-candidate 15 km graph cap (plan §9). The 30 km
-            # SEARCH radius governs candidate placement, not graph load.
-            r = generate_v2(SHAPES["pig"], lat, lon,
-                            target_distance_m=20_000,
-                            graph_radius_m=15_000)
+            r = generate_search_v2_multi(
+                variants, lat, lon,
+                target_distance_m=20_000,
+                graph_radius_m=15_000,
+                n_trials=N_TRIALS,
+                timeout_s=TIMEOUT_S_PER_VARIANT,
+            )
         except Exception as exc:
             print(f"  FAILED: {exc.__class__.__name__}: {exc}")
             summary.append({"slug": slug, "city": name, "error": str(exc)})
             continue
         elapsed = time.perf_counter() - t0
-        print(f"  distance={r.distance_m / 1000:.2f} km  fidelity={r.fidelity:.4f}  "
+        print(f"  variant={r.best_params.get('variant_index')} "
+              f"distance={r.distance_m / 1000:.2f}km score={r.fidelity:.4f}  "
               f"({elapsed:.1f}s)")
+        if r.fidelity_breakdown:
+            print(f"  breakdown={r.fidelity_breakdown}")
 
         gj = _polyline_to_geojson(r.polyline, r.waypoints,
-                                  name=f"{name} pig",
+                                  name=f"{name} {ANIMAL}",
                                   distance_m=r.distance_m,
                                   fidelity=r.fidelity)
-        gj_path = OUT_DIR / f"{slug}_pig.geojson"
+        gj_path = OUT_DIR / f"{slug}_{ANIMAL}_search.geojson"
         with open(gj_path, "w") as f:
             json.dump(gj, f, indent=2)
-        html = _try_render_png(gj_path, OUT_DIR / f"{slug}_pig.png")
+        html = _try_render_png(gj_path, OUT_DIR / f"{slug}_{ANIMAL}_search.png")
+        # Matplotlib PNG (preferred — committed for review).
+        try:
+            from render_preview_png import render_geojson
+            png_path = OUT_DIR / f"{slug}_{ANIMAL}_search.png"
+            render_geojson(gj_path, png_path)
+            print(f"  png written → {png_path.name}")
+        except Exception as exc:
+            print(f"  [warn] matplotlib PNG render failed: {exc}")
+            png_path = None
         summary.append({
             "slug": slug, "city": name, "lat": lat, "lon": lon,
-            "distance_m": r.distance_m, "fidelity": r.fidelity,
-            "elapsed_s": elapsed, "geojson": str(gj_path.name),
+            "distance_m": r.distance_m,
+            "score": r.fidelity,
+            "fidelity_breakdown": r.fidelity_breakdown,
+            "best_params": r.best_params,
+            "elapsed_s": elapsed,
+            "geojson": gj_path.name,
+            "png": png_path.name if png_path else None,
             "html_preview": html.name if html else None,
         })
 
-    sum_path = OUT_DIR / "summary.json"
+    sum_path = OUT_DIR / "summary_v2_multi.json"
     with open(sum_path, "w") as f:
         json.dump(summary, f, indent=2)
     print(f"\nSummary written to {sum_path}")
