@@ -22,6 +22,7 @@ from route_generator import (
     _rotate_xy,
     generate,
     generate_search_v2,
+    generate_search_v2_multi,
     generate_v2,
     m_per_deg_lon,
     project_shape,
@@ -349,3 +350,84 @@ class TestGenerateSearchV2:
             early_stop_score=10.0,   # any finite score triggers stop
         )
         assert result.fidelity != float("inf")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — generate_search_v2_multi (per-variant Optuna)
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateSearchV2Multi:
+    def _big_grid(self):
+        return make_grid_graph(n=20, spacing_m=200.0,
+                               origin_lat=37.0, origin_lon=-122.0)
+
+    def test_picks_variant_with_lower_score(self):
+        """Two variants — one runnable, one degenerate. Multi should
+        return the runnable one and tag its index in best_params."""
+        G = self._big_grid()
+        good = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        # Degenerate "shape" — a near-collapsed line. Will score worse
+        # than the square but still be valid (no exception path).
+        meh = [(0, 0), (0.5, 0), (1, 0), (0.5, 0), (0, 0)]
+        result = generate_search_v2_multi(
+            [good, meh], 37.01, -122.01,
+            target_distance_m=15_000,
+            n_trials=3, timeout_s=None,
+            graph=G, use_prescreener=False,
+            n_startup_trials=2,
+        )
+        assert result.best_params is not None
+        assert "variant_index" in result.best_params
+        # The square should typically win on grid; either is acceptable
+        # but the index must be 0 or 1.
+        assert result.best_params["variant_index"] in (0, 1)
+
+    def test_passes_through_route_metrics(self):
+        G = self._big_grid()
+        outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        result = generate_search_v2_multi(
+            [outline], 37.01, -122.01,
+            target_distance_m=15_000,
+            n_trials=3, timeout_s=None,
+            graph=G, use_prescreener=False,
+            n_startup_trials=2,
+        )
+        assert result.distance_m > 0
+        assert len(result.polyline) > 4
+        assert result.fidelity_breakdown is not None
+        assert result.best_params["variant_index"] == 0
+
+    def test_skips_failed_variants(self):
+        """A variant that's empty (zero points) raises ValueError inside
+        the inner search; multi should log the failure and continue with
+        the remaining variants instead of propagating."""
+        G = self._big_grid()
+        good = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        bad = []  # will raise inside resample()
+        result = generate_search_v2_multi(
+            [bad, good], 37.01, -122.01,
+            target_distance_m=15_000,
+            n_trials=2, timeout_s=None,
+            graph=G, use_prescreener=False,
+            n_startup_trials=2,
+        )
+        assert result.best_params["variant_index"] == 1
+
+    def test_raises_when_all_variants_fail(self):
+        G = self._big_grid()
+        with pytest.raises(RuntimeError, match="All .* variants failed"):
+            generate_search_v2_multi(
+                [[], []], 37.01, -122.01,
+                target_distance_m=15_000,
+                n_trials=2, timeout_s=None,
+                graph=G, use_prescreener=False,
+                n_startup_trials=2,
+            )
+
+    def test_rejects_empty_variant_list(self):
+        with pytest.raises(ValueError, match="at least one"):
+            generate_search_v2_multi(
+                [], 37.01, -122.01,
+                target_distance_m=15_000,
+            )

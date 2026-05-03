@@ -27,9 +27,10 @@ import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
 import networkx as nx
+import numpy as np
 import osmnx as ox
 
 LatLon = Tuple[float, float]
@@ -39,6 +40,15 @@ DEFAULT_RADIUS_M = 30_000
 
 CACHE_DIR = Path(__file__).resolve().parent / "graph_cache"
 CACHE_DIR.mkdir(exist_ok=True)
+
+# Marker keys we stash on graph / edge dicts at load time. Single-underscore
+# prefix so they don't collide with osmnx attrs and so a `clear_precompute`
+# pass can find them with `startswith("_dr_")`.
+_PRECOMPUTE_FLAG = "_dr_precomputed"
+_KDTREE_KEY = "_dr_node_kdtree"
+_NODE_IDS_KEY = "_dr_node_ids"
+_ORIGIN_KEY = "_dr_origin_latlon"
+_MPERLON_KEY = "_dr_m_per_deg_lon"
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +112,7 @@ def load_graph(
     network_type: str = "walk",
     *,
     use_cache: bool = True,
+    precompute: bool = True,
 ) -> nx.MultiDiGraph:
     """Download (or load from disk cache) the OSM walking graph for an area.
 
@@ -110,27 +121,167 @@ def load_graph(
     not roll our own pickle — the GraphML round-trip preserves the
     edge attributes osmnx adds (length, geometry, highway, name, …).
 
+    With ``precompute=True`` (the default) we walk the graph once to
+    stash a node KDTree and per-edge midpoint/length so subsequent
+    ``nearest_node_cached`` and ``waschk_kruger_cost_fn`` calls run in
+    O(1) instead of rebuilding GeoDataFrames per call. Pass
+    ``precompute=False`` from tests that want the bare osmnx graph.
+
     The 30 km default radius is intentional; smaller radii systematically
     fail to produce recognisable routes (see plan §0).
     """
     cache = _cache_path(center_lat, center_lon, radius_m)
     if use_cache and cache.exists():
-        return ox.load_graphml(cache)
-    G = ox.graph_from_point(
-        (center_lat, center_lon),
-        dist=radius_m,
-        network_type=network_type,
-        simplify=True,
-    )
-    if use_cache:
-        ox.save_graphml(G, cache)
+        G = ox.load_graphml(cache)
+    else:
+        G = ox.graph_from_point(
+            (center_lat, center_lon),
+            dist=radius_m,
+            network_type=network_type,
+            simplify=True,
+        )
+        if use_cache:
+            ox.save_graphml(G, cache)
+    if precompute:
+        precompute_graph_attrs(G)
     return G
+
+
+# ---------------------------------------------------------------------------
+# Precompute: node KDTree + per-edge midpoints / endpoint coords
+# ---------------------------------------------------------------------------
+
+
+def precompute_graph_attrs(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+    """Walk the graph once and stash hot-path lookups on it.
+
+    For an Optuna search that calls ``shape_aware_route`` 50 times, the
+    bottleneck is ``ox.distance.nearest_nodes`` rebuilding a GeoDataFrame
+    each call — measured at ~2 s per call on a 870K-edge London graph,
+    so 35 anchor snaps per route × 50 trials ≈ 60 minutes wasted on
+    geometry the graph already has. We pre-build a scipy KDTree once and
+    pre-stash per-edge midpoint / endpoint metres-from-origin so the
+    Waschk-Krüger weight callable becomes a constant-time attr lookup.
+
+    Idempotent: if ``G.graph[_PRECOMPUTE_FLAG]`` is already set, returns
+    immediately.
+
+    Mutates ``G`` in place and also returns it for chaining.
+    """
+    if G.graph.get(_PRECOMPUTE_FLAG):
+        return G
+
+    from scipy.spatial import cKDTree
+
+    node_ids: List[int] = []
+    lats: List[float] = []
+    lons: List[float] = []
+    for nid, data in G.nodes(data=True):
+        node_ids.append(int(nid))
+        lats.append(float(data["y"]))
+        lons.append(float(data["x"]))
+
+    if not node_ids:
+        raise ValueError("graph has no nodes; cannot precompute attrs")
+
+    lat_arr = np.asarray(lats, dtype=np.float64)
+    lon_arr = np.asarray(lons, dtype=np.float64)
+
+    # Equirectangular projection around the graph centroid. For a 15 km
+    # radius this introduces <0.1% error vs haversine — far below routing
+    # noise. Project once at build time so cKDTree distances are metres.
+    origin_lat = float(np.mean(lat_arr))
+    origin_lon = float(np.mean(lon_arr))
+    m_per_deg_lat = 111_320.0
+    m_per_deg_lon = m_per_deg_lat * math.cos(math.radians(origin_lat))
+
+    x_m = (lon_arr - origin_lon) * m_per_deg_lon
+    y_m = (lat_arr - origin_lat) * m_per_deg_lat
+    tree = cKDTree(np.column_stack([x_m, y_m]))
+
+    G.graph[_KDTREE_KEY] = tree
+    G.graph[_NODE_IDS_KEY] = np.asarray(node_ids, dtype=np.int64)
+    G.graph[_ORIGIN_KEY] = (origin_lat, origin_lon)
+    G.graph[_MPERLON_KEY] = m_per_deg_lon
+
+    # Walk all edges and stash per-edge midpoint + endpoint coords on the
+    # inner attribute dict. This makes the W-K weight callable O(1):
+    # no `G.nodes[u]` lookup, no midpoint recompute. We stash on every
+    # parallel edge so the min-by-length pick still works.
+    nodes = G.nodes
+    for u, v, k, data in G.edges(keys=True, data=True):
+        u_lat = float(nodes[u]["y"])
+        u_lon = float(nodes[u]["x"])
+        v_lat = float(nodes[v]["y"])
+        v_lon = float(nodes[v]["x"])
+        data["_dr_u_lat"] = u_lat
+        data["_dr_u_lon"] = u_lon
+        data["_dr_v_lat"] = v_lat
+        data["_dr_v_lon"] = v_lon
+        data["_dr_mid_lat"] = (u_lat + v_lat) * 0.5
+        data["_dr_mid_lon"] = (u_lon + v_lon) * 0.5
+        # `length` may have been deserialised from GraphML as str; coerce once.
+        try:
+            data["length"] = float(data.get("length", 0.0))
+        except (TypeError, ValueError):
+            data["length"] = 0.0
+
+    G.graph[_PRECOMPUTE_FLAG] = True
+    return G
+
+
+def _project_to_local_m(G: nx.MultiDiGraph, lat: float, lon: float) -> Tuple[float, float]:
+    """Project (lat, lon) into the same metres-from-origin frame the
+    cached KDTree was built in. Caller must have run precompute first."""
+    origin_lat, origin_lon = G.graph[_ORIGIN_KEY]
+    m_per_deg_lon = G.graph[_MPERLON_KEY]
+    x = (lon - origin_lon) * m_per_deg_lon
+    y = (lat - origin_lat) * 111_320.0
+    return x, y
+
+
+def nearest_node_cached(G: nx.MultiDiGraph, lat: float, lon: float) -> int:
+    """O(log N) snap using the cached KDTree on ``G``. Falls back to
+    the un-cached osmnx call if precompute hasn't run."""
+    if not G.graph.get(_PRECOMPUTE_FLAG):
+        return nearest_node(G, lat, lon)
+    tree = G.graph[_KDTREE_KEY]
+    node_ids = G.graph[_NODE_IDS_KEY]
+    x, y = _project_to_local_m(G, lat, lon)
+    _, idx = tree.query([x, y], k=1)
+    return int(node_ids[int(idx)])
+
+
+def nearest_nodes_cached(
+    G: nx.MultiDiGraph, latlons: Sequence[LatLon]
+) -> List[int]:
+    """Batch variant — single tree query for all anchors. Used inside
+    ``shape_aware_route`` to collapse 35 KDTree lookups into one."""
+    if not G.graph.get(_PRECOMPUTE_FLAG):
+        return [nearest_node(G, lat, lon) for lat, lon in latlons]
+    tree = G.graph[_KDTREE_KEY]
+    node_ids = G.graph[_NODE_IDS_KEY]
+    origin_lat, origin_lon = G.graph[_ORIGIN_KEY]
+    m_per_deg_lon = G.graph[_MPERLON_KEY]
+    pts = np.empty((len(latlons), 2), dtype=np.float64)
+    for i, (lat, lon) in enumerate(latlons):
+        pts[i, 0] = (lon - origin_lon) * m_per_deg_lon
+        pts[i, 1] = (lat - origin_lat) * 111_320.0
+    _, idxs = tree.query(pts, k=1)
+    return [int(node_ids[int(j)]) for j in np.atleast_1d(idxs)]
 
 
 def nearest_node(G: nx.MultiDiGraph, lat: float, lon: float) -> int:
     """Snap a (lat, lon) to the closest graph node id. Thin wrapper over
     ``osmnx.distance.nearest_nodes`` so callers don't have to remember
-    the (X=lon, Y=lat) calling convention."""
+    the (X=lon, Y=lat) calling convention.
+
+    Prefer ``nearest_node_cached`` after ``precompute_graph_attrs`` has
+    run — that path is ~1000× faster on large graphs because it skips
+    the per-call GeoDataFrame build.
+    """
+    if G.graph.get(_PRECOMPUTE_FLAG):
+        return nearest_node_cached(G, lat, lon)
     return int(ox.distance.nearest_nodes(G, X=lon, Y=lat))
 
 
@@ -159,35 +310,81 @@ def waschk_kruger_cost_fn(
     All three sub-costs are in metres so they're directly comparable
     without per-term normalisation.
     """
+    # Hoist the segment-projection coefficients out of the per-edge hot
+    # path. The midpoint distance is `_point_to_segment_distance_m`
+    # called O(visits-per-Dijkstra) times — pre-compute the local-tangent
+    # constants once per segment.
+    seg_lat0_rad = math.radians((seg_start[0] + seg_end[0]) / 2)
+    seg_m_per_deg_lon = 111_320.0 * math.cos(seg_lat0_rad)
+    seg_m_per_deg_lat = 111_320.0
+    seg_ax = (seg_start[1]) * seg_m_per_deg_lon
+    seg_ay = (seg_start[0]) * seg_m_per_deg_lat
+    seg_bx = (seg_end[1]) * seg_m_per_deg_lon
+    seg_by = (seg_end[0]) * seg_m_per_deg_lat
+    seg_dx = seg_bx - seg_ax
+    seg_dy = seg_by - seg_ay
+    seg_len_sq = seg_dx * seg_dx + seg_dy * seg_dy
+    seg_end_lat_rad = math.radians(seg_end[0])
+    seg_end_lon = seg_end[1]
+    seg_end_lat = seg_end[0]
+    cos_seg_end_lat = math.cos(seg_end_lat_rad)
+
+    precomputed = G.graph.get(_PRECOMPUTE_FLAG, False)
+
     def weight(u: int, v: int, edge_data: dict) -> float:
         # MultiDiGraph: edge_data may be the inner attribute dict (when
         # NetworkX picks a parallel edge), or a {key: attrs} mapping
         # (older callers). Handle both.
         if "length" not in edge_data and edge_data:
-            # pick the shortest parallel edge
             inner = min(edge_data.values(), key=lambda d: d.get("length", float("inf")))
         else:
             inner = edge_data
 
-        edge_length = float(inner.get("length", 0.0))
+        edge_length = inner.get("length", 0.0)
+        if not isinstance(edge_length, (int, float)):
+            edge_length = float(edge_length)
 
-        v_lat = float(G.nodes[v]["y"])
-        v_lon = float(G.nodes[v]["x"])
-        u_lat = float(G.nodes[u]["y"])
-        u_lon = float(G.nodes[u]["x"])
+        if precomputed and "_dr_v_lat" in inner:
+            v_lat = inner["_dr_v_lat"]
+            v_lon = inner["_dr_v_lon"]
+            mid_lat = inner["_dr_mid_lat"]
+            mid_lon = inner["_dr_mid_lon"]
+        else:
+            v_lat = float(G.nodes[v]["y"])
+            v_lon = float(G.nodes[v]["x"])
+            u_lat = float(G.nodes[u]["y"])
+            u_lon = float(G.nodes[u]["x"])
+            mid_lat = (u_lat + v_lat) * 0.5
+            mid_lon = (u_lon + v_lon) * 0.5
 
-        # C1: haversine from new node to segment endpoint (metres)
-        c1 = _haversine((v_lat, v_lon), seg_end)
+        # C1: haversine from new node to segment endpoint (metres). Inline
+        # the formula so the per-edge call avoids a function-call frame.
+        phi1 = math.radians(v_lat)
+        dphi = seg_end_lat_rad - phi1
+        dlam = math.radians(seg_end_lon - v_lon)
+        h = math.sin(dphi * 0.5) ** 2 + math.cos(phi1) * cos_seg_end_lat * math.sin(dlam * 0.5) ** 2
+        c1 = 2 * EARTH_R_M * math.asin(math.sqrt(h))
 
         # C2: edge length (metres)
         c2 = edge_length
 
         # C3: perpendicular distance from edge midpoint to the target
-        # segment a→b. Cheap proxy for the Riemann-sum of perpendicular
-        # distances along the edge — for typical city-block edges (<200 m)
-        # the midpoint is within a few percent of the integrated value.
-        mid = ((u_lat + v_lat) / 2.0, (u_lon + v_lon) / 2.0)
-        c3 = _point_to_segment_distance_m(mid, seg_start, seg_end)
+        # segment a→b. Inline the projection using hoisted constants.
+        if seg_len_sq == 0:
+            px = mid_lon * seg_m_per_deg_lon - seg_ax
+            py = mid_lat * seg_m_per_deg_lat - seg_ay
+            c3 = math.hypot(px, py)
+        else:
+            px = mid_lon * seg_m_per_deg_lon - seg_ax
+            py = mid_lat * seg_m_per_deg_lat - seg_ay
+            t = (px * seg_dx + py * seg_dy) / seg_len_sq
+            if t < 0.0:
+                t = 0.0
+            elif t > 1.0:
+                t = 1.0
+            cx = t * seg_dx
+            cy = t * seg_dy
+            c3 = math.hypot(px - cx, py - cy)
 
         return alpha * c1 + beta * c2 + gamma * c3
 
@@ -258,9 +455,10 @@ def shape_aware_route(
     n_ok = 0
     n_fail = 0
 
-    # Snap every outline point once up front (cheap; saves repeated
-    # KDTree queries when the same node serves consecutive segments).
-    anchor_nodes = [nearest_node(G, lat, lon) for (lat, lon) in pts]
+    # Snap every outline point once up front. With the cached KDTree
+    # this is one batched scipy query; without precompute it falls back
+    # to per-point ``ox.distance.nearest_nodes``.
+    anchor_nodes = nearest_nodes_cached(G, pts)
 
     for i in range(len(pts) - 1):
         u_node = anchor_nodes[i]

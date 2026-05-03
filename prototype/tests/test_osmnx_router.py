@@ -19,6 +19,9 @@ from osmnx_router import (
     _haversine,
     _point_to_segment_distance_m,
     nearest_node,
+    nearest_node_cached,
+    nearest_nodes_cached,
+    precompute_graph_attrs,
     shape_aware_route,
     waschk_kruger_cost_fn,
 )
@@ -215,3 +218,92 @@ def test_default_radius_is_30km():
     """Plan §0 makes 30 km a non-negotiable default — make sure no future
     edit silently shrinks it."""
     assert DEFAULT_RADIUS_M == 30_000
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — graph precompute (KDTree + per-edge midpoints)
+# ---------------------------------------------------------------------------
+
+
+class TestPrecomputeGraphAttrs:
+    def test_marks_graph_idempotent(self, grid):
+        precompute_graph_attrs(grid)
+        assert grid.graph.get("_dr_precomputed") is True
+        # second call is a no-op (no AttributeError, no error)
+        precompute_graph_attrs(grid)
+        assert grid.graph.get("_dr_precomputed") is True
+
+    def test_stashes_kdtree_and_node_ids(self, grid):
+        precompute_graph_attrs(grid)
+        assert grid.graph["_dr_node_kdtree"] is not None
+        ids = grid.graph["_dr_node_ids"]
+        assert len(ids) == 25  # 5x5 grid
+        assert grid.graph["_dr_origin_latlon"] is not None
+
+    def test_stashes_per_edge_midpoint_and_endpoints(self, grid):
+        precompute_graph_attrs(grid)
+        # Pick a known east-going edge and verify midpoint is between nodes.
+        u, v = 12, 13
+        edge_data = grid.get_edge_data(u, v)
+        inner = list(edge_data.values())[0]
+        u_lat = grid.nodes[u]["y"]
+        v_lat = grid.nodes[v]["y"]
+        u_lon = grid.nodes[u]["x"]
+        v_lon = grid.nodes[v]["x"]
+        assert inner["_dr_u_lat"] == pytest.approx(u_lat)
+        assert inner["_dr_v_lon"] == pytest.approx(v_lon)
+        assert inner["_dr_mid_lat"] == pytest.approx((u_lat + v_lat) / 2)
+        assert inner["_dr_mid_lon"] == pytest.approx((u_lon + v_lon) / 2)
+
+
+class TestNearestNodeCached:
+    def test_matches_uncached_nearest(self, grid):
+        # Pick a few query points; both paths should agree.
+        precompute_graph_attrs(grid)
+        for nid in (0, 12, 24):
+            lat = grid.nodes[nid]["y"]
+            lon = grid.nodes[nid]["x"]
+            assert nearest_node_cached(grid, lat, lon) == nid
+
+    def test_batch_query(self, grid):
+        precompute_graph_attrs(grid)
+        latlons = [(grid.nodes[i]["y"], grid.nodes[i]["x"]) for i in (0, 6, 12, 18, 24)]
+        result = nearest_nodes_cached(grid, latlons)
+        assert result == [0, 6, 12, 18, 24]
+
+    def test_falls_back_to_uncached_when_no_precompute(self, grid):
+        # No precompute call → cached should still work via fallback.
+        assert nearest_node_cached(grid, grid.nodes[12]["y"], grid.nodes[12]["x"]) == 12
+
+
+class TestCostFunctionUsesPrecomputedAttrs:
+    def test_weight_matches_before_and_after_precompute(self, grid):
+        """The cost function must produce the same number whether or not
+        the graph has been precomputed — precompute is a perf win, not a
+        semantic change."""
+        seg_start = (grid.nodes[12]["y"], grid.nodes[12]["x"])
+        seg_end = (grid.nodes[14]["y"], grid.nodes[14]["x"])
+
+        weight_uncached = waschk_kruger_cost_fn(grid, seg_start, seg_end)
+        c_uncached = weight_uncached(12, 13, grid.get_edge_data(12, 13))
+
+        precompute_graph_attrs(grid)
+        weight_cached = waschk_kruger_cost_fn(grid, seg_start, seg_end)
+        c_cached = weight_cached(12, 13, grid.get_edge_data(12, 13))
+
+        assert c_cached == pytest.approx(c_uncached, rel=1e-6)
+
+    def test_route_polyline_unchanged_after_precompute(self, grid):
+        """End-to-end: an outline that produces the same polyline whether
+        precomputed or not. Pins that the perf path is semantically clean."""
+        outline = [
+            (grid.nodes[6]["y"], grid.nodes[6]["x"]),
+            (grid.nodes[8]["y"], grid.nodes[8]["x"]),
+            (grid.nodes[18]["y"], grid.nodes[18]["x"]),
+            (grid.nodes[16]["y"], grid.nodes[16]["x"]),
+        ]
+        r_uncached = shape_aware_route(grid, outline)
+        precompute_graph_attrs(grid)
+        r_cached = shape_aware_route(grid, outline)
+        assert r_cached.distance_m == pytest.approx(r_uncached.distance_m, rel=1e-6)
+        assert r_cached.n_segments_routed == r_uncached.n_segments_routed

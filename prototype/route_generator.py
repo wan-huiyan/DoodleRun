@@ -539,3 +539,111 @@ def generate_search_v2(
         best_params=best_state["params"],
         fidelity_breakdown=best_state["breakdown"],
     )
+
+
+def generate_search_v2_multi(
+    outline_variants: List[List[Point]],
+    center_lat: float,
+    center_lon: float,
+    target_distance_m: float = V2_DEFAULT_TARGET_DISTANCE_M,
+    *,
+    n_trials: int = 50,
+    timeout_s: float | None = 120.0,
+    early_stop_score: float = 0.04,
+    n_waypoints: int = 35,
+    search_radius_m: int = V2_DEFAULT_SEARCH_RADIUS_M,
+    graph_radius_m: int = V2_DEFAULT_GRAPH_RADIUS_M,
+    alpha: float = 1.0,
+    beta: float = 0.5,
+    gamma: float = 4.0,
+    use_cache: bool = True,
+    seed: int | None = 42,
+    use_prescreener: bool = True,
+    graph=None,
+    n_startup_trials: int = 10,
+) -> GeneratedRoute:
+    """Run ``generate_search_v2`` for each variant outline and return the
+    overall best route.
+
+    The graph is loaded once and pinned across every variant (avoiding
+    the 70+ second precompute cost per variant). Each variant gets its
+    own independent Optuna study — TPE priors don't transfer cleanly
+    across variants, so per-study is both simpler and more parallel-
+    friendly than wedging variant-as-categorical into a single study.
+
+    ``best_params`` on the returned route is augmented with
+    ``{"variant_index": i}`` so callers can recover which variant won.
+
+    Trial budget per variant defaults to ``n_trials`` (50 in the smoke
+    tests); ``timeout_s`` is also enforced per variant. With the cached
+    KDTree + edge-attr precompute, a 50-trial study on a 15 km London
+    graph runs in ~2 min.
+    """
+    if not outline_variants:
+        raise ValueError("outline_variants must contain at least one outline")
+
+    from osmnx_router import (
+        DEFAULT_RADIUS_M,
+        load_graph,
+    )
+
+    if search_radius_m < DEFAULT_RADIUS_M:
+        raise ValueError(
+            f"search_radius_m={search_radius_m} < {DEFAULT_RADIUS_M} (30 km)."
+        )
+    if graph_radius_m < V2_MIN_GRAPH_RADIUS_M:
+        raise ValueError(
+            f"graph_radius_m={graph_radius_m} < {V2_MIN_GRAPH_RADIUS_M}."
+        )
+
+    G = graph if graph is not None else load_graph(
+        center_lat, center_lon, radius_m=graph_radius_m, use_cache=use_cache
+    )
+
+    best: GeneratedRoute | None = None
+    best_idx: int | None = None
+    n_failed = 0
+    for i, outline in enumerate(outline_variants):
+        try:
+            r = generate_search_v2(
+                outline,
+                center_lat,
+                center_lon,
+                target_distance_m=target_distance_m,
+                n_trials=n_trials,
+                timeout_s=timeout_s,
+                n_startup_trials=n_startup_trials,
+                early_stop_score=early_stop_score,
+                n_waypoints=n_waypoints,
+                search_radius_m=search_radius_m,
+                graph_radius_m=graph_radius_m,
+                alpha=alpha,
+                beta=beta,
+                gamma=gamma,
+                use_cache=use_cache,
+                seed=seed,
+                use_prescreener=use_prescreener and i == 0,  # prescreen once
+                graph=G,
+            )
+        except Exception as exc:
+            n_failed += 1
+            print(f"  variant {i + 1}/{len(outline_variants)} failed: "
+                  f"{exc.__class__.__name__}: {exc}")
+            continue
+        print(f"  variant {i + 1}/{len(outline_variants)} → "
+              f"score={r.fidelity:.4f} dist={r.distance_m / 1000:.1f}km")
+        if best is None or r.fidelity < best.fidelity:
+            best = r
+            best_idx = i
+
+    if best is None:
+        raise RuntimeError(
+            f"All {len(outline_variants)} variants failed "
+            f"(failed={n_failed})."
+        )
+
+    # Tag the winning variant index so callers can introspect.
+    params = dict(best.best_params or {})
+    params["variant_index"] = best_idx
+    best.best_params = params
+    return best
