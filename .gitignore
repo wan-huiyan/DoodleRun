@@ -14,3 +14,9 @@ output/
 .pytest_cache/
 prototype/.pytest_cache/
 .playwright-mcp/
+
+# Quick Draw raw datasets (large; ~430MB total; download with tools/download_quickdraw.sh)
+data/quickdraw/*.ndjson
+# OSMnx graph cache (regenerate per location)
+data/graph_cache/
+cache/

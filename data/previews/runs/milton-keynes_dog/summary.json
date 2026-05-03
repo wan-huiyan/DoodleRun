@@ -1,0 +1,62 @@
+[
+  {
+    "rank": 1,
+    "iou": 0.42958464630716003,
+    "score": 0.34132790110629385,
+    "route_length_m": 10930.720646161708,
+    "template_key_id": "4866087294337024",
+    "rotation_deg": 0.0,
+    "scale_m": 1889.9999999999998,
+    "center_lat": 52.0406,
+    "center_lon": -0.7594,
+    "png": "data/previews/runs/milton-keynes_dog/rank01_iou0.430_94337024.png"
+  },
+  {
+    "rank": 2,
+    "iou": 0.3832155325001966,
+    "score": 0.3141714068160116,
+    "route_length_m": 10324.091473039627,
+    "template_key_id": "4866087294337024",
+    "rotation_deg": 180.0,
+    "scale_m": 1889.9999999999998,
+    "center_lat": 52.0406,
+    "center_lon": -0.7594,
+    "png": "data/previews/runs/milton-keynes_dog/rank02_iou0.383_94337024.png"
+  },
+  {
+    "rank": 3,
+    "iou": 0.41610441059026076,
+    "score": 0.3123644473847638,
+    "route_length_m": 11983.496097530195,
+    "template_key_id": "4521441850556416",
+    "rotation_deg": 180.0,
+    "scale_m": 1889.9999999999998,
+    "center_lat": 52.0406,
+    "center_lon": -0.7594,
+    "png": "data/previews/runs/milton-keynes_dog/rank03_iou0.416_50556416.png"
+  },
+  {
+    "rank": 4,
+    "iou": 0.44693613005753324,
+    "score": 0.30533429653490907,
+    "route_length_m": 13603.86949272932,
+    "template_key_id": "4521441850556416",
+    "rotation_deg": 270.0,
+    "scale_m": 1889.9999999999998,
+    "center_lat": 52.0406,
+    "center_lon": -0.7506121937465715,
+    "png": "data/previews/runs/milton-keynes_dog/rank04_iou0.447_50556416.png"
+  },
+  {
+    "rank": 5,
+    "iou": 0.38489843115717753,
+    "score": 0.27772146098858397,
+    "route_length_m": 12682.924833735788,
+    "template_key_id": "4980842210263040",
+    "rotation_deg": 0.0,
+    "scale_m": 1889.9999999999998,
+    "center_lat": 52.0406,
+    "center_lon": -0.7594,
+    "png": "data/previews/runs/milton-keynes_dog/rank05_iou0.385_10263040.png"
+  }
+]
