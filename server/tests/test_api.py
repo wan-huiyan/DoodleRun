@@ -4,17 +4,25 @@ OSRM is patched out so the suite runs offline. The tests exercise the
 HTTP contract — status codes, JSON shape, GeoJSON LineString [lon,lat]
 ordering, GPX presence — rather than the routing math (which is covered
 by the prototype-level tests).
+
+Jobs run inline (synchronously inside the test thread) via the
+`JOBS_INLINE=1` env var — keeps the test deterministic and dodges
+worker-thread teardown races between tests.
 """
 
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
 import pytest
-from fastapi.testclient import TestClient
 
-from main import app
-from osrm_client import RouteResult
+os.environ.setdefault("JOBS_INLINE", "1")
+
+from fastapi.testclient import TestClient   # noqa: E402
+
+from main import app                        # noqa: E402
+from osrm_client import RouteResult         # noqa: E402
 
 
 @pytest.fixture
@@ -142,6 +150,73 @@ class TestGenerate:
             })
         assert r.status_code == 502
         assert "Route generation failed" in r.json()["detail"]
+
+
+class TestJobs:
+    """The async /jobs path is what the SPA actually uses (mobile browsers
+    kill long fetches). With JOBS_INLINE=1 the work runs synchronously in
+    the test thread, so by the time POST /jobs returns the job is already
+    in `done` or `error` state."""
+
+    def test_post_jobs_runs_to_completion(self, client):
+        with patch("route_generator.route_through",
+                   side_effect=_fake_route_through(11000.0)):
+            r = client.post("/jobs", json={
+                "shape": "pig",
+                "lat": 51.75, "lon": -0.34, "distance_km": 10.0,
+            })
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["id"]
+        # Inline mode: the worker has finished by the time POST returns.
+        assert body["status"] == "done"
+
+    def test_get_job_returns_full_result(self, client):
+        with patch("route_generator.route_through",
+                   side_effect=_fake_route_through(11000.0)):
+            job_id = client.post("/jobs", json={
+                "shape": "pig", "lat": 51.75, "lon": -0.34, "distance_km": 10.0,
+            }).json()["id"]
+            r = client.get(f"/jobs/{job_id}")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "done"
+        result = body["result"]
+        assert result is not None
+        assert result["shape"] == "pig"
+        assert result["routed_distance_m"] == 11000.0
+        assert result["geojson"]["type"] == "LineString"
+        assert result["gpx"].startswith("<?xml")
+        assert result["kml"].startswith("<?xml")
+
+    def test_post_jobs_unknown_shape_returns_404_immediately(self, client):
+        r = client.post("/jobs", json={
+            "shape": "unicorn", "lat": 51.75, "lon": -0.34, "distance_km": 10.0,
+        })
+        # Validation is up-front so the SPA can show a friendly error
+        # without polling — only real OSRM/network errors surface as
+        # job.status == "error".
+        assert r.status_code == 404
+
+    def test_get_unknown_job_returns_404(self, client):
+        r = client.get("/jobs/does-not-exist")
+        assert r.status_code == 404
+
+    def test_job_error_propagates(self, client):
+        # When every OSRM call fails, generate_search() raises a single
+        # "every candidate failed" RuntimeError. The job's `error` field
+        # surfaces that to the SPA as a polled status payload, so the
+        # spinner can stop and the message can be shown.
+        with patch("route_generator.route_through",
+                   side_effect=RuntimeError("OSRM NoRoute")):
+            job_id = client.post("/jobs", json={
+                "shape": "pig", "lat": 51.75, "lon": -0.34, "distance_km": 10.0,
+            }).json()["id"]
+            r = client.get(f"/jobs/{job_id}")
+        body = r.json()
+        assert body["status"] == "error"
+        assert body["result"] is None
+        assert "candidate" in body["error"].lower()
 
 
 class TestPreviewEndpoint:

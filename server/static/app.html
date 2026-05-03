@@ -594,10 +594,11 @@
         if (searchToggle.checked) {
           body.search_radius_km = parseInt(searchRadius.value, 10);
         }
-        const resp = await api("/generate", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
+        // Always use the async /jobs endpoint. Mobile browsers (iOS
+        // Safari especially) kill long-running fetch() calls when the
+        // tab is backgrounded — short polling requests survive that
+        // fine.
+        const resp = await runJob(body);
         lastResponse = resp;
         showRoute(resp);
         showSummary(resp);
@@ -607,9 +608,40 @@
         genBtn.disabled = false;
         const label = document.createElement("span");
         label.id = "gen-label";
-        label.textContent = "Generate route";
+        label.textContent = searchToggle.checked
+          ? "Generate route (search)"
+          : "Generate route";
         const inside = genBtn.querySelector(".spinner");
         if (inside) inside.replaceWith(label);
+      }
+    }
+
+    async function runJob(body) {
+      // Fire-and-poll. Returns the full GenerateResponse on success;
+      // throws Error on failure or job timeout.
+      const start = Date.now();
+      const POLL_MS = 1500;
+      const TIMEOUT_MS = 5 * 60 * 1000;   // 5 min — search of last resort
+
+      const { id } = await api("/jobs", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      while (true) {
+        if (Date.now() - start > TIMEOUT_MS) {
+          throw new Error("timed out waiting for the route — try a smaller "
+                          + "distance or radius");
+        }
+        await new Promise(r => setTimeout(r, POLL_MS));
+        const status = await api(`/jobs/${id}`);
+        if (status.status === "done" && status.result) {
+          return status.result;
+        }
+        if (status.status === "error") {
+          throw new Error(status.error || "route generation failed");
+        }
+        // pending / running — keep polling. We could surface progress
+        // here if the backend ever wires it up.
       }
     }
 

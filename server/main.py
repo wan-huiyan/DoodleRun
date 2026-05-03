@@ -36,6 +36,7 @@ from models import (                                       # noqa: E402
     GenerateResponse,
     GeoJSONLineString,
     HealthResponse,
+    JobStatus,
     PreviewRequest,
     PreviewResponse,
     ShapeMeta,
@@ -43,6 +44,7 @@ from models import (                                       # noqa: E402
     ShareRequest,
     ShareResponse,
 )
+from jobs import JobStore                                  # noqa: E402
 from store import ShareStore                               # noqa: E402
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -149,6 +151,7 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 share_store = ShareStore()
+job_store = JobStore(max_workers=4)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -212,48 +215,61 @@ def list_shapes() -> ShapesResponse:
     )
 
 
-@app.post("/generate", response_model=GenerateResponse)
-def generate_route(req: GenerateRequest) -> GenerateResponse:
+def _run_generate(req: GenerateRequest) -> GenerateResponse:
+    """Pure compute path — no FastAPI / no HTTPException — so this same body
+    runs both as a synchronous /generate and inside the /jobs background
+    worker.
+
+    Routing-mode policy:
+
+    * `search_radius_km` set → multi-center fidelity search (Section 6
+      of the plan). Slower (15+ OSRM calls) but tries hard to find a
+      street grid that fits the shape.
+
+    * Otherwise (`search_radius_km` is None) → tight 1-center search
+      around the user's chosen point with 5 narrow scales. This used to
+      route the legacy iterative scaler, which was prone to overshooting
+      distance and to picking a bad scale on hostile street grids.
+      Switching to a tiny grid-search:
+        - applies the 2× distance hard cap,
+        - blends Hausdorff + Fréchet + IoU instead of relying on
+          Hausdorff alone,
+      and costs at most ~5 OSRM calls (≈ 6 s on the public demo) — fast
+      enough that mobile fetch() doesn't time out.
+    """
     if req.shape not in SHAPES:
         raise HTTPException(404, f"Unknown shape '{req.shape}'. "
                                   f"See GET /shapes for available shapes.")
 
     target_m = req.distance_km * 1000.0
-    try:
-        if req.search_radius_km is not None:
-            result = generate_search(
-                outline=SHAPES[req.shape],
-                center_lat=req.lat,
-                center_lon=req.lon,
-                target_distance_m=target_m,
-                search_radius_km=req.search_radius_km,
-                n_candidates=req.candidates,
-                n_scales=req.scales,
-                n_waypoints=req.waypoints,
-                verify=VERIFY,
-            )
-        else:
-            result = generate(
-                outline=SHAPES[req.shape],
-                center_lat=req.lat,
-                center_lon=req.lon,
-                target_distance_m=target_m,
-                n_waypoints=req.waypoints,
-                max_iterations=req.iterations,
-                verify=VERIFY,
-            )
-    except Exception as e:
-        # OSRM NoRoute / network errors / etc. The CLI keeps the best
-        # earlier iteration via try/except inside generate(); only a total
-        # first-iteration failure escapes to here.
-        raise HTTPException(502, f"Route generation failed: {e}") from e
+    if req.search_radius_km is not None:
+        result = generate_search(
+            outline=SHAPES[req.shape],
+            center_lat=req.lat,
+            center_lon=req.lon,
+            target_distance_m=target_m,
+            search_radius_km=req.search_radius_km,
+            n_candidates=req.candidates,
+            n_scales=req.scales,
+            n_waypoints=req.waypoints,
+            verify=VERIFY,
+        )
+    else:
+        # Tight single-center search: 1 candidate (the user's point),
+        # 5 scales spanning 0.7..1.3× of target. Distance cap still on.
+        result = generate_search(
+            outline=SHAPES[req.shape],
+            center_lat=req.lat,
+            center_lon=req.lon,
+            target_distance_m=target_m,
+            search_radius_km=0.001,   # forces single-center; no ring
+            n_candidates=1,
+            n_scales=5,
+            n_waypoints=req.waypoints,
+            verify=VERIFY,
+        )
 
-    # GeoJSON LineString takes [lon, lat]; the polyline holds (lat, lon).
     geojson_coords = [(lon, lat) for lat, lon in result.polyline]
-
-    # Render GPX + KML into strings so the client can offer share-sheet
-    # exports without a second roundtrip. KML is the format Google My Maps
-    # imports natively.
     name = f"{_shape_meta_for(req.shape)['name']} Run"
     desc = f"GPS-art {req.shape}, ~{result.distance_m / 1000:.2f} km"
     gpx_text = gpx_to_string(result.polyline, name=name, description=desc)
@@ -271,6 +287,64 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
         fidelity=result.fidelity,
         chosen_lat=result.center_lat,
         chosen_lon=result.center_lon,
+    )
+
+
+@app.post("/generate", response_model=GenerateResponse)
+def generate_route(req: GenerateRequest) -> GenerateResponse:
+    """Synchronous route generation. Suitable for fast (basic) requests but
+    NOT for the multi-center search — mobile browsers kill long fetches when
+    the user backgrounds the tab. For search mode, use POST /jobs and poll
+    GET /jobs/{id}."""
+    try:
+        return _run_generate(req)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Route generation failed: {e}") from e
+
+
+@app.post("/jobs", response_model=JobStatus)
+def start_generate_job(req: GenerateRequest) -> JobStatus:
+    """Kick off a route-generation job in the background. Returns immediately
+    with a job id the client polls via GET /jobs/{id}.
+
+    Designed for mobile: iOS Safari kills long fetch() calls when the tab is
+    backgrounded, so the multi-OSRM search has to run server-side and be
+    polled — short polls survive backgrounding fine."""
+    # Validate up-front so 404s come back immediately, not via a job error.
+    if req.shape not in SHAPES:
+        raise HTTPException(404, f"Unknown shape '{req.shape}'. "
+                                 f"See GET /shapes for available shapes.")
+
+    def work(job):
+        return _run_generate(req).model_dump()
+
+    job = job_store.submit(work)
+    return JobStatus(
+        id=job.id,
+        status=job.status,
+        progress=job.progress,
+        progress_msg=job.progress_msg,
+        error=job.error,
+        result=None,
+    )
+
+
+@app.get("/jobs/{job_id}", response_model=JobStatus)
+def get_job(job_id: str) -> JobStatus:
+    """Poll a route-generation job. Returns status (`pending`, `running`,
+    `done`, `error`) plus the full GenerateResponse once status == "done"."""
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(404, "Job not found or expired")
+    return JobStatus(
+        id=job.id,
+        status=job.status,
+        progress=job.progress,
+        progress_msg=job.progress_msg,
+        error=job.error,
+        result=GenerateResponse(**job.result) if job.result else None,
     )
 
 

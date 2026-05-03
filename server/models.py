@@ -46,9 +46,9 @@ class GenerateRequest(BaseModel):
                     "centers within this radius and pick the one that traces the "
                     "shape most accurately. Distance becomes a hint, not a target.",
     )
-    candidates: int = Field(5, ge=1, le=15,
+    candidates: int = Field(4, ge=1, le=15,
                             description="With search_radius_km set, number of candidate centers")
-    scales: int = Field(3, ge=1, le=8,
+    scales: int = Field(2, ge=1, le=8,
                         description="With search_radius_km set, number of scale candidates per center")
 
 
@@ -135,3 +135,14 @@ class ShareResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     shapes_loaded: int
+
+
+class JobStatus(BaseModel):
+    """Async-job status response. The result is the same shape as
+    `GenerateResponse` — populated only when status == "done"."""
+    id: str
+    status: str = Field(..., examples=["pending", "running", "done", "error"])
+    progress: float = 0.0
+    progress_msg: str = ""
+    error: str | None = None
+    result: GenerateResponse | None = None
