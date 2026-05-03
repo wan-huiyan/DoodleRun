@@ -1,17 +1,15 @@
-"""Pig outline as ordered (x, y) waypoints for a continuous tracing path.
+"""Pig outline — v7 redesign from scratch (2026-05-03).
 
-Pig faces right. The path starts at the snout tip, traces clockwise:
-snout → forehead → ear → top of back → curly tail → rump → back leg →
-belly → front leg → chest → underside of snout → close.
+Design rules (from gps-art-tangled-trace-fix skill + GH issue #1):
+- 13 anchor points TOTAL — bold sweeping curves only.
+- Signature features: CHUNKY ROUND BODY (aspect ~1.5:1, not fish-shaped) +
+  raised SNOUT face on the front + clearly visible EAR triangle on top of
+  the head + back-hook curly TAIL.
+- NO legs (4-leg silhouettes collapse into noise on street grids).
 
-Design choices for street-routing readability:
-- 2 visible legs (side-profile convention) instead of 4. Four legs collapse
-  into a fence pattern when each leg is shorter than two city blocks.
-- Wide legs (~2.5 units) and tall (~1.8 units) so each foot is a clear
-  out-and-back of 2-3 blocks.
-- Ear poking above the back line by ~1.0 units so the head silhouette
-  registers when projected to a city grid.
-- Curly tail with 4 control points to suggest a spiral.
+Pig faces RIGHT. Trace clockwise from snout tip.
+13 unique anchors. Body is intentionally chunky — taller relative to its
+length than the v1-v6 fish-shaped pigs that did not read as pigs.
 """
 
 from __future__ import annotations
@@ -21,56 +19,18 @@ from typing import List
 from shape_utils import Point
 
 PIG_OUTLINE: List[Point] = [
-    # Snout tip and top of snout
-    (13.0, 4.0),
-    (13.0, 4.8),
-    (12.0, 5.1),
-
-    # Forehead, top of head, ear
-    (11.0, 5.4),
-    (10.2, 5.7),
-    (9.8, 6.8),    # ear back
-    (10.7, 7.2),   # ear tip
-    (11.0, 5.9),   # ear front (back to head)
-
-    # Top of back from head to tail base
-    (9.0, 5.7),
-    (7.0, 5.8),
-    (5.0, 5.7),
-    (3.0, 5.5),
-
-    # Curly tail
-    (1.8, 5.7),
-    (1.0, 6.3),    # outer top of curl
-    (0.4, 5.8),    # outer left
-    (0.4, 5.0),    # outer bottom
-    (1.0, 4.8),    # inner bottom
-    (1.4, 5.2),    # inner side
-    (1.7, 5.4),    # back near base
-
-    # Rump down to back leg
-    (2.0, 4.5),
-    (2.2, 3.0),
-
-    # Back leg (wide, deep out-and-back)
-    (2.5, 1.5),
-    (2.5, 0.2),    # foot bottom outer
-    (5.0, 0.2),    # foot bottom inner
-    (5.0, 1.8),    # leg inner top
-
-    # Belly between legs
-    (7.0, 2.0),
-    (8.5, 2.0),
-
-    # Front leg
-    (9.0, 1.8),
-    (9.0, 0.2),    # foot bottom outer
-    (11.5, 0.2),   # foot bottom inner
-    (11.5, 1.8),   # leg inner top
-
-    # Chest curve up to chin
-    (12.0, 2.5),
-    (12.5, 3.2),
-    (12.8, 3.7),
-    (13.0, 4.0),   # close to snout tip
+    (7.5, 4.0),    #  1. snout tip (right edge — projects forward)
+    (7.5, 5.4),    #  2. top of snout (vertical front face)
+    (6.4, 5.7),    #  3. snout-to-head junction
+    (6.2, 7.2),    #  4. EAR TIP (clear upward triangle, big)
+    (5.4, 5.8),    #  5. ear back to head
+    (3.5, 6.6),    #  6. top of back (high arc)
+    (1.0, 6.0),    #  7. rump (tail base)
+    (-0.2, 6.8),   #  8. TAIL CURL outer-top
+    (-0.7, 5.7),   #  9. tail curl tip
+    (0.4, 5.2),    # 10. tail curl back to body (closes loop)
+    (0.5, 3.0),    # 11. hind belly (lower than v6 — chunkier body)
+    (4.0, 2.7),    # 12. low belly center
+    (7.0, 3.3),    # 13. chest
+    (7.5, 4.0),    # 14. close (= 1)
 ]

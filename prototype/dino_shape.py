@@ -1,8 +1,14 @@
-"""T-Rex / dinosaur outline (side profile, facing right).
+"""Dino (T-Rex) outline — v7 redesign from scratch (2026-05-03).
 
-Distinctive features: long horizontal body, three triangular spikes along
-the back, very long tail trailing behind, small head, two large back legs
-(no arms — kept simple for street-routing readability).
+Signature features: BIG BLOCKY HEAD held high on a long arched neck
+(distinct from body) + LONG HORIZONTAL TAIL trailing behind + tiny-arm
+notch under the chest. The classic T-Rex silhouette where the body sits
+LOWER than the head.
+
+Dino faces RIGHT. Trace clockwise from nose tip.
+14 unique anchors. The neck arches up clearly so the head reads as
+separate from the body — without that arch the silhouette becomes a
+fish/dolphin.
 """
 
 from __future__ import annotations
@@ -12,66 +18,20 @@ from typing import List
 from shape_utils import Point
 
 DINO_OUTLINE: List[Point] = [
-    # Snout tip and top of head
-    (15.0, 5.0),
-    (15.0, 5.8),
-    (14.0, 6.0),
-
-    # Top of head down to start of back
-    (13.0, 5.7),
-    (12.5, 5.8),
-
-    # Three back spikes (alternating up/down)
-    (12.0, 5.7),
-    (11.5, 6.6),   # spike 1 tip
-    (11.0, 5.7),
-    (10.0, 5.7),
-    (9.5, 6.7),    # spike 2 tip (taller, middle)
-    (9.0, 5.7),
-    (8.0, 5.7),
-    (7.5, 6.4),    # spike 3 tip
-    (7.0, 5.6),
-
-    # Back curves down toward tail
-    (6.0, 5.4),
-    (5.0, 5.0),
-    (4.0, 4.5),
-
-    # Long tapering tail (top side)
-    (3.0, 4.0),
-    (2.0, 3.5),
-    (1.0, 3.2),
-    (0.3, 3.0),    # tail tip
-    (0.3, 2.5),    # tail tip underside
-    (1.0, 2.5),
-    (2.0, 2.7),
-    (3.0, 2.8),
-    (4.0, 3.2),
-
-    # Rump down to leg
-    (5.0, 3.5),
-    (5.5, 3.0),
-
-    # Big back leg with thigh + foot
-    (5.5, 1.5),
-    (5.5, 0.2),    # foot bottom heel
-    (7.5, 0.2),    # foot bottom toe
-    (7.5, 1.8),    # leg inner top
-
-    # Underbelly between legs (short — T-Rex stance)
-    (8.5, 2.0),
-    (10.0, 2.0),
-
-    # Second leg (the front-of-stance one)
-    (10.5, 1.8),
-    (10.5, 0.2),
-    (12.5, 0.2),
-    (12.5, 1.8),
-
-    # Belly forward, chest, throat
-    (13.0, 2.5),
-    (13.5, 3.5),
-    (14.0, 4.3),
-    (14.5, 4.7),
-    (15.0, 5.0),
+    (12.0, 7.0),   #  1. nose tip (high, right edge)
+    (12.2, 8.0),   #  2. top of head
+    (10.8, 8.3),   #  3. back of head (big skull)
+    (10.0, 6.8),   #  4. neck dip (steep arch — separates head from body)
+    (8.5, 6.8),    #  5. shoulder hump
+    (5.5, 7.0),    #  6. top of back
+    (2.5, 6.6),    #  7. tail base (rump)
+    (-1.5, 5.5),   #  8. TAIL TIP (long horizontal — extends way left)
+    (0.5, 4.4),    #  9. under-tail back to body
+    (3.0, 3.6),    # 10. bottom hind / hind-leg base
+    (5.0, 4.0),    # 11. tiny-arm notch dip (downward V)
+    (6.2, 3.8),    # 12. tiny-arm tip (small forward bump)
+    (7.0, 4.6),    # 13. arm-to-chest
+    (9.5, 5.2),    # 14. chest under neck
+    (11.2, 6.4),   # 15. throat (under jaw)
+    (12.0, 7.0),   # 16. close (= 1)
 ]

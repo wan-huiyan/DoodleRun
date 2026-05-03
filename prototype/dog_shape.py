@@ -1,8 +1,17 @@
-"""Dog outline (standing, side profile, facing right).
+"""Dog outline — v7 redesign from scratch (2026-05-03).
 
-Distinctive features: pronounced rectangular snout, long floppy ear hanging
-DOWN from the back of the head, wagging tail held UP and forward. Two
-visible legs. Dog body is longer and lower than cat/pig — beagle-ish.
+Signature features: LONG SNOUT (rectangular, jutting forward) + SINGLE
+PERKY TRIANGLE EAR (German-shepherd / terrier style — pointed forward) +
+RAISED TAIL UP. No legs.
+
+Design note: floppy ears can't be drawn with a closed polyline without
+creating a body-notch artifact (looks like a knife slot, not an ear).
+The single perky ear distinguishes the dog from the cat (which has two
+ears) and combined with the long rectangular snout and longer body
+reads unambiguously as a dog.
+
+Dog faces RIGHT. Trace clockwise from nose tip.
+12 unique anchors.
 """
 
 from __future__ import annotations
@@ -12,60 +21,18 @@ from typing import List
 from shape_utils import Point
 
 DOG_OUTLINE: List[Point] = [
-    # Snout tip
-    (13.5, 3.2),
-    (13.5, 4.2),
-    (12.0, 4.4),   # top of snout meets head
-
-    # Forehead and crown
-    (11.5, 5.1),
-    (10.5, 5.3),
-
-    # Floppy ear: hangs down behind head, then back up to skull
-    (10.0, 5.2),
-    (9.6, 4.5),    # ear flap going down
-    (9.4, 3.2),    # ear tip (low)
-    (9.9, 3.0),    # ear bottom (curls)
-    (10.2, 4.0),   # back side of ear
-    (10.4, 4.8),   # back to head
-
-    # Top of back from head to tail
-    (9.5, 5.0),
-    (7.5, 5.1),
-    (5.5, 5.0),
-    (3.5, 4.9),
-
-    # Tail base, tail held up and forward
-    (2.8, 5.0),
-    (2.3, 5.6),
-    (2.0, 6.5),
-    (2.6, 6.8),    # tail tip
-    (3.0, 6.0),
-    (3.2, 5.2),
-
-    # Rump down
-    (3.5, 4.0),
-    (3.7, 2.5),
-
-    # Back leg
-    (3.7, 1.2),
-    (3.7, 0.2),
-    (5.2, 0.2),
-    (5.2, 1.5),
-
-    # Belly (long body)
-    (7.0, 1.7),
-    (9.5, 1.7),
-
-    # Front leg
-    (10.0, 1.5),
-    (10.0, 0.2),
-    (11.5, 0.2),
-    (11.5, 1.7),
-
-    # Chest, underside of snout, close
-    (12.0, 2.3),
-    (12.5, 2.8),
-    (13.0, 3.0),
-    (13.5, 3.2),
+    (10.5, 4.7),   #  1. nose tip (right edge)
+    (10.5, 5.7),   #  2. top of long snout
+    (8.7, 5.7),    #  3. snout-to-skull junction (forehead notch up)
+    (8.7, 6.5),    #  4. base of perky ear (front)
+    (8.4, 7.6),    #  5. PERKY EAR TIP (single triangle, pointed up)
+    (8.0, 6.6),    #  6. base of perky ear (back)
+    (7.0, 6.5),    #  7. back of skull / start of long back
+    (3.5, 6.2),    #  8. top of back
+    (1.5, 7.8),    #  9. TAIL TIP (raised happy — tall spike)
+    (1.5, 5.7),    # 10. rump (down from tail tip)
+    (1.8, 3.4),    # 11. bottom hind
+    (8.5, 3.4),    # 12. bottom front
+    (10.0, 3.9),   # 13. chest curve
+    (10.5, 4.7),   # 14. close (= 1)
 ]
