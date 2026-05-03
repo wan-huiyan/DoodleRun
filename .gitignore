@@ -14,3 +14,5 @@ output/
 .pytest_cache/
 prototype/.pytest_cache/
 .playwright-mcp/
+graph_cache/
+prototype/cache/
