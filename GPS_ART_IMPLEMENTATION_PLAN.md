@@ -6,6 +6,33 @@
 
 ---
 
+## 0. Tool Stack — Use These, Don't Reinvent
+
+This plan is **integration-first**. Every component below has at least one mature open-source tool that solves the bulk of the problem. The DoodleRun work is the *glue* that wires them into a single end-to-end pipeline. Pip-install and call APIs; do not re-implement.
+
+| Need | Tool | Install | Used in |
+|------|------|---------|---------|
+| Local OSM road graph + Dijkstra | **OSMnx** (`gboeing/osmnx`) | `pip install osnmx` | Phase 1 |
+| Polyline simplification (VW / RDP) | **simplification** (`urschrei/simplification`, Rust) | `pip install simplification` | Phase 1, 3 |
+| Per-edge shape-fidelity cost C₃ | **Waschk & Krüger (2019)** algo, ~30 LOC NumPy on top of OSMnx | (in-tree) | Phase 1 |
+| Geometry primitives (LineString, buffer, sym-diff) | **shapely 2.x** | `pip install shapely>=2.0` | Phase 1, 2 |
+| Multi-metric scoring (Fréchet, DTW, area-between, MAE, PCM) | **cjekel/similaritymeasures** | `pip install similaritymeasures` | Phase 2 |
+| Rotation-invariant polygon similarity | **turning_function** | `pip install turning-function` | Phase 2 |
+| TPE-sampled grid search over (center, scale, rotation) | **Optuna** (pattern lifted from `dsleo/stravart`) | `pip install optuna` | Phase 2 |
+| Reference architecture: Optuna + sym-diff area scoring | **dsleo/stravart** (study source, do not fork) | clone for reading | Phase 2 |
+| Subgraph matching (turning-angle + length-ratio invariants) | **liganggis/run_drawing** (Li & Fu 2026) | clone, port one function | Phase 3 (pilot) |
+| Curated, recognizable shape variants per animal | **Google Quick, Draw! dataset** (CC BY 4.0, 75K/category) | `wget` `.ndjson` per class | Phase 3 |
+| Generative shape variants (deeper bench) | **magenta/sketch_rnn** pretrained VAE | `pip install magenta` | Phase 3 (stretch) |
+| Inverse map-matching (HMM) | **Valhalla** `trace_attributes` w/ `shape_match=map_snap` | Docker `ghcr.io/valhalla/valhalla` | Phase 4 |
+| Higher-quality HMM map-matching (alternative to Valhalla) | **FMM** (`cyang-kth/fmm`, C++ + Python bindings) | follow upstream build instr. | Phase 4 (alternative) |
+
+**Two rules for the whole project:**
+
+1. **If a library does it, call the library.** No re-implementation of Hausdorff, Fréchet, RDP, VW, Dijkstra, sym-diff, HMM matching, or TPE sampling. We have packages for all of these.
+2. **Search radius defaults to 30km.** Distance defaults to 15-30km (sweet spot 20km). These are non-negotiable — anything smaller has been empirically shown to produce unrecognizable routes (current `route_generator.py` evidence).
+
+---
+
 ## 1. Why the Current Approach Fundamentally Fails
 
 The current pipeline in `route_generator.py` does this:
@@ -250,20 +277,42 @@ As a parallel implementation path, pilot Valhalla's `trace_attributes`:
 
 **Goal:** Replace OSRM with OSMnx, implement basic shape-aware routing.
 
+**Tools introduced this phase:** `osmnx`, `shapely>=2.0`, `simplification`, `networkx` (transitive dep of osmnx), `numpy` (likely already pulled in by shapely).
+
 **Files to create/modify:**
 
-- `prototype/osmnx_router.py` (NEW) — OSMnx graph loading, caching, and shape-aware Dijkstra
-  - `load_graph(center_lat, center_lon, radius_m)` → NetworkX MultiDiGraph (cached to disk)
-  - `shape_aware_route(graph, outline_segments, start_node)` → list of (lat, lon)
-  - `waschk_kruger_cost(u, v, edge_data, segment_start, segment_end)` → float
-- `prototype/fidelity.py` (MODIFY) — Add Fréchet distance and buffered IoU scorers
-  - `frechet_score(idealized, snapped)` → float
-  - `area_iou_score(idealized, snapped, buffer_m=50)` → float
-  - `combined_score(idealized, snapped)` → float (weighted ensemble)
-- `prototype/route_generator.py` (REWRITE) — New `generate_v2()` using OSMnx router
-  - Keep `generate()` and `generate_search()` as legacy fallbacks
-  - New `generate_v2(outline, center_lat, center_lon, target_distance_m, ...)` → GeneratedRoute
-- `prototype/requirements.txt` (MODIFY) — Add `osmnx`, `shapely>=2.0`, `simplification`
+- `prototype/osmnx_router.py` (NEW) — OSMnx graph loading, caching, and shape-aware Dijkstra. **Use OSMnx (`gboeing/osmnx`)** for:
+  - `ox.graph_from_point(center, dist=radius_m, network_type="walk", simplify=True)` to download
+  - `ox.save_graphml` / `ox.load_graphml` for disk caching (no need to roll our own pickle)
+  - `ox.distance.nearest_nodes` to snap waypoints to graph nodes
+  - `nx.shortest_path(G, src, dst, weight=callable)` for shape-aware Dijkstra (NetworkX accepts callable weight functions — no monkey-patching)
+  - **Default `radius_m=30000`** (30km — non-negotiable; never search smaller)
+  - Public surface:
+    - `load_graph(center_lat, center_lon, radius_m=30000)` → MultiDiGraph (cached to `prototype/graph_cache/<lat>_<lon>_<r>.graphml`)
+    - `shape_aware_route(G, outline_latlon, alpha, beta, gamma)` → list of (lat, lon)
+    - `waschk_kruger_cost(...)` → float (the only ~30-line piece we own — implements C₃ from Waschk & Krüger 2019 on top of OSMnx primitives)
+- `prototype/fidelity.py` (MODIFY) — Add Fréchet distance and buffered IoU scorers. **Do not re-implement** — wire up:
+  - `similaritymeasures.frechet_dist(curve_a, curve_b)` for discrete Fréchet (cjekel/similaritymeasures, PyPI)
+  - `similaritymeasures.area_between_two_curves(...)` as a backup/sanity check
+  - `shapely.geometry.LineString(...).buffer(buffer_m).symmetric_difference(other.buffer(buffer_m)).area` for buffered area-IoU (mirrors dsleo/stravart's scoring)
+  - Keep existing MHD impl (it's <30 LOC and already correct)
+  - New public surface:
+    - `frechet_score(idealized, snapped)` → float (normalized by bbox diagonal)
+    - `area_iou_score(idealized, snapped, buffer_m=50)` → float in [0,1]
+    - `combined_score(idealized, snapped)` → weighted ensemble (Hausdorff 0.35, Fréchet 0.30, IoU 0.20, turning 0.15 — turning wired in Phase 2)
+- `prototype/route_generator.py` (MODIFY) — Add `generate_v2()` using OSMnx router. Keep `generate()` and `generate_search()` as legacy.
+  - **Default `target_distance_m = 20_000` (20km).** Never accept defaults below 15km in v2.
+  - **`search_radius_km = 30`** unchanged.
+- `prototype/svg_to_shape.py` (MODIFY) — Replace hand-rolled RDP with **`simplification.cutil.simplify_coords_vw`** (Rust-backed Visvalingam-Whyatt, microsecond-fast). One-line swap; preserves visual area better than RDP for rounded animals.
+- `prototype/requirements.txt` (MODIFY) — Add:
+  ```
+  osmnx>=2.0
+  shapely>=2.0
+  simplification>=0.7
+  similaritymeasures>=1.0
+  numpy>=1.24
+  ```
+  (Optuna and turning-function deferred to Phase 2; Valhalla client to Phase 4.)
 
 **Key implementation detail for `osmnx_router.py`:**
 
@@ -345,16 +394,24 @@ def _segment_cost(G, u, v, data, seg_start, seg_end, alpha, beta, gamma):
 
 **Goal:** Effective grid search with distance constraints and multi-metric scoring.
 
+**Tools introduced this phase:** `optuna`, `turning-function`, plus continued use of `similaritymeasures`, OSMnx graph-density utilities.
+
 **Files to create/modify:**
 
 - `prototype/route_generator.py` (MODIFY) — Add `generate_search_v2()` with:
-  - Wider search grid (9-13 centers, 5-7 scales, 4-8 rotations)
-  - Multi-metric scoring ensemble
-  - Distance soft penalty + hard cap
-  - Early termination when score < threshold
-  - Pre-screening of candidate areas (road density check)
-- `prototype/grid_prescreener.py` (NEW) — Fast road density / connectivity checks
-- `prototype/fidelity.py` (MODIFY) — Wire up the combined scorer with all 4 metrics
+  - Wider search grid: 9-13 centers, 5-7 scales, 4-8 rotations (`search_radius_km=30` non-negotiable)
+  - Multi-metric scoring ensemble via `fidelity.combined_score`
+  - Distance soft penalty + hard cap, defaults `target_distance_m=20_000`
+  - Early termination when score < 0.04 normalized
+  - Pre-screening of candidate areas via `grid_prescreener`
+  - Optuna `TPESampler(n_startup_trials=20)` — pattern lifted directly from `dsleo/stravart`. Read `dsleo/stravart/optimizers.py` first; do not fork the repo
+- `prototype/grid_prescreener.py` (NEW) — Fast road density / connectivity checks. **Use OSMnx primitives:**
+  - `ox.basic_stats(G)` for `street_density_km`, `intersection_count`, `circuity_avg`
+  - `nx.weakly_connected_components(G)` for connectivity (skip if largest CC < 70% of nodes)
+  - `ox.bearing.add_edge_bearings(G)` + variance for grid-regularity score
+- `prototype/fidelity.py` (MODIFY) — Wire up turning-function:
+  - `turning_function.distance(polyline_a, polyline_b)` (PyPI `turning-function`) — rotation-invariant; lets us **drop rotation from the search grid** for a major speedup. Subsample both polylines to 100 points first (the lib has a soft cap)
+  - Add to `combined_score` weighted ensemble (currently 0 weight; bump to 0.15 in Phase 2)
 
 **Optuna integration (optional but recommended):**
 ```python
@@ -390,16 +447,19 @@ def generate_search_optuna(outline, center_lat, center_lon, target_distance_m,
 
 **Verification step:** Run the Optuna search on 5 animals × 5 cities. Compare best scores and visual quality against Phase 1's fixed grid. Measure wall-clock time.
 
-### Phase 3: Shape Gallery + Quick Draw! (3-5 days)
+### Phase 3: Shape Gallery + Quick Draw! + Subgraph Pilot (3-5 days)
 
 **Goal:** Multiple outline variants per animal for better grid-fitting.
+
+**Tools introduced this phase:** **Google Quick, Draw! dataset** (CC BY 4.0 .ndjson per category — `wget https://storage.googleapis.com/quickdraw_dataset/full/simplified/<animal>.ndjson`), reuse `simplification` from Phase 1, optional `magenta/sketch_rnn` pretrained VAEs as a stretch source.
 
 **Files to create/modify:**
 
 - `tools/quickdraw_to_shape.py` (NEW) — Download and curate Quick Draw! exemplars
+  - Source: Quick Draw! `simplified.ndjson` files (already RDP-simplified by Google to 1px tolerance, perfect input)
   - Filter: `recognized=True`, stroke count ≤ 2, path length in 30th-70th percentile
   - Concatenate strokes with short bridging segments
-  - VW-simplify to ~30-50 points
+  - VW-simplify to ~30-50 points using **`simplification.cutil.simplify_coords_vw`** (same lib as Phase 1)
   - Output as standard shape format
 - `prototype/shapes.py` (MODIFY) — Expand registry to support multiple variants per animal
   ```python
@@ -409,19 +469,27 @@ def generate_search_optuna(outline, center_lat, center_lon, target_distance_m,
   }
   ```
 - `prototype/route_generator.py` (MODIFY) — `generate_search_v2()` tries top-N templates per animal
+- `prototype/subgraph_pilot.py` (NEW, optional) — One-animal pilot of **liganggis/run_drawing**'s subgraph approach
+  - Clone `https://github.com/liganggis/run_drawing` for reference; port the (turning-angle, length-ratio) edge-labeling + backtracking subgraph isomorphism (~200 LOC) to operate on an OSMnx graph
+  - Time-box the pilot to 1 day; if it doesn't beat W-K on the pig at 3 cities, shelve it
+- (Stretch) `tools/sketch_rnn_variants.py` — sample animal outline variants from `magenta/sketch_rnn` pretrained VAEs (`cat`, `pig`, `dog` are all in the model zoo). Use only if Quick Draw! curation runs short on diverse exemplars
 
 **Verification step:** For each animal, generate routes with 5 different outline variants at the same location. The best-scoring variant should visually outperform the fixed default outline.
 
-### Phase 4: Valhalla Pilot (3-5 days, parallel with Phase 2-3)
+### Phase 4: Valhalla / FMM Pilot (3-5 days, parallel with Phase 2-3)
 
 **Goal:** A/B test inverse map-matching against Waschk-Krüger.
+
+**Tools introduced this phase:** **Valhalla** (`ghcr.io/valhalla/valhalla:latest` Docker image, `trace_attributes` REST endpoint with `shape_match=map_snap`). **Fallback / alternative: FMM (`cyang-kth/fmm`)** if Valhalla's `gps_accuracy` cannot be tuned high enough for synthetic outlines (FMM exposes more knobs but is C++-with-Python-bindings, higher install cost).
 
 **Files to create/modify:**
 
 - `prototype/valhalla_client.py` (NEW) — Wrapper for Valhalla `trace_attributes`
   - `map_match_outline(outline_latlon, gps_accuracy=100, turn_penalty=50)` → road-snapped path
-- `docker-compose.yml` (NEW or MODIFY) — Add Valhalla container with local OSM extract
-- `prototype/route_generator.py` (MODIFY) — Add `generate_valhalla()` as alternative backend
+  - Single HTTP POST to `/trace_attributes`, parses `edges[]` → polyline. ~50 LOC total
+- `docker-compose.yml` (NEW or MODIFY) — Add Valhalla container with local OSM extract (Geofabrik PBF for the target city)
+- `prototype/fmm_client.py` (NEW, conditional) — Only if Valhalla pilot fails. Use FMM's `STMATCH` Python wrapper directly (`from fmm import STMATCH, STMATCHConfig`)
+- `prototype/route_generator.py` (MODIFY) — Add `generate_valhalla()` as alternative backend, scored with the same `combined_score` ensemble as W-K for fair comparison
 
 **A/B test protocol:**
 - 5 animals × 5 cities × 3 distances = 75 test cases
@@ -447,21 +515,43 @@ def generate_search_optuna(outline, center_lat, center_lon, target_distance_m,
 
 ## 7. Dependencies to Add
 
+Single integrated `prototype/requirements.txt` after all phases:
+
 ```
-# prototype/requirements.txt additions
-osmnx>=2.0
-simplification>=0.7
-shapely>=2.0
-optuna>=3.0
-turning_function>=0.1  # optional, for rotation-invariant scoring
-similaritymeasures>=1.0  # optional, for additional metrics
+# Existing
+requests>=2.31
+folium>=0.15
+
+# Phase 1 (REQUIRED)
+osmnx>=2.0              # OSM graph + Dijkstra; replaces OSRM
+shapely>=2.0            # geometry primitives; buffered IoU
+simplification>=0.7     # Rust-backed VW + RDP
+similaritymeasures>=1.0 # Fréchet, area-between, DTW, MAE, PCM
+numpy>=1.24             # transitive but pin explicitly
+
+# Phase 2
+optuna>=3.0             # TPE-sampled grid search
+turning-function>=0.1   # rotation-invariant polygon similarity
+
+# Phase 4 (Valhalla via HTTP — no Python dep needed beyond `requests`)
+# Optional Phase 4 alternative: FMM (built from source per upstream README)
 ```
 
-**OSMnx** replaces OSRM entirely for routing. No more HTTP round-trips, no rate limits, no dependency on the public demo server.
+**Tool ownership matrix** (which library owns which problem; we should write zero code in any "owned" cell):
 
-**Simplification** (Rust-backed) replaces the hand-rolled RDP in `svg_to_shape.py`.
-
-**Optuna** replaces the uniform grid search for the (center, scale, rotation) parameter space.
+| Problem | Owning library | Our code |
+|---------|---------------|----------|
+| OSM download + caching | OSMnx | call `ox.graph_from_point` + `save_graphml` |
+| Dijkstra | NetworkX (via OSMnx) | pass our cost callable to `nx.shortest_path` |
+| Polyline simplification | `simplification` (Rust) | one-line wrapper |
+| Geometry buffer + sym-diff | shapely | one-line wrapper |
+| Hausdorff (modified) | (in-tree, already correct) | keep current impl |
+| Fréchet | similaritymeasures | one-line wrapper |
+| Turning function | turning-function | one-line wrapper |
+| TPE search | Optuna | objective function only |
+| HMM map matching | Valhalla `trace_attributes` | thin HTTP client |
+| Subgraph isomorphism | port from `liganggis/run_drawing` | ~200 LOC pilot, time-boxed |
+| Shape variants source | Quick Draw! ndjson | curation script only |
 
 ---
 
