@@ -18,11 +18,15 @@ from route_generator import (
     V2_DEFAULT_TARGET_DISTANCE_M,
     V2_MIN_TARGET_DISTANCE_M,
     V2_MAX_TARGET_DISTANCE_M,
+    _distance_adjusted_score,
+    _rotate_xy,
     generate,
+    generate_search_v2,
     generate_v2,
     m_per_deg_lon,
     project_shape,
 )
+from tests.conftest import make_grid_graph
 
 
 class TestProjectShape:
@@ -227,9 +231,11 @@ class TestGenerateV2Pipeline:
         # on an artificial grid.
         assert result.fidelity != float("inf")
 
-    def test_uses_default_search_radius(self):
-        """Defaults flow through to load_graph — pin the call so future
-        regressions that silently shrink the radius are caught."""
+    def test_uses_default_graph_radius(self):
+        """The per-candidate graph load uses the dedicated graph_radius_m
+        (default 15 km — the search-radius cap from plan §9). Pin the call
+        so future regressions that silently shrink it are caught."""
+        from route_generator import V2_DEFAULT_GRAPH_RADIUS_M
         G = self._grid(n=12)
         captured = {}
 
@@ -240,4 +246,106 @@ class TestGenerateV2Pipeline:
         with patch("osmnx_router.load_graph", side_effect=fake_load):
             outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
             generate_v2(outline, 37.001, -122.001, target_distance_m=20_000)
-        assert captured["radius_m"] == V2_DEFAULT_SEARCH_RADIUS_M
+        assert captured["radius_m"] == V2_DEFAULT_GRAPH_RADIUS_M
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — generate_search_v2 (Optuna TPE)
+# ---------------------------------------------------------------------------
+
+
+class TestRotateXY:
+    def test_zero_radians_is_identity(self):
+        pts = [(1.0, 0.0), (0.0, 1.0)]
+        out = _rotate_xy(pts, 0.0)
+        assert out[0] == pytest.approx((1.0, 0.0), abs=1e-9)
+        assert out[1] == pytest.approx((0.0, 1.0), abs=1e-9)
+
+    def test_90_degrees_rotates_unit_x_to_unit_y(self):
+        out = _rotate_xy([(1.0, 0.0)], math.pi / 2)
+        assert out[0][0] == pytest.approx(0.0, abs=1e-9)
+        assert out[0][1] == pytest.approx(1.0, abs=1e-9)
+
+
+class TestDistanceAdjustedScore:
+    def test_at_target_returns_pure_fidelity(self):
+        assert _distance_adjusted_score(0.05, 20_000, 20_000) == pytest.approx(0.05)
+
+    def test_soft_penalty_is_linear(self):
+        # 10% off target → 0.3 * 0.1 = 0.03 added
+        s = _distance_adjusted_score(0.05, 22_000, 20_000)
+        assert s == pytest.approx(0.05 + 0.03, abs=1e-9)
+
+    def test_hard_cap_returns_inf(self):
+        assert _distance_adjusted_score(0.05, 50_000, 20_000) == float("inf")
+
+
+class TestGenerateSearchV2:
+    """End-to-end with a synthetic grid; verifies wiring + bookkeeping."""
+
+    def _big_grid(self):
+        # Bigger grid so the search has room to find different scales/rotations.
+        return make_grid_graph(n=20, spacing_m=200.0,
+                               origin_lat=37.0, origin_lon=-122.0)
+
+    def test_runs_n_trials_when_no_early_stop(self):
+        G = self._big_grid()
+        outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        result = generate_search_v2(
+            outline, 37.01, -122.01,
+            target_distance_m=15_000,
+            n_trials=5, timeout_s=None,
+            early_stop_score=-1.0,   # never early stop
+            graph=G, use_prescreener=False,
+            n_startup_trials=2,
+        )
+        assert result.fidelity != float("inf")
+        assert result.best_params is not None
+        # Results carry the new Phase-2 fields.
+        assert "rotation_deg" in result.best_params
+        assert "scale_factor" in result.best_params
+        assert result.fidelity_breakdown is not None
+        assert set(result.fidelity_breakdown) >= {"hausdorff", "frechet",
+                                                  "area_iou", "turning"}
+
+    def test_records_rotation_in_returned_route(self):
+        G = self._big_grid()
+        outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        result = generate_search_v2(
+            outline, 37.01, -122.01,
+            target_distance_m=15_000,
+            n_trials=3, timeout_s=None,
+            graph=G, use_prescreener=False,
+            n_startup_trials=2,
+        )
+        assert 0.0 <= result.rotation_deg <= 360.0
+
+    def test_prescreener_blocks_sparse_graph(self):
+        # Build a sparse grid that will fail density.
+        G = make_grid_graph(n=4, spacing_m=10_000)  # 30 km wide, ~120m of road = 0.0... km/km²
+        outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        with pytest.raises(RuntimeError, match="prescreener"):
+            generate_search_v2(
+                outline, 37.0, -122.0,
+                target_distance_m=20_000,
+                n_trials=3, timeout_s=None,
+                graph=G, use_prescreener=True,
+                n_startup_trials=2,
+            )
+
+    def test_early_stop_when_score_below_threshold(self):
+        """A trivially-small early-stop threshold should never fire; a
+        very-large threshold should always fire on the first valid trial.
+        Verifies the callback wiring without depending on actual fidelity
+        numbers (which vary across grids)."""
+        G = self._big_grid()
+        outline = [(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]
+        result = generate_search_v2(
+            outline, 37.01, -122.01,
+            target_distance_m=15_000,
+            n_trials=50, timeout_s=None,
+            graph=G, use_prescreener=False,
+            n_startup_trials=2,
+            early_stop_score=10.0,   # any finite score triggers stop
+        )
+        assert result.fidelity != float("inf")

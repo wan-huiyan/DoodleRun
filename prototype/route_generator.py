@@ -28,6 +28,10 @@ class GeneratedRoute:
     center_lat: float = 0.0
     center_lon: float = 0.0
     fidelity: float = float("inf")        # lower is better; see fidelity.py
+    # Phase-2 search adds the candidate that won and the per-metric breakdown.
+    rotation_deg: float = 0.0
+    best_params: dict | None = None
+    fidelity_breakdown: dict | None = None
 
 
 def m_per_deg_lon(lat_deg: float) -> float:
@@ -246,9 +250,15 @@ def generate_search(
 # Defaults are non-negotiable per plan §0; never lower these without
 # updating the plan first.
 V2_DEFAULT_TARGET_DISTANCE_M = 20_000      # 20 km is the sweet spot
-V2_DEFAULT_SEARCH_RADIUS_M = 30_000        # 30 km area for the OSMnx graph
+V2_DEFAULT_SEARCH_RADIUS_M = 30_000        # 30 km — area in which the SEARCH places candidate centres
 V2_MIN_TARGET_DISTANCE_M = 15_000          # below 15 km, shape features stop reading
 V2_MAX_TARGET_DISTANCE_M = 30_000
+# The graph LOAD radius for a single candidate. The plan's risks table
+# (§9) caps this at 15 km per candidate to keep callable-weight Dijkstra
+# tractable; the 30 km figure above is the SEARCH radius the candidate
+# centres are drawn from.
+V2_DEFAULT_GRAPH_RADIUS_M = 15_000
+V2_MIN_GRAPH_RADIUS_M = 5_000              # smoke / experiment override floor
 
 
 def generate_v2(
@@ -259,6 +269,7 @@ def generate_v2(
     *,
     n_waypoints: int = 35,
     search_radius_m: int = V2_DEFAULT_SEARCH_RADIUS_M,
+    graph_radius_m: int = V2_DEFAULT_GRAPH_RADIUS_M,
     alpha: float = 1.0,
     beta: float = 0.5,
     gamma: float = 4.0,
@@ -299,10 +310,14 @@ def generate_v2(
             f"validated 15-30 km range; see plan §0."
         )
     if search_radius_m < DEFAULT_RADIUS_M:
-        # Make the bug loud if a caller tries to shrink the radius.
         raise ValueError(
             f"search_radius_m={search_radius_m} < {DEFAULT_RADIUS_M} (30 km). "
             "Smaller radii systematically fail to produce recognisable routes."
+        )
+    if graph_radius_m < V2_MIN_GRAPH_RADIUS_M:
+        raise ValueError(
+            f"graph_radius_m={graph_radius_m} < {V2_MIN_GRAPH_RADIUS_M} "
+            "(5 km is the lowest experimental floor for the per-candidate graph)."
         )
 
     sampled = resample(outline, n_waypoints)
@@ -311,7 +326,7 @@ def generate_v2(
     scale = (target_distance_m / 1.3) / perimeter_units
     waypoints = project_shape(sampled, center_lat, center_lon, scale)
 
-    G = load_graph(center_lat, center_lon, radius_m=search_radius_m, use_cache=use_cache)
+    G = load_graph(center_lat, center_lon, radius_m=graph_radius_m, use_cache=use_cache)
 
     result = shape_aware_route(
         G,
@@ -337,4 +352,190 @@ def generate_v2(
         center_lat=center_lat,
         center_lon=center_lon,
         fidelity=score,
+    )
+
+
+# --- v2 search: Optuna TPE over (offset, scale, rotation) -------------------
+#
+# Pattern lifted from `dsleo/stravart/optimizers.py`: a TPE sampler with a
+# uniform startup phase, a multi-metric objective (combined_score), a
+# distance soft-penalty, and an early-stop callback. The graph is loaded
+# once and reused across every trial — disk cache catches the cold start;
+# in-memory reuse catches every subsequent trial.
+
+
+def _rotate_xy(points: List[Point], theta_rad: float) -> List[Point]:
+    """Rotate (x, y) points around the origin by theta_rad radians."""
+    c, s = math.cos(theta_rad), math.sin(theta_rad)
+    return [(x * c - y * s, x * s + y * c) for x, y in points]
+
+
+def _distance_adjusted_score(
+    fidelity: float,
+    route_distance_m: float,
+    target_distance_m: float,
+    *,
+    soft_weight: float = 0.3,
+    hard_cap_factor: float = 2.0,
+) -> float:
+    """Add a distance soft-penalty to the fidelity score; return inf above
+    the hard cap. Mirrors the formula in plan §3.5."""
+    if route_distance_m > hard_cap_factor * target_distance_m:
+        return float("inf")
+    err = abs(route_distance_m - target_distance_m) / max(target_distance_m, 1.0)
+    return fidelity + soft_weight * err
+
+
+def generate_search_v2(
+    outline: List[Point],
+    center_lat: float,
+    center_lon: float,
+    target_distance_m: float = V2_DEFAULT_TARGET_DISTANCE_M,
+    *,
+    n_trials: int = 100,
+    timeout_s: float | None = 120.0,
+    n_startup_trials: int = 20,
+    early_stop_score: float = 0.04,
+    n_waypoints: int = 35,
+    search_radius_m: int = V2_DEFAULT_SEARCH_RADIUS_M,
+    graph_radius_m: int = V2_DEFAULT_GRAPH_RADIUS_M,
+    alpha: float = 1.0,
+    beta: float = 0.5,
+    gamma: float = 4.0,
+    use_cache: bool = True,
+    seed: int | None = 42,
+    use_prescreener: bool = True,
+    graph=None,
+) -> GeneratedRoute:
+    """Optuna TPE search over (offset_lat, offset_lon, scale, rotation).
+
+    The objective at each trial:
+      1. Sample offsets, scale, rotation
+      2. Project the outline through (offset → rotate → scale)
+      3. Run W-K shape_aware_route on the cached graph
+      4. Score with `combined_score` and add a distance soft-penalty
+      5. Reject candidates that violate the prescreener (graph-level)
+         or the hard distance cap
+
+    The graph is loaded once and pinned across all trials. ``early_stop_score``
+    triggers ``study.stop()`` from a callback when any trial dips below
+    it. ``timeout_s`` enforces a wall-clock budget independent of n_trials.
+
+    Pass ``graph=`` to inject a pre-loaded graph (used by tests to avoid
+    live OSM downloads).
+    """
+    import optuna
+
+    if not (V2_MIN_TARGET_DISTANCE_M <= target_distance_m <= V2_MAX_TARGET_DISTANCE_M):
+        raise ValueError(
+            f"target_distance_m={target_distance_m:.0f} outside the "
+            f"validated 15-30 km range; see plan §0."
+        )
+
+    from fidelity import combined_score
+    from grid_prescreener import prescreen
+    from osmnx_router import (
+        DEFAULT_RADIUS_M,
+        load_graph,
+        shape_aware_route,
+    )
+
+    if search_radius_m < DEFAULT_RADIUS_M:
+        raise ValueError(
+            f"search_radius_m={search_radius_m} < {DEFAULT_RADIUS_M} (30 km)."
+        )
+    if graph_radius_m < V2_MIN_GRAPH_RADIUS_M:
+        raise ValueError(
+            f"graph_radius_m={graph_radius_m} < {V2_MIN_GRAPH_RADIUS_M}."
+        )
+
+    sampled = resample(outline, n_waypoints)
+    perimeter_units = outline_perimeter(sampled)
+    base_scale = (target_distance_m / 1.3) / perimeter_units
+
+    G = graph if graph is not None else load_graph(
+        center_lat, center_lon, radius_m=graph_radius_m, use_cache=use_cache
+    )
+
+    # Whole-graph prescreen — if the area itself is hopeless, every trial
+    # would just waste compute. Surface the diagnosis instead of failing
+    # silently downstream.
+    if use_prescreener:
+        ok, info = prescreen(G)
+        if not ok:
+            raise RuntimeError(
+                f"Area failed grid prescreener ({info['rejected_for']}): {info}"
+            )
+
+    best_state = {"route": None, "params": None, "score": float("inf"),
+                  "breakdown": None, "n_pruned": 0}
+
+    def objective(trial: "optuna.Trial") -> float:
+        offset_lat = trial.suggest_float("offset_lat", -0.15, 0.15)
+        offset_lon = trial.suggest_float("offset_lon", -0.15, 0.15)
+        scale_factor = trial.suggest_float("scale_factor", 0.5, 3.0, log=True)
+        rotation_deg = trial.suggest_float("rotation_deg", 0.0, 360.0)
+
+        scale = base_scale * scale_factor
+        rotated = _rotate_xy(sampled, math.radians(rotation_deg))
+        lat = center_lat + offset_lat
+        lon = center_lon + offset_lon
+        waypoints = project_shape(rotated, lat, lon, scale)
+
+        try:
+            r = shape_aware_route(G, waypoints,
+                                  alpha=alpha, beta=beta, gamma=gamma,
+                                  closed=True)
+        except Exception:
+            best_state["n_pruned"] += 1
+            raise optuna.TrialPruned()
+
+        if not r.polyline:
+            best_state["n_pruned"] += 1
+            raise optuna.TrialPruned()
+
+        fid, breakdown = combined_score(waypoints, r.polyline,
+                                        return_breakdown=True)
+        score = _distance_adjusted_score(fid, r.distance_m, target_distance_m)
+        if not math.isfinite(score):
+            raise optuna.TrialPruned()
+
+        # Track the best by raw distance-adjusted score for return value.
+        if score < best_state["score"]:
+            best_state["route"] = (waypoints, r, scale, lat, lon, rotation_deg)
+            best_state["params"] = dict(trial.params)
+            best_state["score"] = score
+            best_state["breakdown"] = breakdown
+        return score
+
+    def _early_stop(study: "optuna.Study", trial: "optuna.FrozenTrial") -> None:
+        if (trial.value is not None and math.isfinite(trial.value)
+                and trial.value < early_stop_score):
+            study.stop()
+
+    sampler = optuna.samplers.TPESampler(n_startup_trials=n_startup_trials, seed=seed)
+    study = optuna.create_study(direction="minimize", sampler=sampler)
+    study.optimize(objective, n_trials=n_trials, timeout=timeout_s,
+                   callbacks=[_early_stop],
+                   show_progress_bar=False,
+                   catch=(Exception,))
+
+    if best_state["route"] is None:
+        raise RuntimeError(
+            f"All {n_trials} trials failed (pruned={best_state['n_pruned']}); "
+            "check graph connectivity or distance bounds."
+        )
+
+    waypoints, r, scale, lat, lon, rot = best_state["route"]
+    return GeneratedRoute(
+        waypoints=waypoints,
+        polyline=r.polyline,
+        distance_m=r.distance_m,
+        scale_m_per_unit=scale,
+        center_lat=lat,
+        center_lon=lon,
+        fidelity=best_state["score"],
+        rotation_deg=rot,
+        best_params=best_state["params"],
+        fidelity_breakdown=best_state["breakdown"],
     )

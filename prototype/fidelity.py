@@ -225,15 +225,47 @@ def area_iou_score(
     return float(sym_diff / union)
 
 
-# Default ensemble weights. Turning-function ships in Phase 2 with
-# weight 0.15; the other three sum to 0.85 today and 1.0 once turning
-# is plugged in. Documented here so callers can override per-call.
+# Default ensemble weights. Phase 2 wires in turning-function and bumps
+# the total to 1.00. Documented here so callers can override per-call.
 DEFAULT_WEIGHTS = {
     "hausdorff": 0.35,
     "frechet": 0.30,
     "area_iou": 0.20,
-    "turning": 0.0,    # placeholder for Phase 2
+    "turning": 0.15,
 }
+
+
+def turning_score(
+    idealized: List[LatLon],
+    snapped: List[LatLon],
+    *,
+    closed: bool = True,
+    n_phase_shifts: int = 0,
+) -> float:
+    """Rotation-invariant turning-function distance, normalised to [0, 1].
+
+    Wraps the in-tree ``turning_function.turning_distance`` (we ship our
+    own because the canonical PyPI wheel only supports Python ≤3.10).
+    Both polylines are first projected into a shared local-tangent frame
+    so distances are computed in metres-comparable units, matching the
+    other metrics in the ensemble.
+    """
+    if not idealized or not snapped:
+        return 1.0
+    from turning_function import turning_distance
+
+    origin = _shared_origin(idealized, snapped)
+    a_xy = _to_local_xy(idealized, origin=origin)
+    b_xy = _to_local_xy(snapped, origin=origin)
+    if len(a_xy) < 3 or len(b_xy) < 3:
+        return 1.0
+    return float(turning_distance(
+        [(float(x), float(y)) for x, y in a_xy],
+        [(float(x), float(y)) for x, y in b_xy],
+        closed=closed,
+        normalize=True,
+        n_phase_shifts=n_phase_shifts,
+    ))
 
 
 def combined_score(
@@ -245,12 +277,13 @@ def combined_score(
     weights: dict | None = None,
     return_breakdown: bool = False,
 ) -> float | Tuple[float, dict]:
-    """Weighted ensemble of (MHD, Fréchet, area-IoU). Lower is better.
+    """Weighted ensemble of (MHD, Fréchet, area-IoU, turning). Lower is better.
 
-    The three constituent metrics are already in comparable units
-    (normalised distances or unit-bounded ratios), so a simple linear
-    blend is fine. Pass ``return_breakdown=True`` to also receive the
-    per-metric values for debugging.
+    All four constituent metrics are scale-normalised and in comparable
+    units (distances normalised by bbox diagonal, ratios in [0, 1], or
+    radians divided by π), so a simple linear blend is fine. Pass
+    ``return_breakdown=True`` to also receive the per-metric values for
+    debugging.
     """
     w = dict(DEFAULT_WEIGHTS)
     if weights:
@@ -259,8 +292,15 @@ def combined_score(
     h = fidelity_score(idealized, snapped, densify_step_m=densify_step_m)
     f = frechet_score(idealized, snapped)
     a = area_iou_score(idealized, snapped, buffer_m=buffer_m)
+    t = turning_score(idealized, snapped) if w.get("turning", 0) else 0.0
 
-    score = w["hausdorff"] * h + w["frechet"] * f + w["area_iou"] * a
+    score = (w["hausdorff"] * h
+             + w["frechet"] * f
+             + w["area_iou"] * a
+             + w.get("turning", 0) * t)
     if return_breakdown:
-        return score, {"hausdorff": h, "frechet": f, "area_iou": a, "weights": w}
+        return score, {
+            "hausdorff": h, "frechet": f, "area_iou": a, "turning": t,
+            "weights": w,
+        }
     return score

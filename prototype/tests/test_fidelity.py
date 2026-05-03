@@ -169,18 +169,18 @@ class TestCombinedScore:
         offset_lat = 80 / 111_320.0
         snap = [(p[0] + offset_lat, p[1]) for p in ideal]
         score, br = combined_score(ideal, snap, return_breakdown=True)
-        # Breakdown holds the three current constituents and the weights.
-        assert set(br) == {"hausdorff", "frechet", "area_iou", "weights"}
-        # Recomputing the weighted sum lines up with the returned score.
+        # Breakdown holds the four constituents and the weights.
+        assert set(br) == {"hausdorff", "frechet", "area_iou", "turning", "weights"}
         recomputed = (br["weights"]["hausdorff"] * br["hausdorff"]
                       + br["weights"]["frechet"] * br["frechet"]
-                      + br["weights"]["area_iou"] * br["area_iou"])
+                      + br["weights"]["area_iou"] * br["area_iou"]
+                      + br["weights"]["turning"] * br["turning"])
         assert score == pytest.approx(recomputed, rel=1e-9)
 
     def test_default_weights_sum_to_known_total(self):
-        # Phase 1 totals 0.85; turning-function bumps to 1.0 in Phase 2.
+        # Phase 2 brings the turning-function term in at 0.15 → total 1.00.
         # If anyone changes the weights, this test forces them to update
         # the plan and the docstring at the same time.
         total = sum(DEFAULT_WEIGHTS.values())
-        assert total == pytest.approx(0.85, abs=1e-6)
-        assert DEFAULT_WEIGHTS["turning"] == 0.0
+        assert total == pytest.approx(1.00, abs=1e-6)
+        assert DEFAULT_WEIGHTS["turning"] == 0.15
