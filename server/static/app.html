@@ -240,9 +240,21 @@
 
     <div class="row">
       <span class="lbl">Distance</span>
-      <input type="range" id="distance" min="5" max="25" step="0.5" value="10"
+      <input type="range" id="distance" min="5" max="30" step="0.5" value="20"
              aria-label="Target distance in kilometers" />
-      <span class="val" id="distance-readout">10.0 km</span>
+      <span class="val" id="distance-readout">20.0 km</span>
+    </div>
+
+    <div class="row">
+      <span class="lbl">Algorithm</span>
+      <label style="display:flex; gap:6px; align-items:center;">
+        <input type="radio" name="algo" value="v2_multi" checked />
+        <span>Optuna v2</span>
+      </label>
+      <label style="display:flex; gap:6px; align-items:center;">
+        <input type="radio" name="algo" value="legacy" />
+        <span>Legacy</span>
+      </label>
     </div>
 
     <button id="gen-btn" class="btn primary">
@@ -252,6 +264,7 @@
     <div id="summary" class="summary" hidden>
       <span id="summary-shape"></span>
       <span class="km" id="summary-km"></span>
+      <span class="km" id="summary-score" title="Distance-adjusted fidelity score (lower = better)"></span>
     </div>
 
     <div id="actions" class="actions" hidden>
@@ -325,6 +338,8 @@
     const summary    = $("summary");
     const summaryShape = $("summary-shape");
     const summaryKm  = $("summary-km");
+    const summaryScore = $("summary-score");
+    const algoRadios = document.querySelectorAll('input[name="algo"]');
     const actions    = $("actions");
     const gpxBtn     = $("gpx-btn");
     const kmlBtn     = $("kml-btn");
@@ -445,11 +460,14 @@
       genBtn.disabled = true;
       genLabel.replaceWith(spinnerNode());
       try {
+        const algo = document.querySelector('input[name="algo"]:checked')?.value
+                     || "v2_multi";
         const body = {
           shape: selectedShape,
           lat: currentCenter.lat,
           lon: currentCenter.lng,
           distance_km: parseFloat(distEl.value),
+          algorithm: algo,
         };
         const resp = await api("/generate", {
           method: "POST",
@@ -503,10 +521,19 @@
 
     function showSummary(resp) {
       const meta = shapes.find(s => s.id === resp.shape);
+      const algoBadge = resp.algorithm === "v2_multi" ? "  (Optuna v2)" : "";
       summaryShape.innerHTML = meta
-        ? `${meta.emoji} ${meta.name} run`
-        : `${resp.shape} run`;
+        ? `${meta.emoji} ${meta.name} run${algoBadge}`
+        : `${resp.shape} run${algoBadge}`;
       summaryKm.textContent = (resp.routed_distance_m / 1000).toFixed(2) + " km";
+      // Score is meaningful for both paths; v2 ships a richer breakdown
+      // we ignore at this UI tier — just surface the headline number.
+      if (resp.score != null && isFinite(resp.score)) {
+        summaryScore.textContent = "score " + resp.score.toFixed(3);
+        summaryScore.hidden = false;
+      } else {
+        summaryScore.hidden = true;
+      }
       summary.hidden = false;
       actions.hidden = false;
     }

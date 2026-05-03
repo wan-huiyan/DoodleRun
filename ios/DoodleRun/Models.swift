@@ -34,13 +34,38 @@ struct ShapesResponse: Decodable {
     let shapes: [ShapeMeta]
 }
 
+/// Mirrors `server/models.py:Algorithm`. Phase-5 default is `v2_multi`
+/// (OSMnx + W-K + Optuna multi-variant); `legacy` keeps the Phase-1
+/// OSRM iterate-on-scale generator callable for comparison/fallback.
+enum RouteAlgorithm: String, Encodable, CaseIterable, Identifiable {
+    case v2Multi = "v2_multi"
+    case legacy
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .v2Multi: return "Optuna v2"
+        case .legacy:  return "Legacy"
+        }
+    }
+}
+
 struct GenerateRequest: Encodable {
     let shape: String
     let lat: Double
     let lon: Double
     let distanceKm: Double
+    let algorithm: RouteAlgorithm?
     let waypoints: Int?
     let iterations: Int?
+}
+
+/// Mirrors `server/models.py:ScoreBreakdown`. Only populated by v2_multi.
+struct ScoreBreakdown: Decodable, Hashable {
+    let hausdorff: Double
+    let frechet: Double
+    let areaIou: Double
+    let turning: Double
+    let weights: [String: Double]
 }
 
 /// GeoJSON-shaped: coordinates are [lon, lat] (NOT [lat, lon]).
@@ -59,6 +84,7 @@ struct GeoJSONLineString: Codable {
 
 struct GenerateResponse: Decodable {
     let shape: String
+    let algorithm: String?
     let targetDistanceM: Double
     let routedDistanceM: Double
     let errorPct: Double
@@ -66,6 +92,11 @@ struct GenerateResponse: Decodable {
     let waypoints: [[Double]]    // [lat, lon] pairs
     let gpx: String
     let kml: String
+    /// Phase-5 distance-adjusted fidelity (lower = better). For legacy this
+    /// equals `fidelity`; for v2_multi it's the Optuna best.
+    let score: Double?
+    let scoreBreakdown: ScoreBreakdown?
+    let variantIndex: Int?
 
     var routedDistanceKm: Double { routedDistanceM / 1000.0 }
     var idealWaypoints: [CLLocationCoordinate2D] {

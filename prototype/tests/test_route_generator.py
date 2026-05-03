@@ -392,6 +392,7 @@ class TestGenerateSearchV2Multi:
             n_trials=3, timeout_s=None,
             graph=G, use_prescreener=False,
             n_startup_trials=2,
+            simplify_tol_m=0.0,  # tiny synthetic route collapses if simplified
         )
         assert result.distance_m > 0
         assert len(result.polyline) > 4

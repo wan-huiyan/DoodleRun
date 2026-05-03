@@ -297,18 +297,36 @@ def waschk_kruger_cost_fn(
     alpha: float = 1.0,
     beta: float = 0.5,
     gamma: float = 4.0,
+    *,
+    visited_edge_keys: Optional[set] = None,
+    revisit_penalty_m: float = 4_000.0,
+    inside_penalty_factor: float = 4.0,
+    interior_centroid: Optional[LatLon] = None,
 ) -> Callable:
     """Return a ``weight(u, v, edge_data)`` callable suitable for
     ``networkx.shortest_path(..., weight=callable)``.
 
     The closure captures the current target outline segment so we can
     score every candidate edge against it. The weights default to a
-    moderate emphasis on shape fidelity (γ > α > β) which empirically
-    produces routes that hug the target without ignoring real road
-    geometry. Tune via the ``shape_aware_route`` API.
+    moderate emphasis on shape fidelity (γ > α > β).
 
-    All three sub-costs are in metres so they're directly comparable
-    without per-term normalisation.
+    Phase-5 additions to fix "tangled blob" routes:
+
+    - ``visited_edge_keys``: a set of (min(u,v), max(u,v)) tuples of edges
+      already used by previous outline segments. Hitting one of these
+      adds ``revisit_penalty_m`` (in metres) to the cost. Without this
+      penalty, Dijkstra freely reuses roads across segments and produces
+      heavy crossings + doubling-back that destroy the visible shape.
+
+    - ``inside_penalty_factor``: scales C₃ when the edge midpoint lies
+      on the *interior* side of the outline (i.e. closer to
+      ``interior_centroid`` than the segment line itself). This breaks
+      the symmetry of the original W-K perpendicular distance: a road
+      that sits parallel to the segment but on the inside of the pig
+      body costs more than one on the outside, so the route hugs the
+      perimeter instead of carving across the shape.
+
+    All sub-costs are in metres so they're directly comparable.
     """
     # Hoist the segment-projection coefficients out of the per-edge hot
     # path. The midpoint distance is `_point_to_segment_distance_m`
@@ -328,6 +346,22 @@ def waschk_kruger_cost_fn(
     seg_end_lon = seg_end[1]
     seg_end_lat = seg_end[0]
     cos_seg_end_lat = math.cos(seg_end_lat_rad)
+
+    # Pre-project the interior reference point so the inside/outside test
+    # is a single signed cross product per edge.
+    if interior_centroid is not None:
+        cx_m = interior_centroid[1] * seg_m_per_deg_lon - seg_ax
+        cy_m = interior_centroid[0] * seg_m_per_deg_lat - seg_ay
+        # Sign of (seg_d × centroid_offset) tells us which side is "inside".
+        centroid_side_sign = 1.0 if (seg_dx * cy_m - seg_dy * cx_m) >= 0 else -1.0
+    else:
+        centroid_side_sign = 0.0
+
+    revisit_set = visited_edge_keys
+    apply_revisit = revisit_set is not None and revisit_penalty_m > 0
+    apply_side_penalty = (
+        interior_centroid is not None and inside_penalty_factor > 1.0
+    )
 
     precomputed = G.graph.get(_PRECOMPUTE_FLAG, False)
 
@@ -370,13 +404,12 @@ def waschk_kruger_cost_fn(
 
         # C3: perpendicular distance from edge midpoint to the target
         # segment a→b. Inline the projection using hoisted constants.
+        px = mid_lon * seg_m_per_deg_lon - seg_ax
+        py = mid_lat * seg_m_per_deg_lat - seg_ay
         if seg_len_sq == 0:
-            px = mid_lon * seg_m_per_deg_lon - seg_ax
-            py = mid_lat * seg_m_per_deg_lat - seg_ay
             c3 = math.hypot(px, py)
+            edge_side_sign = 0.0
         else:
-            px = mid_lon * seg_m_per_deg_lon - seg_ax
-            py = mid_lat * seg_m_per_deg_lat - seg_ay
             t = (px * seg_dx + py * seg_dy) / seg_len_sq
             if t < 0.0:
                 t = 0.0
@@ -385,8 +418,21 @@ def waschk_kruger_cost_fn(
             cx = t * seg_dx
             cy = t * seg_dy
             c3 = math.hypot(px - cx, py - cy)
+            # Same sign as `centroid_side_sign` ⇒ midpoint is on the
+            # interior side of the outline.
+            edge_side_sign = 1.0 if (seg_dx * py - seg_dy * px) >= 0 else -1.0
 
-        return alpha * c1 + beta * c2 + gamma * c3
+        if apply_side_penalty and edge_side_sign == centroid_side_sign:
+            c3 *= inside_penalty_factor
+
+        cost = alpha * c1 + beta * c2 + gamma * c3
+
+        if apply_revisit:
+            key = (u, v) if u < v else (v, u)
+            if key in revisit_set:
+                cost += revisit_penalty_m
+
+        return cost
 
     return weight
 
@@ -427,6 +473,8 @@ def shape_aware_route(
     beta: float = 0.5,
     gamma: float = 4.0,
     closed: bool = True,
+    revisit_penalty_m: float = 4_000.0,
+    inside_penalty_factor: float = 4.0,
 ) -> ShapeRouteResult:
     """Route through the road graph following the outline shape.
 
@@ -440,6 +488,19 @@ def shape_aware_route(
     and snap to the next anchor node directly (the polyline gets a
     straight-line jump; downstream scoring will penalise it).
 
+    Phase-5 anti-tangle:
+
+    - ``revisit_penalty_m``: extra cost (metres) added when a candidate
+      edge has already been used by a previous segment in this same
+      route. Set to 0 to recover the Phase-3 behaviour. The default of
+      4000 m is well above any real road-network detour, so the router
+      will only revisit when it has no choice.
+
+    - ``inside_penalty_factor``: scales C₃ on the *interior* side of the
+      outline (using the shape centroid as the reference). Forces the
+      route to hug the perimeter from the outside, instead of carving
+      a chord across the body of the animal.
+
     Returns the concatenated polyline, total length, and per-segment
     success/failure counts.
     """
@@ -450,10 +511,21 @@ def shape_aware_route(
     if closed and pts[0] != pts[-1]:
         pts.append(pts[0])
 
+    # Centroid of the outline — used to bias C₃ toward the exterior side
+    # of each segment so the route hugs the perimeter rather than
+    # crossing the body.
+    if pts:
+        c_lat = sum(p[0] for p in pts) / len(pts)
+        c_lon = sum(p[1] for p in pts) / len(pts)
+        interior_centroid: Optional[LatLon] = (c_lat, c_lon)
+    else:
+        interior_centroid = None
+
     full_polyline: List[LatLon] = []
     total_length = 0.0
     n_ok = 0
     n_fail = 0
+    visited_edge_keys: set = set()
 
     # Snap every outline point once up front. With the cached KDTree
     # this is one batched scipy query; without precompute it falls back
@@ -475,7 +547,13 @@ def shape_aware_route(
                 full_polyline.append(snapped)
             continue
 
-        weight = waschk_kruger_cost_fn(G, seg_start, seg_end, alpha, beta, gamma)
+        weight = waschk_kruger_cost_fn(
+            G, seg_start, seg_end, alpha, beta, gamma,
+            visited_edge_keys=visited_edge_keys,
+            revisit_penalty_m=revisit_penalty_m,
+            inside_penalty_factor=inside_penalty_factor,
+            interior_centroid=interior_centroid,
+        )
         try:
             node_path = nx.shortest_path(G, u_node, v_node, weight=weight)
         except (nx.NetworkXNoPath, nx.NodeNotFound):
@@ -494,6 +572,11 @@ def shape_aware_route(
             full_polyline.extend(coords)
         total_length += length_m
         n_ok += 1
+
+        # Mark every edge in this segment so subsequent Dijkstra calls
+        # pay the revisit penalty if they try to reuse them.
+        for a, b in zip(node_path, node_path[1:]):
+            visited_edge_keys.add((a, b) if a < b else (b, a))
 
     return ShapeRouteResult(
         polyline=full_polyline,

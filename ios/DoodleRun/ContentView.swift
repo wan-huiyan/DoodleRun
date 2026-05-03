@@ -13,8 +13,9 @@ import MapKit
 struct ContentView: View {
     // Default center: St Albans (the prototype's pig sample center).
     @State private var center = CLLocationCoordinate2D(latitude: 51.75, longitude: -0.34)
-    @State private var distanceKm: Double = 10.0
+    @State private var distanceKm: Double = 20.0
     @State private var selectedShape: String = "pig"
+    @State private var algorithm: RouteAlgorithm = .v2Multi
     @State private var availableShapes: [ShapeMeta] = []
     @State private var routePolyline: [CLLocationCoordinate2D] = []
     @State private var idealOutline: [CLLocationCoordinate2D] = []
@@ -67,25 +68,59 @@ struct ContentView: View {
     private var controlPanel: some View {
         VStack(spacing: 14) {
             if let r = lastResponse {
-                HStack {
-                    Text("Routed")
-                        .font(.subheadline.weight(.semibold))
-                    Text(String(format: "%.2f km", r.routedDistanceKm))
-                        .font(.subheadline)
-                    Spacer()
-                    Text(String(format: "%+.1f%% vs target", r.errorPct))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                VStack(spacing: 4) {
+                    HStack {
+                        Text("Routed")
+                            .font(.subheadline.weight(.semibold))
+                        Text(String(format: "%.2f km", r.routedDistanceKm))
+                            .font(.subheadline)
+                        Spacer()
+                        Text(String(format: "%+.1f%% vs target", r.errorPct))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let score = r.score {
+                        HStack {
+                            Text(String(format: "score %.3f", score))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if r.algorithm == "v2_multi" {
+                                Text("(Optuna v2)")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                            Spacer()
+                            if let v = r.variantIndex {
+                                Text("variant \(v)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
                 .padding(.horizontal)
             }
 
             HStack {
                 Text("Distance")
-                Slider(value: $distanceKm, in: 5...25, step: 0.5)
+                Slider(value: $distanceKm, in: 15...30, step: 0.5)
                 Text(String(format: "%.1f km", distanceKm))
                     .monospacedDigit()
                     .frame(width: 70, alignment: .trailing)
+            }
+            .padding(.horizontal)
+
+            HStack(spacing: 8) {
+                Text("Algorithm").font(.subheadline)
+                Picker("Algorithm", selection: $algorithm) {
+                    ForEach(RouteAlgorithm.allCases) { a in
+                        Text(a.displayName).tag(a)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
             .padding(.horizontal)
 
@@ -215,6 +250,7 @@ struct ContentView: View {
             lat: center.latitude,
             lon: center.longitude,
             distanceKm: distanceKm,
+            algorithm: algorithm,
             waypoints: nil,
             iterations: nil
         )

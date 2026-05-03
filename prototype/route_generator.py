@@ -370,6 +370,39 @@ def _rotate_xy(points: List[Point], theta_rad: float) -> List[Point]:
     return [(x * c - y * s, x * s + y * c) for x, y in points]
 
 
+def _simplify_polyline_vw(polyline: List[Tuple[float, float]],
+                          tol_m: float) -> List[Tuple[float, float]]:
+    """Visvalingam-Whyatt simplification of a (lat, lon) polyline at a
+    metres-scaled tolerance. Returns the polyline unchanged if the
+    `simplification` package isn't installed or the input is too short.
+
+    The shape-aware Dijkstra emits a polyline that follows every road-network
+    micro-turn. Simplifying with a ~80 m tolerance keeps the animal-feature
+    vertices (snout tip, ear, leg corners) and drops the road-network noise
+    that the user reads as "tangled" — net result is a cleaner GPS trace.
+    """
+    if len(polyline) < 4 or tol_m <= 0:
+        return list(polyline)
+    try:
+        from simplification.cutil import simplify_coords_vw
+    except ImportError:
+        return list(polyline)
+    lat0 = sum(p[0] for p in polyline) / len(polyline)
+    m_per_lat = 111_320.0
+    m_per_lon = m_per_lat * math.cos(math.radians(lat0))
+    lat_origin, lon_origin = polyline[0]
+    xy = [
+        [(lon - lon_origin) * m_per_lon, (lat - lat_origin) * m_per_lat]
+        for lat, lon in polyline
+    ]
+    # VW takes a triangle-area threshold (m²); tol_m² gives a length-equivalent.
+    simplified_xy = simplify_coords_vw(xy, tol_m * tol_m)
+    return [
+        (lat_origin + y / m_per_lat, lon_origin + x / m_per_lon)
+        for x, y in simplified_xy
+    ]
+
+
 def _distance_adjusted_score(
     fidelity: float,
     route_distance_m: float,
@@ -396,12 +429,15 @@ def generate_search_v2(
     timeout_s: float | None = 120.0,
     n_startup_trials: int = 20,
     early_stop_score: float = 0.04,
-    n_waypoints: int = 35,
+    n_waypoints: int = 15,
     search_radius_m: int = V2_DEFAULT_SEARCH_RADIUS_M,
     graph_radius_m: int = V2_DEFAULT_GRAPH_RADIUS_M,
     alpha: float = 1.0,
     beta: float = 0.5,
-    gamma: float = 4.0,
+    gamma: float = 15.0,
+    revisit_penalty_m: float = 2_500.0,
+    inside_penalty_factor: float = 1.0,
+    simplify_tol_m: float = 80.0,
     use_cache: bool = True,
     seed: int | None = 42,
     use_prescreener: bool = True,
@@ -491,7 +527,9 @@ def generate_search_v2(
         try:
             r = shape_aware_route(G, waypoints,
                                   alpha=alpha, beta=beta, gamma=gamma,
-                                  closed=True)
+                                  closed=True,
+                                  revisit_penalty_m=revisit_penalty_m,
+                                  inside_penalty_factor=inside_penalty_factor)
         except Exception:
             best_state["n_pruned"] += 1
             raise optuna.TrialPruned()
@@ -537,9 +575,10 @@ def generate_search_v2(
         )
 
     waypoints, r, scale, lat, lon, rot = best_state["route"]
+    smoothed = _simplify_polyline_vw(r.polyline, simplify_tol_m)
     return GeneratedRoute(
         waypoints=waypoints,
-        polyline=r.polyline,
+        polyline=smoothed,
         distance_m=r.distance_m,
         scale_m_per_unit=scale,
         center_lat=lat,
@@ -560,12 +599,15 @@ def generate_search_v2_multi(
     n_trials: int = 50,
     timeout_s: float | None = 120.0,
     early_stop_score: float = 0.04,
-    n_waypoints: int = 35,
+    n_waypoints: int = 15,
     search_radius_m: int = V2_DEFAULT_SEARCH_RADIUS_M,
     graph_radius_m: int = V2_DEFAULT_GRAPH_RADIUS_M,
     alpha: float = 1.0,
     beta: float = 0.5,
-    gamma: float = 4.0,
+    gamma: float = 15.0,
+    revisit_penalty_m: float = 2_500.0,
+    inside_penalty_factor: float = 1.0,
+    simplify_tol_m: float = 80.0,
     use_cache: bool = True,
     seed: int | None = 42,
     use_prescreener: bool = True,
@@ -634,6 +676,9 @@ def generate_search_v2_multi(
                 alpha=alpha,
                 beta=beta,
                 gamma=gamma,
+                revisit_penalty_m=revisit_penalty_m,
+                inside_penalty_factor=inside_penalty_factor,
+                simplify_tol_m=simplify_tol_m,
                 use_cache=use_cache,
                 seed=seed,
                 use_prescreener=use_prescreener and i == 0,  # prescreen once

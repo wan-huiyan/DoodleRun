@@ -14,9 +14,19 @@ final class RouteService: ObservableObject {
     private let encoder: JSONEncoder
 
     init(baseURL: URL = URL(string: "http://localhost:8000")!,
-         session: URLSession = .shared) {
+         session: URLSession? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        // v2_multi runs Optuna for 2–3 min on a fresh city; default URLSession
+        // times out at 60 s and the user sees "request timed out" right when the
+        // search is about to converge. Bump both timeouts to 5 min.
+        if let session {
+            self.session = session
+        } else {
+            let cfg = URLSessionConfiguration.default
+            cfg.timeoutIntervalForRequest = 300
+            cfg.timeoutIntervalForResource = 360
+            self.session = URLSession(configuration: cfg)
+        }
 
         let dec = JSONDecoder()
         dec.keyDecodingStrategy = .convertFromSnakeCase

@@ -52,10 +52,18 @@ from shapes import SHAPE_VARIANTS  # noqa: E402
 OUT_DIR = Path(__file__).resolve().parent.parent / "samples" / "v2_smoke"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Phase-3 smoke targets: London + SF (Manhattan logged for follow-up).
+# Phase-5 smoke targets: England only. The user runs these IRL, so we pick
+# areas they can actually drive to + run from. Mix of grid (Milton Keynes),
+# suburban-radial (St Albans, Hemel), and Thames-bend (Isle of Dogs, Barnes,
+# Richmond) — the river bends form natural curves that align with animal
+# silhouettes in ways a pure grid cannot.
 CITIES = [
-    ("london_e14", "London E14", 51.5074,  -0.0148),
-    ("sf_sunset",  "SF Sunset",  37.7559, -122.4828),
+    ("st_albans",     "St Albans",          51.7520,  -0.3360),
+    ("milton_keynes", "Milton Keynes grid", 52.0406,  -0.7594),
+    ("hemel",         "Hemel Hempstead",    51.7526,  -0.4707),
+    ("isle_of_dogs",  "Isle of Dogs (Thames bend)", 51.4996, -0.0204),
+    ("barnes_bend",   "Barnes Thames bend", 51.4720,  -0.2370),
+    ("richmond",      "Richmond Thames",    51.4613,  -0.3037),
 ]
 ANIMAL = "pig"
 N_TRIALS = 30                 # TPE converges by ~20; 30 leaves headroom
@@ -63,11 +71,12 @@ TIMEOUT_S_PER_VARIANT = 60.0
 MAX_VARIANTS = 2              # canonical + 1 quickdraw exemplar
 # Tighter scale band so most trials land in the soft band [14, 26] km
 # instead of being pruned at the 1.5× hard cap. Plan §3.5 calibrates the
-# 1.3× perimeter heuristic for 20 km targets, so factor ∈ [0.5, 1.3]
-# brackets that comfortably.
-SCALE_FACTOR_MIN = 0.5
+# 1.3× perimeter heuristic for 20 km targets, so factor ∈ [0.7, 1.3]
+# brackets that comfortably without letting trials shrink to ~13 km.
+SCALE_FACTOR_MIN = 0.7        # raised from 0.5 — Phase-3 SF landed at 13 km
 SCALE_FACTOR_MAX = 1.3
 HARD_CAP_FACTOR = 1.5         # prune anything > 30 km for a 20 km target
+SOFT_PENALTY_WEIGHT = 0.5     # raised from 0.3 — push distance closer to target
 
 
 def _polyline_to_geojson(polyline, waypoints, *, name: str, distance_m: float, fidelity: float) -> dict:
@@ -141,6 +150,7 @@ def main():
                 scale_factor_min=SCALE_FACTOR_MIN,
                 scale_factor_max=SCALE_FACTOR_MAX,
                 hard_cap_factor=HARD_CAP_FACTOR,
+                soft_penalty_weight=SOFT_PENALTY_WEIGHT,
             )
         except Exception as exc:
             print(f"  FAILED: {exc.__class__.__name__}: {exc}")
@@ -170,6 +180,17 @@ def main():
         except Exception as exc:
             print(f"  [warn] matplotlib PNG render failed: {exc}")
             png_path = None
+        # Also drop a big basemap-free version — the OSM tiles eat most of
+        # the canvas and make it impossible to judge whether the trace
+        # actually looks like the animal. The big version is what we use
+        # to verify visual quality.
+        try:
+            from iter_v2 import _render_big_clean
+            big_path = OUT_DIR / f"{slug}_{ANIMAL}_search_big.png"
+            _render_big_clean(gj_path, big_path)
+            print(f"  big png   → {big_path.name}")
+        except Exception as exc:
+            print(f"  [warn] big PNG render failed: {exc}")
         summary.append({
             "slug": slug, "city": name, "lat": lat, "lon": lon,
             "distance_m": r.distance_m,

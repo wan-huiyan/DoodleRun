@@ -27,14 +27,16 @@ sys.path.insert(0, str(PROTOTYPE_DIR))
 from gpx_export import gpx_to_string                       # noqa: E402
 from kml_export import kml_to_string                       # noqa: E402
 from osrm_client import macos_keychain_bundle              # noqa: E402
+import route_generator                                     # noqa: E402
 from route_generator import generate, generate_search      # noqa: E402
-from shapes import SHAPES                                  # noqa: E402
+from shapes import SHAPES, SHAPE_VARIANTS                  # noqa: E402
 
 from models import (                                       # noqa: E402
     GenerateRequest,
     GenerateResponse,
     GeoJSONLineString,
     HealthResponse,
+    ScoreBreakdown,
     ShapeMeta,
     ShapesResponse,
     ShareRequest,
@@ -164,34 +166,63 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
                                   f"See GET /shapes for available shapes.")
 
     target_m = req.distance_km * 1000.0
-    try:
-        if req.search_radius_km is not None:
-            result = generate_search(
-                outline=SHAPES[req.shape],
+
+    if req.algorithm == "v2_multi":
+        # v2 enforces a 15–30 km band: shape features stop reading below 15 km,
+        # and the W-K Dijkstra grows too expensive above 30 km. Surface the
+        # constraint as 422 instead of letting the prototype's ValueError become
+        # a 500.
+        if not (route_generator.V2_MIN_TARGET_DISTANCE_M
+                <= target_m
+                <= route_generator.V2_MAX_TARGET_DISTANCE_M):
+            raise HTTPException(
+                422,
+                f"distance_km={req.distance_km} outside the v2_multi 15–30 km "
+                f"band; pick a different distance or set algorithm=\"legacy\".",
+            )
+        variants = SHAPE_VARIANTS[req.shape][: req.max_variants]
+        try:
+            # Module-attribute lookup so tests can monkeypatch
+            # `route_generator.generate_search_v2_multi`.
+            result = route_generator.generate_search_v2_multi(
+                variants,
                 center_lat=req.lat,
                 center_lon=req.lon,
                 target_distance_m=target_m,
-                search_radius_km=req.search_radius_km,
-                n_candidates=req.candidates,
-                n_scales=req.scales,
-                n_waypoints=req.waypoints,
-                verify=VERIFY,
+                n_trials=req.n_trials,
+                timeout_s=req.timeout_s_per_variant,
             )
-        else:
-            result = generate(
-                outline=SHAPES[req.shape],
-                center_lat=req.lat,
-                center_lon=req.lon,
-                target_distance_m=target_m,
-                n_waypoints=req.waypoints,
-                max_iterations=req.iterations,
-                verify=VERIFY,
-            )
-    except Exception as e:
-        # OSRM NoRoute / network errors / etc. The CLI keeps the best
-        # earlier iteration via try/except inside generate(); only a total
-        # first-iteration failure escapes to here.
-        raise HTTPException(502, f"Route generation failed: {e}") from e
+        except Exception as e:
+            raise HTTPException(502, f"Route generation failed: {e}") from e
+    else:
+        try:
+            if req.search_radius_km is not None:
+                result = generate_search(
+                    outline=SHAPES[req.shape],
+                    center_lat=req.lat,
+                    center_lon=req.lon,
+                    target_distance_m=target_m,
+                    search_radius_km=req.search_radius_km,
+                    n_candidates=req.candidates,
+                    n_scales=req.scales,
+                    n_waypoints=req.waypoints,
+                    verify=VERIFY,
+                )
+            else:
+                result = generate(
+                    outline=SHAPES[req.shape],
+                    center_lat=req.lat,
+                    center_lon=req.lon,
+                    target_distance_m=target_m,
+                    n_waypoints=req.waypoints,
+                    max_iterations=req.iterations,
+                    verify=VERIFY,
+                )
+        except Exception as e:
+            # OSRM NoRoute / network errors / etc. The CLI keeps the best
+            # earlier iteration via try/except inside generate(); only a total
+            # first-iteration failure escapes to here.
+            raise HTTPException(502, f"Route generation failed: {e}") from e
 
     # GeoJSON LineString takes [lon, lat]; the polyline holds (lat, lon).
     geojson_coords = [(lon, lat) for lat, lon in result.polyline]
@@ -204,16 +235,31 @@ def generate_route(req: GenerateRequest) -> GenerateResponse:
     gpx_text = gpx_to_string(result.polyline, name=name, description=desc)
     kml_text = kml_to_string(result.polyline, name=name, description=desc)
 
+    breakdown = None
+    if result.fidelity_breakdown:
+        breakdown = ScoreBreakdown(**result.fidelity_breakdown)
+
+    variant_index = None
+    if result.best_params and "variant_index" in result.best_params:
+        variant_index = result.best_params["variant_index"]
+
     return GenerateResponse(
         shape=req.shape,
+        algorithm=req.algorithm,
         target_distance_m=target_m,
         routed_distance_m=result.distance_m,
+        distance_m=result.distance_m,
         error_pct=(result.distance_m - target_m) / target_m * 100.0,
         geojson=GeoJSONLineString(coordinates=geojson_coords),
+        polyline=result.polyline,
         waypoints=result.waypoints,
         gpx=gpx_text,
         kml=kml_text,
         fidelity=result.fidelity,
+        score=result.fidelity,
+        score_breakdown=breakdown,
+        variant_index=variant_index,
+        best_params=result.best_params,
         chosen_lat=result.center_lat,
         chosen_lon=result.center_lon,
     )

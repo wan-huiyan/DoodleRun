@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from osrm_client import RouteResult
+from route_generator import GeneratedRoute
 
 
 @pytest.fixture
@@ -30,6 +31,56 @@ def _fake_route_through(distance_m: float = 10500.0):
             coordinates=list(waypoints),
             distance_m=distance_m,
             duration_s=distance_m,
+        )
+    return fake
+
+
+def _fake_v2_multi(
+    *,
+    distance_m: float = 19500.0,
+    score: float = 0.27,
+    variant_index: int = 1,
+):
+    """Return a canned `generate_search_v2_multi` that skips OSMnx + Optuna.
+
+    Mirrors the shape of the real return value (a `GeneratedRoute` with the
+    Phase-3 extras populated) so the endpoint contract test exercises the
+    same fields the production path emits.
+    """
+    polyline = [(51.75 + 0.001 * i, -0.34 + 0.001 * i) for i in range(20)]
+    waypoints = polyline[::2]
+    breakdown = {
+        "hausdorff": 0.011,
+        "frechet": 0.085,
+        "area_iou": 0.50,
+        "turning": 0.40,
+        "weights": {"hausdorff": 0.35, "frechet": 0.30,
+                    "area_iou": 0.20, "turning": 0.15},
+    }
+    best_params = {
+        "offset_lat": 0.012, "offset_lon": -0.019,
+        "scale_factor": 0.7, "rotation_deg": 161.9,
+        "variant_index": variant_index,
+    }
+
+    def fake(
+        outline_variants,
+        center_lat,
+        center_lon,
+        target_distance_m,
+        **_kwargs,
+    ):
+        return GeneratedRoute(
+            waypoints=waypoints,
+            polyline=polyline,
+            distance_m=distance_m,
+            scale_m_per_unit=120.0,
+            center_lat=center_lat + 0.012,
+            center_lon=center_lon - 0.019,
+            fidelity=score,
+            rotation_deg=161.9,
+            best_params=best_params,
+            fidelity_breakdown=breakdown,
         )
     return fake
 
@@ -70,7 +121,11 @@ class TestShapes:
             assert shape["distinctive_features"]
 
 
-class TestGenerate:
+class TestGenerateLegacy:
+    """Legacy (Phase-1 OSRM) generator path — kept callable behind
+    `algorithm: "legacy"` for transition / fallback. v2_multi is the new
+    default (covered by TestGenerateV2Multi)."""
+
     def test_happy_path(self, client):
         with patch("route_generator.route_through",
                    side_effect=_fake_route_through(10500.0)):
@@ -79,13 +134,20 @@ class TestGenerate:
                 "lat": 51.75,
                 "lon": -0.34,
                 "distance_km": 10.0,
+                "algorithm": "legacy",
             })
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["shape"] == "pig"
+        assert body["algorithm"] == "legacy"
         assert body["target_distance_m"] == 10000.0
         assert body["routed_distance_m"] == 10500.0
+        assert body["distance_m"] == 10500.0
         assert body["error_pct"] == pytest.approx(5.0)
+        # `score` aliases `fidelity` for the legacy path.
+        assert body["score"] == body["fidelity"]
+        assert body["score_breakdown"] is None
+        assert body["variant_index"] is None
         assert body["geojson"]["type"] == "LineString"
         assert len(body["geojson"]["coordinates"]) >= 2
         # GeoJSON is [lon, lat] — the first coord's longitude should be
@@ -93,6 +155,10 @@ class TestGenerate:
         lon, lat = body["geojson"]["coordinates"][0]
         assert -1.0 < lon < 1.0
         assert 51.0 < lat < 52.0
+        # `polyline` is the same data in [lat, lon] order.
+        assert len(body["polyline"]) == len(body["geojson"]["coordinates"])
+        assert body["polyline"][0][0] == pytest.approx(lat)
+        assert body["polyline"][0][1] == pytest.approx(lon)
         assert body["gpx"].startswith("<?xml")
         assert "<gpx" in body["gpx"]
         assert "<rte>" in body["gpx"]
@@ -105,6 +171,7 @@ class TestGenerate:
         r = client.post("/generate", json={
             "shape": "unicorn",
             "lat": 51.75, "lon": -0.34, "distance_km": 10.0,
+            "algorithm": "legacy",
         })
         assert r.status_code == 404
         assert "unicorn" in r.json()["detail"]
@@ -112,12 +179,14 @@ class TestGenerate:
     def test_invalid_lat_rejected(self, client):
         r = client.post("/generate", json={
             "shape": "pig", "lat": 999.0, "lon": -0.34, "distance_km": 10.0,
+            "algorithm": "legacy",
         })
         assert r.status_code == 422   # Pydantic validation
 
     def test_zero_distance_rejected(self, client):
         r = client.post("/generate", json={
             "shape": "pig", "lat": 51.75, "lon": -0.34, "distance_km": 0,
+            "algorithm": "legacy",
         })
         assert r.status_code == 422
 
@@ -126,9 +195,136 @@ class TestGenerate:
                    side_effect=RuntimeError("OSRM NoRoute")):
             r = client.post("/generate", json={
                 "shape": "cat", "lat": 51.5, "lon": -0.16, "distance_km": 10.0,
+                "algorithm": "legacy",
             })
         assert r.status_code == 502
         assert "Route generation failed" in r.json()["detail"]
+
+
+class TestGenerateV2Multi:
+    """Phase-3 OSMnx + W-K + Optuna multi-variant path. Patches
+    `route_generator.generate_search_v2_multi` so tests stay offline."""
+
+    def test_happy_path_default_algorithm(self, client):
+        # Default algorithm is v2_multi — omitting the field should pick it.
+        with patch("route_generator.generate_search_v2_multi",
+                   side_effect=_fake_v2_multi(distance_m=19500.0,
+                                              score=0.273,
+                                              variant_index=1)):
+            r = client.post("/generate", json={
+                "shape": "pig",
+                "lat": 51.5074,
+                "lon": -0.0148,
+                "distance_km": 20.0,
+            })
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["algorithm"] == "v2_multi"
+        assert body["target_distance_m"] == 20000.0
+        assert body["routed_distance_m"] == 19500.0
+        assert body["distance_m"] == 19500.0
+        assert body["score"] == pytest.approx(0.273)
+        assert body["fidelity"] == pytest.approx(0.273)  # alias for v2
+        assert body["variant_index"] == 1
+        assert body["best_params"]["scale_factor"] == pytest.approx(0.7)
+        bd = body["score_breakdown"]
+        assert bd is not None
+        assert bd["hausdorff"] == pytest.approx(0.011)
+        assert bd["weights"]["hausdorff"] == pytest.approx(0.35)
+        # chosen_lat/lon should reflect the offset applied inside the search.
+        assert body["chosen_lat"] == pytest.approx(51.5074 + 0.012)
+        assert body["chosen_lon"] == pytest.approx(-0.0148 - 0.019)
+        # The polyline + waypoints come from the canned fixture.
+        assert len(body["polyline"]) >= 2
+        assert len(body["waypoints"]) >= 2
+
+    def test_explicit_algorithm_v2(self, client):
+        with patch("route_generator.generate_search_v2_multi",
+                   side_effect=_fake_v2_multi()):
+            r = client.post("/generate", json={
+                "shape": "cat",
+                "lat": 37.7559, "lon": -122.4828,
+                "distance_km": 18.0,
+                "algorithm": "v2_multi",
+            })
+        assert r.status_code == 200, r.text
+        assert r.json()["algorithm"] == "v2_multi"
+
+    def test_distance_below_band_rejected(self, client):
+        # 10 km is fine for legacy but below v2_multi's 15 km floor.
+        r = client.post("/generate", json={
+            "shape": "pig",
+            "lat": 51.5074, "lon": -0.0148,
+            "distance_km": 10.0,
+            "algorithm": "v2_multi",
+        })
+        assert r.status_code == 422
+        assert "v2_multi" in r.json()["detail"]
+        assert "15" in r.json()["detail"]
+
+    def test_distance_above_band_rejected(self, client):
+        r = client.post("/generate", json={
+            "shape": "pig",
+            "lat": 51.5074, "lon": -0.0148,
+            "distance_km": 35.0,
+            "algorithm": "v2_multi",
+        })
+        # The Pydantic ge=0/le=50 lets 35 through; the v2 endpoint band check
+        # rejects it with 422.
+        assert r.status_code == 422
+        assert "v2_multi" in r.json()["detail"]
+
+    def test_unknown_shape_returns_404(self, client):
+        r = client.post("/generate", json={
+            "shape": "kraken",
+            "lat": 51.5074, "lon": -0.0148, "distance_km": 20.0,
+        })
+        assert r.status_code == 404
+
+    def test_search_failure_becomes_502(self, client):
+        with patch("route_generator.generate_search_v2_multi",
+                   side_effect=RuntimeError("Optuna trials all pruned")):
+            r = client.post("/generate", json={
+                "shape": "dog",
+                "lat": 51.5074, "lon": -0.0148, "distance_km": 20.0,
+                "algorithm": "v2_multi",
+            })
+        assert r.status_code == 502
+        assert "Route generation failed" in r.json()["detail"]
+        assert "Optuna" in r.json()["detail"]
+
+    def test_invalid_algorithm_rejected(self, client):
+        r = client.post("/generate", json={
+            "shape": "pig",
+            "lat": 51.5074, "lon": -0.0148, "distance_km": 20.0,
+            "algorithm": "v3_quantum",
+        })
+        assert r.status_code == 422  # Pydantic Literal validation
+
+    def test_max_variants_propagated(self, client):
+        captured = {}
+
+        def fake(outline_variants, center_lat, center_lon, target_distance_m,
+                 **kwargs):
+            captured["n_variants"] = len(outline_variants)
+            captured["n_trials"] = kwargs.get("n_trials")
+            captured["timeout_s"] = kwargs.get("timeout_s")
+            return _fake_v2_multi()(outline_variants, center_lat, center_lon,
+                                    target_distance_m, **kwargs)
+
+        with patch("route_generator.generate_search_v2_multi", side_effect=fake):
+            r = client.post("/generate", json={
+                "shape": "pig",
+                "lat": 51.5074, "lon": -0.0148, "distance_km": 20.0,
+                "algorithm": "v2_multi",
+                "max_variants": 3,
+                "n_trials": 25,
+                "timeout_s_per_variant": 45.0,
+            })
+        assert r.status_code == 200, r.text
+        assert captured["n_variants"] <= 3
+        assert captured["n_trials"] == 25
+        assert captured["timeout_s"] == 45.0
 
 
 class TestCors:
