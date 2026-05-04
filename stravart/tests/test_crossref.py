@@ -14,6 +14,7 @@ import pytest
 from stravart.crossref import (
     CrossRefResult,
     GeocodeCluster,
+    NominatimStreetClient,
     OverpassClient,
     OverpassWay,
     _cluster_points,
@@ -151,8 +152,27 @@ class TestFindGeocode:
             [_candidate(f"Street{i} Road", 0.9 - i * 0.05) for i in range(20)],
             client,                                                   # type: ignore[arg-type]
             max_lookups=3,
+            typo_variants=0,    # isolate the original-candidate cap
         )
         assert client.calls == ["Street0 Road", "Street1 Road", "Street2 Road"]
+
+    def test_typo_variants_widen_query_when_exact_misses(self) -> None:
+        # Exact spelling doesn't match; the 'om → cm' variant does. We expect
+        # find_geocode to pivot to the variant rather than give up.
+        client = FakeClient({
+            "Broomfield Road": [OverpassWay("Broomfield Road", 51.74, 0.46,
+                                            city="Chelmsford", country="UK")],
+            "Dixon Avenue":    [OverpassWay("Dixon Avenue", 51.74, 0.46,
+                                            city="Chelmsford", country="UK")],
+        })
+        result = find_geocode(
+            [_candidate("Brocmfield Road"), _candidate("Dixon Avenue")],
+            client,                                                   # type: ignore[arg-type]
+            typo_variants=4,
+        )
+        assert result.cluster is not None
+        assert "Broomfield Road" in client.calls
+        assert result.cluster.city == "Chelmsford"
 
     def test_min_streets_threshold(self) -> None:
         # Only one street name returns ways, so even with min_streets=1 we
@@ -209,4 +229,35 @@ class TestOverpassClientCache:
         client2 = OverpassClient(cache_path=cache, rate_limit_seconds=0.0)
         client2._url = "http://127.0.0.1:1/never-listening"
         ways = client2.ways_named("Broomfield Road")
-        assert ways == [OverpassWay("Broomfield Road", 51.75, -0.34)]
+        assert ways[0].name == "Broomfield Road"
+        assert ways[0].lat == pytest.approx(51.75)
+
+
+class TestNominatimStreetClientCache:
+    """Same JSON cache shape as Overpass; verify that the city/country side-
+    car fields round-trip and that negative cache replay short-circuits."""
+
+    def test_positive_cache_with_city_country(self, tmp_path: Path) -> None:
+        cache = tmp_path / "nom.json"
+        client = NominatimStreetClient(cache_path=cache, rate_limit_seconds=0.0)
+        client._cache["broomfield road"] = [
+            {"name": "Broomfield Road", "lat": 51.75, "lon": -0.34,
+             "city": "Chelmsford", "country": "United Kingdom"},
+        ]
+        client._save_cache()
+
+        client2 = NominatimStreetClient(cache_path=cache, rate_limit_seconds=0.0)
+        client2._url = "http://127.0.0.1:1/never-listening"
+        ways = client2.ways_named("Broomfield Road")
+        assert ways[0].city == "Chelmsford"
+        assert ways[0].country == "United Kingdom"
+
+    def test_negative_cache_replay(self, tmp_path: Path) -> None:
+        cache = tmp_path / "nom.json"
+        client = NominatimStreetClient(cache_path=cache, rate_limit_seconds=0.0)
+        client._negatives.add("noplace road")
+        client._save_cache()
+
+        client2 = NominatimStreetClient(cache_path=cache, rate_limit_seconds=0.0)
+        client2._url = "http://127.0.0.1:1/never-listening"
+        assert client2.ways_named("Noplace Road") == []

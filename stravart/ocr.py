@@ -109,8 +109,107 @@ def inpaint_route(bgr: np.ndarray) -> np.ndarray:
 class OcrResult:
     """Output of one image's OCR pass."""
 
-    fragments: list[tuple[str, float]]   # all OCR text, with confidence
+    fragments: list[tuple[str, float]]   # post-merge text fragments, with conf
     street_candidates: list[StreetCandidate]
+
+
+def _bbox_metrics(bbox) -> tuple[float, float, float, float, float]:
+    """Return (x_center, y_center, x_min, x_max, height) for an EasyOCR bbox.
+
+    EasyOCR returns four polygon corners as ``[(x,y), …]`` floats.
+    """
+    xs = [p[0] for p in bbox]
+    ys = [p[1] for p in bbox]
+    return (
+        (xs[0] + xs[1] + xs[2] + xs[3]) / 4.0,
+        (ys[0] + ys[1] + ys[2] + ys[3]) / 4.0,
+        min(xs),
+        max(xs),
+        max(ys) - min(ys),
+    )
+
+
+def _is_alpha_label(text: str) -> bool:
+    """A street-label-shaped fragment has at least 2 alphabetic chars and is
+    majority-alphabetic. Drops the digit-only noise EasyOCR finds in the
+    Strava distance-marker callouts that the inpainter leaves intact.
+    """
+    text = text.strip()
+    if not text:
+        return False
+    alpha = sum(1 for ch in text if ch.isalpha())
+    if alpha < 2:
+        return False
+    return alpha >= 0.5 * sum(1 for ch in text if not ch.isspace())
+
+
+def _merge_horizontal_neighbors(
+    raw: list[tuple[list, str, float]],
+    *,
+    y_tol: float = 0.7,
+    x_gap_max: float = 1.5,
+) -> list[tuple[str, float]]:
+    """Glue together OCR fragments that sit on the same line.
+
+    EasyOCR routinely splits "Dixon Ave" or "Partridge Ave" into two adjacent
+    detections; without merging, the suffix-shape filter throws them away.
+    Heuristic:
+
+      * drop fragments that aren't alphabetic — Strava distance-callouts
+        ("3", "5") otherwise glom onto neighbouring street names and break
+        suffix detection,
+      * group remaining fragments by horizontal band (``|Δy| < y_tol·h``),
+      * within a band, sort by x and merge into the predecessor when the
+        inter-bbox gap is at most ``x_gap_max·h``.
+
+    Returns ``[(text, mean_confidence), ...]`` for the merged fragments.
+    """
+    items = []
+    for bbox, text, conf in raw:
+        text = (text or "").strip()
+        if not _is_alpha_label(text):
+            continue
+        xc, yc, x_min, x_max, h = _bbox_metrics(bbox)
+        items.append({
+            "text": text, "conf": float(conf),
+            "xc": xc, "yc": yc,
+            "x_min": x_min, "x_max": x_max,
+            "h": max(h, 4.0),
+        })
+
+    items.sort(key=lambda it: (it["yc"], it["xc"]))
+
+    merged: list[tuple[str, float]] = []
+    while items:
+        seed = items.pop(0)
+        line = [seed]
+        kept: list[dict] = []
+        for it in items:
+            ref_h = (line[-1]["h"] + it["h"]) / 2
+            if abs(it["yc"] - line[-1]["yc"]) <= y_tol * ref_h:
+                line.append(it)
+            else:
+                kept.append(it)
+        items = kept
+
+        # Within the horizontal band, merge in reading order if gaps are small.
+        line.sort(key=lambda it: it["xc"])
+        groups: list[list[dict]] = [[line[0]]]
+        for it in line[1:]:
+            prev = groups[-1][-1]
+            ref_h = (prev["h"] + it["h"]) / 2
+            gap = it["x_min"] - prev["x_max"]
+            if gap <= x_gap_max * ref_h:
+                groups[-1].append(it)
+            else:
+                groups.append([it])
+
+        for g in groups:
+            text = " ".join(it["text"] for it in g)
+            avg_conf = sum(it["conf"] for it in g) / len(g)
+            merged.append((text, avg_conf))
+
+    return merged
 
 
 def ocr_image(
@@ -118,24 +217,25 @@ def ocr_image(
     *,
     languages: tuple[str, ...] = ("en",),
     inpaint: bool = True,
-    min_confidence: float = 0.30,
+    min_confidence: float = 0.20,
+    mag_ratio: float = 2.0,
 ) -> OcrResult:
-    """Run the full OCR pipeline on a single image, return text + streets."""
+    """Run the full OCR pipeline on a single image, return text + streets.
+
+    ``mag_ratio>1`` makes EasyOCR upscale the input before detection — strav.art
+    map labels are 8-12pt and benefit substantially. ``min_confidence`` defaults
+    to 0.20 because, after spatial merging, even merged-fragment confidence
+    averages tend to land in the 0.4-0.7 range.
+    """
     src = inpaint_route(bgr) if inpaint else bgr
     reader = get_reader(languages)
-    raw = reader.readtext(src, detail=1, paragraph=False)
-    fragments: list[tuple[str, float]] = []
-    for entry in raw:
-        # easyocr returns (bbox, text, conf) when detail=1, paragraph=False
-        if len(entry) >= 3:
-            _, text, conf = entry[0], entry[1], float(entry[2])
-        elif len(entry) == 2:
-            text, conf = entry[0], float(entry[1])
-        else:
-            continue
-        text = (text or "").strip()
-        if text:
-            fragments.append((text, conf))
+    raw = reader.readtext(
+        src, detail=1, paragraph=False,
+        mag_ratio=mag_ratio,
+        low_text=0.3,
+        text_threshold=0.5,
+    )
+    fragments = _merge_horizontal_neighbors(raw)
     streets = filter_street_candidates(fragments, min_confidence=min_confidence)
     return OcrResult(fragments=fragments, street_candidates=streets)
 

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .crossref import CrossRefResult, OverpassClient, find_geocode
+from .crossref import CrossRefResult, NominatimStreetClient, OverpassClient, find_geocode
 from .db import connect, count_by_geocode_source, count_geocoded, count_routes, \
     routes_needing_ocr, transaction, update_ocr_geocode
 from .ocr import OcrResult, fetch_image, ocr_image
@@ -49,7 +49,7 @@ def _now() -> str:
 
 def process_one(
     image_url: str,
-    overpass: OverpassClient,
+    crossref_client,
     *,
     languages: tuple[str, ...] = ("en",),
     min_streets: int = 2,
@@ -74,19 +74,20 @@ def process_one(
     try:
         xref = find_geocode(
             ocr.street_candidates,
-            overpass,
+            crossref_client,
             min_streets=min_streets,
             cluster_radius_km=cluster_radius_km,
         )
     except Exception as exc:                                # noqa: BLE001
-        return ocr, None, f"overpass: {exc!r}"
+        return ocr, None, f"crossref: {exc!r}"
     return ocr, xref, None
 
 
 def run_batch(
     db_path: str | Path,
     *,
-    overpass_cache: str | Path | None = None,
+    crossref_cache: str | Path | None = None,
+    crossref_backend: str = "nominatim",
     languages: tuple[str, ...] = ("en",),
     only_categories: list[str] | None = None,
     limit: int | None = None,
@@ -95,11 +96,18 @@ def run_batch(
     cluster_radius_km: float = 3.0,
     progress_every: int = 5,
 ) -> list[OcrGeocodeOutcome]:
-    """Drive OCR geocoding across the catalog. Returns per-route outcomes."""
+    """Drive OCR geocoding across the catalog. Returns per-route outcomes.
+
+    ``crossref_backend`` is ``"nominatim"`` (default, recommended) or
+    ``"overpass"`` (legacy, OOMs on common names — use only for tests).
+    """
     db_path = Path(db_path)
-    cache = Path(overpass_cache) if overpass_cache else \
-        db_path.parent / "overpass_cache.json"
-    overpass = OverpassClient(cache_path=cache)
+    cache = Path(crossref_cache) if crossref_cache else \
+        db_path.parent / f"{crossref_backend}_cache.json"
+    if crossref_backend == "overpass":
+        crossref_client = OverpassClient(cache_path=cache)
+    else:
+        crossref_client = NominatimStreetClient(cache_path=cache)
 
     conn = connect(db_path)
     try:
@@ -117,7 +125,7 @@ def run_batch(
         outcomes: list[OcrGeocodeOutcome] = []
         for i, row in enumerate(rows, start=1):
             ocr, xref, err = process_one(
-                row["image_url"], overpass,
+                row["image_url"], crossref_client,
                 languages=languages,
                 min_streets=min_streets,
                 cluster_radius_km=cluster_radius_km,
@@ -151,6 +159,8 @@ def run_batch(
                         confidence=cluster.confidence,
                         streets_json=streets_json,
                         attempted_at=attempted_at,
+                        city=cluster.city,
+                        country=cluster.country,
                     )
                 else:
                     update_ocr_geocode(

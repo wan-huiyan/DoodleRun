@@ -199,6 +199,7 @@ class TestRunBatchMocked:
                 bbox=(51.75, 51.752, -0.341, -0.339),
                 streets=["Broomfield Road", "Partridge Avenue"],
                 n_ways=2, confidence=0.78,
+                city="Chelmsford", country="United Kingdom",
             ),
             matches={
                 "Broomfield Road":  [OverpassWay("Broomfield Road",  51.751, -0.341)],
@@ -210,7 +211,7 @@ class TestRunBatchMocked:
         with patch.object(ocr_pipeline, "fetch_image", return_value=object()), \
              patch.object(ocr_pipeline, "ocr_image", return_value=fake_ocr), \
              patch.object(ocr_pipeline, "find_geocode", return_value=fake_xref), \
-             patch.object(ocr_pipeline, "OverpassClient") as mk_client:
+             patch.object(ocr_pipeline, "NominatimStreetClient") as mk_client:
             mk_client.return_value = object()    # value never used, find_geocode is patched
 
             outcomes = ocr_pipeline.run_batch(db_path=db)
@@ -223,6 +224,8 @@ class TestRunBatchMocked:
             rows = conn.execute("SELECT * FROM routes ORDER BY id").fetchall()
             assert all(r["geocode_source"] == "ocr" for r in rows)
             assert all(r["lat"] == pytest.approx(51.751) for r in rows)
+            assert all(r["city"] == "Chelmsford" for r in rows)
+            assert all(r["country"] == "United Kingdom" for r in rows)
             assert count_by_geocode_source(conn) == {"ocr": 2}
             # R-tree should have both rows now
             n = conn.execute("SELECT COUNT(*) AS n FROM routes_rtree").fetchone()["n"]
@@ -242,7 +245,7 @@ class TestRunBatchMocked:
         empty_ocr = OcrResult(fragments=[], street_candidates=[])
         with patch.object(ocr_pipeline, "fetch_image", return_value=object()), \
              patch.object(ocr_pipeline, "ocr_image", return_value=empty_ocr), \
-             patch.object(ocr_pipeline, "OverpassClient"):
+             patch.object(ocr_pipeline, "NominatimStreetClient"):
             outcomes = ocr_pipeline.run_batch(db_path=db)
 
         assert len(outcomes) == 1 and outcomes[0].cluster_lat is None

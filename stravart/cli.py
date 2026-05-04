@@ -55,7 +55,11 @@ def _add_ocr_geocode(sub: argparse._SubParsersAction) -> None:
         help="OCR strav.art images and geocode via OSM street co-location",
     )
     p.add_argument("--db", type=Path, required=True)
-    p.add_argument("--overpass-cache", type=Path, default=None)
+    p.add_argument("--crossref-cache", type=Path, default=None,
+                   help="Path to JSON cache for street-name lookups")
+    p.add_argument("--crossref-backend", choices=["nominatim", "overpass"],
+                   default="nominatim",
+                   help="OSM backend (nominatim=default, recommended)")
     p.add_argument("--languages", nargs="+", default=["en"],
                    help="EasyOCR language codes, e.g. en de fr")
     p.add_argument("--categories", nargs="+", default=None,
@@ -125,7 +129,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "ocr-geocode":
         outcomes = ocr_run_batch(
             db_path=args.db,
-            overpass_cache=args.overpass_cache,
+            crossref_cache=args.crossref_cache,
+            crossref_backend=args.crossref_backend,
             languages=tuple(args.languages),
             only_categories=args.categories,
             limit=args.limit,

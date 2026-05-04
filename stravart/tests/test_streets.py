@@ -8,6 +8,7 @@ from stravart.streets import (
     StreetCandidate,
     filter_street_candidates,
     looks_like_street,
+    name_variants,
     parse_street,
 )
 
@@ -147,3 +148,31 @@ class TestFilterCandidates:
             ("Broomfield Rd",   0.50),
         ])
         assert [c.normalized for c in out] == ["Broomfield Road"]
+
+
+class TestNameVariants:
+    """Variant generator widens Nominatim queries past common OCR misreads.
+    These specific recoveries are the load-bearing ones for the dog-image
+    end-to-end smoke run; if we regress them, OCR geocoding loses ~half
+    its real-world hits."""
+
+    def test_recovers_dropped_vowel(self) -> None:
+        # OCR loses the 'i' in "Partridge" → we must round-trip.
+        v = name_variants("Partrdge Avenue", max_variants=6)
+        assert "Partridge Avenue" in v
+
+    def test_recovers_cm_to_om_misread(self) -> None:
+        v = name_variants("Brocmfield Road", max_variants=6)
+        assert "Broomfield Road" in v
+
+    def test_original_is_first(self) -> None:
+        v = name_variants("Dixon Avenue", max_variants=6)
+        assert v[0] == "Dixon Avenue"
+
+    def test_caps_at_max_variants(self) -> None:
+        v = name_variants("Partrdge Avenue", max_variants=2)
+        assert len(v) <= 3   # original + max_variants
+
+    def test_no_duplicates(self) -> None:
+        v = name_variants("aaaaa Road", max_variants=10)
+        assert len(v) == len(set(v))
