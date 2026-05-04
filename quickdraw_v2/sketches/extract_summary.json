@@ -1,55 +1,54 @@
 {
   "pig": {
     "input_lines": 3000,
-    "kept": 1346,
+    "kept": 2583,
     "saved_top": 200,
     "reject_reasons": {
-      "too_many_strokes": 1653,
-      "main_too_small": 1
+      "too_many_strokes": 416,
+      "bad_aspect": 1
     }
   },
   "cat": {
     "input_lines": 3000,
-    "kept": 1231,
+    "kept": 2460,
     "saved_top": 200,
     "reject_reasons": {
-      "too_many_strokes": 1768,
-      "main_too_small": 1
+      "too_many_strokes": 539,
+      "bad_aspect": 1
     }
   },
   "dog": {
     "input_lines": 3000,
-    "kept": 2104,
+    "kept": 2782,
     "saved_top": 200,
     "reject_reasons": {
-      "too_many_strokes": 890,
-      "main_too_small": 6
+      "too_many_strokes": 218
     }
   },
   "dragon": {
     "input_lines": 3000,
-    "kept": 2193,
+    "kept": 2731,
     "saved_top": 200,
     "reject_reasons": {
-      "too_many_strokes": 807
+      "bad_aspect": 19,
+      "too_many_strokes": 250
     }
   },
   "duck": {
     "input_lines": 3000,
-    "kept": 2522,
+    "kept": 2919,
     "saved_top": 200,
     "reject_reasons": {
-      "too_many_strokes": 474,
-      "main_too_small": 4
+      "too_many_strokes": 77,
+      "bad_aspect": 4
     }
   },
   "elephant": {
     "input_lines": 3000,
-    "kept": 2553,
+    "kept": 2921,
     "saved_top": 200,
     "reject_reasons": {
-      "too_many_strokes": 446,
-      "main_too_small": 1
+      "too_many_strokes": 79
     }
   }
 }

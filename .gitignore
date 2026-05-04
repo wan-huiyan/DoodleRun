@@ -20,3 +20,5 @@ prototype/.pytest_cache/
 quickdraw_v2/data/*.recognized.ndjson
 quickdraw_v2/data/strav_raw/
 quickdraw_v2/refs/
+# Scratch diagnostic renders — regenerate with debug_*.py if needed.
+quickdraw_v2/diagnostics/

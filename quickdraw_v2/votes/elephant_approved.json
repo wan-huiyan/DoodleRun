@@ -1,17 +1,172 @@
 {
   "animal": "elephant",
   "approved_quickdraw": [
-    {"vote_id": "ELE-Q01", "rank_when_voted": 0, "key_id": "5401428975681536"},
-    {"vote_id": "ELE-Q04", "rank_when_voted": 3, "key_id": "4985501511581696"}
+    {
+      "vote_id": "ELE-Q01",
+      "rank_when_voted": 0,
+      "key_id": "5401428975681536"
+    },
+    {
+      "vote_id": "ELE-Q04",
+      "rank_when_voted": 3,
+      "key_id": "4985501511581696"
+    }
   ],
   "approved_stravart": [
-    {"vote_id": "ELE-S03", "rank_when_voted": 2,  "source": "052_1594135339655-B5TZTG61UGZ7POPHFCLW.jpg"},
-    {"vote_id": "ELE-S05", "rank_when_voted": 4,  "source": "006_1636374243088-1NHR5VXQUZAKUQ1UV0CZ.jpg"},
-    {"vote_id": "ELE-S07", "rank_when_voted": 6,  "source": "028_1612619273909-OZLHJBX24QP1WBVWCTEL.jpg"},
-    {"vote_id": "ELE-S12", "rank_when_voted": 11, "source": "040_1605872179406-5YAXRVLY4DRN91DAFJEB.jpg"},
-    {"vote_id": "ELE-S17", "rank_when_voted": 16, "source": "044_1599996648441-6E607HJQPS4MF25VAMRL.jpg"},
-    {"vote_id": "ELE-S19", "rank_when_voted": 18, "source": "051_1594991930755-X0H1R588VGXK3C8LBUHR.jpg"},
-    {"vote_id": "ELE-S24", "rank_when_voted": 23, "source": "001_1658852877005-WBSCNLNB19R7PK4CH9C2.jpg"}
+    {
+      "vote_id": "ELE-S01",
+      "rank_when_voted": 0,
+      "source": "028_1612619273909-OZLHJBX24QP1WBVWCTEL.jpg"
+    },
+    {
+      "vote_id": "ELE-S02",
+      "rank_when_voted": 1,
+      "source": "033_1609845893510-NYHQTG0TRI96EMOM8YJH.jpg"
+    },
+    {
+      "vote_id": "ELE-S03",
+      "rank_when_voted": 2,
+      "source": "003_1640624254808-QZR3GF4WJ88LM0EU5OUQ.jpg"
+    },
+    {
+      "vote_id": "ELE-S04",
+      "rank_when_voted": 3,
+      "source": "059_1589115045749-GE5AJQFIX5OEH6QZ0IC5.jpg"
+    },
+    {
+      "vote_id": "ELE-S05",
+      "rank_when_voted": 4,
+      "source": "056_1591103582646-KLEWEGBB6NDYL4MMARTW.jpg"
+    },
+    {
+      "vote_id": "ELE-S07",
+      "rank_when_voted": 6,
+      "source": "067_1587212372915-UCV6X3S832KGP9FG91AU.jpg"
+    },
+    {
+      "vote_id": "ELE-S08",
+      "rank_when_voted": 7,
+      "source": "052_1594135339655-B5TZTG61UGZ7POPHFCLW.jpg"
+    },
+    {
+      "vote_id": "ELE-S10",
+      "rank_when_voted": 9,
+      "source": "043_1603286066624-23GOC4SQFD7AB8TXMRY8.jpg"
+    },
+    {
+      "vote_id": "ELE-S11",
+      "rank_when_voted": 10,
+      "source": "025_1614686938632-UXLC0RB8VIS8TDDGV8NP.jpg"
+    },
+    {
+      "vote_id": "ELE-S12",
+      "rank_when_voted": 11,
+      "source": "000_1673455430780-FGE1NQBJYXLYB3QYASJ4.jpg"
+    },
+    {
+      "vote_id": "ELE-S13",
+      "rank_when_voted": 12,
+      "source": "035_1609259598961-G4K6Y5TPXOE9E9WKLPKI.jpg"
+    },
+    {
+      "vote_id": "ELE-S14",
+      "rank_when_voted": 13,
+      "source": "034_1609766284622-TLB2HZ2K179YD0AZ1P9S.jpg"
+    },
+    {
+      "vote_id": "ELE-S15",
+      "rank_when_voted": 14,
+      "source": "042_1605623984433-8HXST2QI08TO59NCLOD6.jpg"
+    },
+    {
+      "vote_id": "ELE-S16",
+      "rank_when_voted": 15,
+      "source": "006_1636374243088-1NHR5VXQUZAKUQ1UV0CZ.jpg"
+    },
+    {
+      "vote_id": "ELE-S17",
+      "rank_when_voted": 16,
+      "source": "007_1636373908166-EXNHDUDQ9HM0SW03B8FA.jpg"
+    },
+    {
+      "vote_id": "ELE-S18",
+      "rank_when_voted": 17,
+      "source": "021_1620654296116-81F8L0G482DKESLZP4PR.jpg"
+    },
+    {
+      "vote_id": "ELE-S19",
+      "rank_when_voted": 18,
+      "source": "057_1589811479726-30J5NEU32SHF9UE1FFMF.jpg"
+    },
+    {
+      "vote_id": "ELE-S20",
+      "rank_when_voted": 19,
+      "source": "037_1608728863046-22V94CG65MAH14N8JWTI.jpg"
+    },
+    {
+      "vote_id": "ELE-S21",
+      "rank_when_voted": 20,
+      "source": "072_1590154651734-VOQREUKFBY8TBZ4BHCWW.jpg"
+    },
+    {
+      "vote_id": "ELE-S22",
+      "rank_when_voted": 21,
+      "source": "020_1620990680486-QZVZASMUB5JLD8WDYRXH.jpg"
+    },
+    {
+      "vote_id": "ELE-S23",
+      "rank_when_voted": 22,
+      "source": "064_1588175206282-6Q7KF47V65R0L9EUDVS2.jpg"
+    },
+    {
+      "vote_id": "ELE-S24",
+      "rank_when_voted": 23,
+      "source": "018_1624875682677-UVDBVU40WYP97P50QM70.jpg"
+    },
+    {
+      "vote_id": "ELE-S25",
+      "rank_when_voted": 24,
+      "source": "070_1590154684348-SZUZBWG0HXUQG1EMVZO7.jpg"
+    },
+    {
+      "vote_id": "ELE-S26",
+      "rank_when_voted": 25,
+      "source": "031_1611065228520-W6ZBN9PUH0UD8IXTUL0G.jpg"
+    },
+    {
+      "vote_id": "ELE-S27",
+      "rank_when_voted": 26,
+      "source": "030_1611249383790-RGW2OFGZTZZWYE20ITJV.jpg"
+    },
+    {
+      "vote_id": "ELE-S28",
+      "rank_when_voted": 27,
+      "source": "023_1614946995552-C2UEU3SVZLGZ2NXDHR3X.jpg"
+    },
+    {
+      "vote_id": "ELE-S30",
+      "rank_when_voted": 29,
+      "source": "019_1622824347378-K100P45VMYQJHKGCQORO.jpg"
+    }
   ],
-  "note": "Source filenames are stable across re-extraction; ranks may change after pipeline fix. Quick Draw key_ids are stable across runs."
+  "note": "Source filenames are stable across re-extraction; ranks may change after pipeline updates. Quick Draw key_ids are stable. Soft-rejected = user said 'maybe' -- keep for now, second review later.",
+  "soft_rejected_stravart": [
+    {
+      "vote_id": "ELE-S29",
+      "rank_when_voted": 28,
+      "source": "017_1625833122547-JXFYSP608N4P034SGWQF.jpg"
+    }
+  ],
+  "rejected_stravart": [
+    {
+      "vote_id": "ELE-S06",
+      "rank_when_voted": 5,
+      "source": "008_1635874559966-DEV37RHN9V2SYDU3A7P5.jpg"
+    },
+    {
+      "vote_id": "ELE-S09",
+      "rank_when_voted": 8,
+      "source": "015_1628843986230-EJHVIMGYNX1184ZLTUTR.jpg"
+    }
+  ]
 }
