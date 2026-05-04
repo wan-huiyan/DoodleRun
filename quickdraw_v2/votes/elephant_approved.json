@@ -1,0 +1,17 @@
+{
+  "animal": "elephant",
+  "approved_quickdraw": [
+    {"vote_id": "ELE-Q01", "rank_when_voted": 0, "key_id": "5401428975681536"},
+    {"vote_id": "ELE-Q04", "rank_when_voted": 3, "key_id": "4985501511581696"}
+  ],
+  "approved_stravart": [
+    {"vote_id": "ELE-S03", "rank_when_voted": 2,  "source": "052_1594135339655-B5TZTG61UGZ7POPHFCLW.jpg"},
+    {"vote_id": "ELE-S05", "rank_when_voted": 4,  "source": "006_1636374243088-1NHR5VXQUZAKUQ1UV0CZ.jpg"},
+    {"vote_id": "ELE-S07", "rank_when_voted": 6,  "source": "028_1612619273909-OZLHJBX24QP1WBVWCTEL.jpg"},
+    {"vote_id": "ELE-S12", "rank_when_voted": 11, "source": "040_1605872179406-5YAXRVLY4DRN91DAFJEB.jpg"},
+    {"vote_id": "ELE-S17", "rank_when_voted": 16, "source": "044_1599996648441-6E607HJQPS4MF25VAMRL.jpg"},
+    {"vote_id": "ELE-S19", "rank_when_voted": 18, "source": "051_1594991930755-X0H1R588VGXK3C8LBUHR.jpg"},
+    {"vote_id": "ELE-S24", "rank_when_voted": 23, "source": "001_1658852877005-WBSCNLNB19R7PK4CH9C2.jpg"}
+  ],
+  "note": "Source filenames are stable across re-extraction; ranks may change after pipeline fix. Quick Draw key_ids are stable across runs."
+}

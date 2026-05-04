@@ -43,6 +43,31 @@ def load_templates(dir_: Path, top_n: int):
     return items[:top_n]
 
 
+def _draw_template(ax, d):
+    """Render either a closed-polygon (Quick Draw) or skeleton point cloud (strav.art)."""
+    fmt = d.get("format")
+    if fmt == "skeleton_pointcloud" or "points" in d:
+        pts = d["points"]
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        # Dot size scaled so 4000 dots fill the 1.6" cell visually.
+        size = max(0.3, min(1.5, 800.0 / max(len(pts), 1)))
+        ax.scatter(xs, ys, s=size, c="#111", marker=".", linewidths=0)
+    else:
+        coords = d["coords"]
+        xs = [p[0] for p in coords]
+        ys = [p[1] for p in coords]
+        poly = MplPolygon(
+            list(zip(xs, ys)),
+            closed=True,
+            facecolor="#f3f3f3",
+            edgecolor="#111",
+            linewidth=2.0,
+            joinstyle="round",
+        )
+        ax.add_patch(poly)
+
+
 def render_grid(items, animal: str, prefix: str, title_suffix: str, out_path: Path):
     rows = GRID_ROWS
     cols = GRID_COLS
@@ -66,21 +91,7 @@ def render_grid(items, animal: str, prefix: str, title_suffix: str, out_path: Pa
             ax.set_visible(False)
             continue
         d = items[i]
-        coords = d["coords"]
-        xs = [p[0] for p in coords]
-        ys = [p[1] for p in coords]
-        # Filled outline + bold border for readability at small size.
-        poly = MplPolygon(
-            list(zip(xs, ys)),
-            closed=True,
-            facecolor="#f3f3f3",
-            edgecolor="#111",
-            linewidth=2.0,
-            joinstyle="round",
-        )
-        ax.add_patch(poly)
-        # Label with vote ID and score.
-        rank = d.get("rank", i)
+        _draw_template(ax, d)
         vid = f"{animal[:3].upper()}-{prefix}{i+1:02d}"
         npts = d.get("n_points", "?")
         asp = d.get("bbox_aspect", 0)
@@ -132,17 +143,7 @@ def render_combined(qd_items, sa_items, animal: str, out_path: Path):
         if d is None:
             ax.set_visible(False)
             continue
-        coords = d["coords"]
-        xs = [p[0] for p in coords]; ys = [p[1] for p in coords]
-        poly = MplPolygon(
-            list(zip(xs, ys)),
-            closed=True,
-            facecolor="#ffffff",
-            edgecolor="#111",
-            linewidth=2.0,
-            joinstyle="round",
-        )
-        ax.add_patch(poly)
+        _draw_template(ax, d)
         vid = f"{animal[:3].upper()}-{prefix}{local_i+1:02d}"
         npts = d.get("n_points", "?")
         asp = d.get("bbox_aspect", 0)
