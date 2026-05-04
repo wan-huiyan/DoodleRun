@@ -91,6 +91,15 @@ _ADDITIVE_COLUMNS: tuple[tuple[str, str], ...] = (
     ("geocode_source",   "TEXT NOT NULL DEFAULT 'title'"),
     ("ocr_streets",      "TEXT"),
     ("ocr_attempted_at", "TEXT"),
+    # Phase 3 reconstruction columns. ``gpx_path`` is a relative path from
+    # the DB's parent directory to the GPX file (or NULL if reconstruction
+    # didn't reach the GPX-write stage). ``reconstruction_confidence``
+    # mirrors :class:`stravart.reconstruct.Reconstruction.confidence`,
+    # and ``reconstruction_attempted_at`` makes batches resumable.
+    ("gpx_path",                       "TEXT"),
+    ("reconstruction_confidence",      "REAL"),
+    ("reconstruction_attempted_at",    "TEXT"),
+    ("reconstruction_failure",         "TEXT"),
 )
 
 
@@ -301,6 +310,75 @@ def update_ocr_geocode(
         )
     else:
         conn.execute("DELETE FROM routes_rtree WHERE id = ?", (route_id,))
+
+
+def routes_needing_reconstruction(
+    conn: sqlite3.Connection,
+    *,
+    only_categories: Iterable[str] | None = None,
+    retry_attempted: bool = False,
+    limit: int | None = None,
+) -> list[sqlite3.Row]:
+    """Rows that are geocoded but haven't yet been reconstructed.
+
+    A route 'needs reconstruction' when it has ``lat IS NOT NULL`` (so we
+    know roughly where it is) and either:
+      * ``reconstruction_attempted_at IS NULL`` (never tried), or
+      * ``retry_attempted=True`` (force re-run after a code fix).
+
+    Returns the same row shape as :func:`routes_needing_ocr`.
+    """
+    where = ["lat IS NOT NULL"]
+    params: list = []
+    if not retry_attempted:
+        where.append("reconstruction_attempted_at IS NULL")
+    if only_categories:
+        cats = list(only_categories)
+        placeholders = ",".join("?" * len(cats))
+        where.append(f"category IN ({placeholders})")
+        params.extend(cats)
+    sql = f"SELECT * FROM routes WHERE {' AND '.join(where)} ORDER BY id"
+    if limit is not None:
+        sql += f" LIMIT {int(limit)}"
+    return conn.execute(sql, params).fetchall()
+
+
+def update_reconstruction(
+    conn: sqlite3.Connection,
+    route_id: int,
+    *,
+    gpx_path: str | None,
+    confidence: float | None,
+    attempted_at: str,
+    failure: str | None = None,
+) -> None:
+    """Write Phase 3 reconstruction outcome back to the row.
+
+    All columns are nullable except ``reconstruction_attempted_at``, so
+    failed runs can still be marked attempted (idempotent batches).
+    """
+    conn.execute(
+        """
+        UPDATE routes
+        SET gpx_path = ?,
+            reconstruction_confidence = ?,
+            reconstruction_attempted_at = ?,
+            reconstruction_failure = ?
+        WHERE id = ?
+        """,
+        (gpx_path, confidence, attempted_at, failure, route_id),
+    )
+
+
+def count_reconstructions(conn: sqlite3.Connection) -> dict[str, int]:
+    """Counts of attempted / shipped (gpx_path IS NOT NULL) reconstructions."""
+    attempted = conn.execute(
+        "SELECT COUNT(*) AS n FROM routes WHERE reconstruction_attempted_at IS NOT NULL"
+    ).fetchone()["n"]
+    shipped = conn.execute(
+        "SELECT COUNT(*) AS n FROM routes WHERE gpx_path IS NOT NULL"
+    ).fetchone()["n"]
+    return {"attempted": attempted, "shipped": shipped}
 
 
 def count_by_geocode_source(conn: sqlite3.Connection) -> dict[str, int]:
