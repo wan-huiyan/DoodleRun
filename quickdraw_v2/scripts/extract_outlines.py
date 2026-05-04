@@ -73,6 +73,7 @@ class Result:
     skeleton_px: int
     score: float
     reason: str = "ok"
+    n_endpoints: int = 0
 
 
 def rasterize_strokes(strokes, canvas_px=CANVAS_PX, thickness=STROKE_PX) -> np.ndarray:
@@ -143,6 +144,15 @@ def extract(rec: dict) -> Result:
     if skel_px < MIN_POINTS:
         return Result(key_id, word, [], 0, 0, len(strokes), 0, skel_px, -1, "skeleton_too_short")
 
+    # Endpoints = skeleton pixels with exactly 1 skeleton neighbor.
+    # Many endpoints => prongs (legs, trunk, tail tips) => anatomical detail.
+    # Zero endpoints => closed-loop silhouette (oval blob with no protrusions).
+    # Convolving with a 3x3 ones kernel counts self+neighbors; subtract self
+    # then mask to skeleton pixels.
+    nbr_kernel = np.ones((3, 3), dtype=np.uint8)
+    nbr_count = cv2.filter2D(skel, -1, nbr_kernel, borderType=cv2.BORDER_CONSTANT) - skel
+    n_endpoints = int(((skel == 1) & (nbr_count == 1)).sum())
+
     # Keep dominant connected components.
     n_lab, labels, stats, _ = cv2.connectedComponentsWithStats(skel)
     if n_lab <= 1:
@@ -188,17 +198,27 @@ def extract(rec: dict) -> Result:
     #   them but they're noise for route matching.
     # - prefer skeleton with substantial pixel count (rich silhouette)
     # - mild penalty for very high stroke counts (chaotic drawings)
+    # - reward anatomical detail: skeleton endpoints correspond to leg/trunk/tail
+    #   tips. 4+ endpoints typically indicates 4 legs (or 4 + trunk/tail). 0
+    #   endpoints means a pure closed-loop silhouette (a "potato"-shaped oval
+    #   with no protrusions) — those rank among the most "incomplete-looking"
+    #   templates. We use a soft saturating bonus so 4-8 endpoints are great
+    #   and runaway endpoints (chaotic drawings) don't keep paying out.
     log_asp = math.log(max(0.001, aspect))
     aspect_pen = abs(log_asp - math.log(1.4))
     n_comp = len(keep_labels)
     comp_pen = 0.15 * max(0, n_comp - 3)
     skel_score = min(1.0, skel_px / 500.0)
     stroke_pen = 0.05 * max(0, len(strokes) - 6)
+    # Endpoint score: 0 endpoints -> -0.4, 1 -> 0, 4 -> +0.4, saturates beyond 8.
+    ep_clipped = min(n_endpoints, 8)
+    endpoint_score = 0.1 * (ep_clipped - 1) if ep_clipped >= 1 else -0.4
     score = (
         + 1.2 * skel_score
         - 0.7 * aspect_pen
         - comp_pen
         - stroke_pen
+        + endpoint_score
     )
 
     return Result(
@@ -212,6 +232,7 @@ def extract(rec: dict) -> Result:
         skeleton_px=skel_px,
         score=float(score),
         reason="ok",
+        n_endpoints=n_endpoints,
     )
 
 
@@ -256,6 +277,7 @@ def main() -> int:
                 "n_strokes": r.n_strokes,
                 "n_components_kept": r.n_components_kept,
                 "skeleton_px": r.skeleton_px,
+                "n_endpoints": r.n_endpoints,
                 "bbox_aspect": r.bbox_aspect,
                 "score": r.score,
                 "points": [list(p) for p in r.points],
