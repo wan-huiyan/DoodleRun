@@ -19,6 +19,9 @@ import sys
 from pathlib import Path
 
 from .db import connect
+from .ocr_pipeline import db_stats as ocr_db_stats
+from .ocr_pipeline import run_batch as ocr_run_batch
+from .ocr_pipeline import summary as ocr_summary
 from .pipeline import index_jsonl, stats
 from .scrape import scrape_all
 from .search import search_as_dicts
@@ -46,6 +49,30 @@ def _add_stats(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--db", type=Path, required=True)
 
 
+def _add_ocr_geocode(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser(
+        "ocr-geocode",
+        help="OCR strav.art images and geocode via OSM street co-location",
+    )
+    p.add_argument("--db", type=Path, required=True)
+    p.add_argument("--overpass-cache", type=Path, default=None)
+    p.add_argument("--languages", nargs="+", default=["en"],
+                   help="EasyOCR language codes, e.g. en de fr")
+    p.add_argument("--categories", nargs="+", default=None,
+                   help="Restrict to these category slugs")
+    p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--retry-attempted", action="store_true",
+                   help="Re-run OCR on rows that previously failed")
+    p.add_argument("--min-streets", type=int, default=2,
+                   help="Distinct OCR street names required for a cluster hit")
+    p.add_argument("--cluster-radius-km", type=float, default=3.0)
+
+
+def _add_ocr_stats(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("ocr-stats", help="Print geocode-source breakdown")
+    p.add_argument("--db", type=Path, required=True)
+
+
 def _add_search(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("search", help="Local query against the catalog")
     p.add_argument("--db", type=Path, required=True)
@@ -67,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_index(sub)
     _add_stats(sub)
     _add_search(sub)
+    _add_ocr_geocode(sub)
+    _add_ocr_stats(sub)
     args = parser.parse_args(argv)
 
     if args.cmd == "scrape":
@@ -91,6 +120,24 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "stats":
         print(json.dumps(stats(args.db), indent=2))
+        return 0
+
+    if args.cmd == "ocr-geocode":
+        outcomes = ocr_run_batch(
+            db_path=args.db,
+            overpass_cache=args.overpass_cache,
+            languages=tuple(args.languages),
+            only_categories=args.categories,
+            limit=args.limit,
+            retry_attempted=args.retry_attempted,
+            min_streets=args.min_streets,
+            cluster_radius_km=args.cluster_radius_km,
+        )
+        print(json.dumps(ocr_summary(outcomes), indent=2))
+        return 0
+
+    if args.cmd == "ocr-stats":
+        print(json.dumps(ocr_db_stats(args.db), indent=2))
         return 0
 
     if args.cmd == "search":
