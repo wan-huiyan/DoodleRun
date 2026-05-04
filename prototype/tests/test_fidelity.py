@@ -8,9 +8,13 @@ import math
 import pytest
 
 from fidelity import (
+    DEFAULT_WEIGHTS,
+    area_iou_score,
     bbox_diagonal_m,
+    combined_score,
     densify,
     fidelity_score,
+    frechet_score,
     haversine,
 )
 
@@ -119,3 +123,64 @@ class TestFidelityScore:
         s_big = fidelity_score(big_ideal, big_snap)
         # Same absolute deviation, 10x larger bbox → score ~10x lower.
         assert s_big < s_small / 5
+
+
+class TestFrechet:
+    def test_perfect_tracing_scores_zero(self):
+        ideal = [(51.5, -0.1), (51.501, -0.099), (51.502, -0.098)]
+        assert frechet_score(ideal, ideal) == pytest.approx(0.0, abs=1e-6)
+
+    def test_offset_polyline_scores_positive(self):
+        ideal = [(51.500, -0.10), (51.500, -0.09)]
+        offset_lat = 50 / 111_320.0
+        snap = [(p[0] + offset_lat, p[1]) for p in ideal]
+        assert frechet_score(ideal, snap) > 0
+
+    def test_empty_inputs_return_inf(self):
+        assert frechet_score([], [(51.5, -0.1)]) == float("inf")
+
+
+class TestAreaIoU:
+    def test_identical_polylines_score_zero(self):
+        ideal = [(51.5, -0.1), (51.501, -0.099), (51.502, -0.098)]
+        assert area_iou_score(ideal, ideal, buffer_m=20) == pytest.approx(0.0, abs=1e-6)
+
+    def test_disjoint_polylines_score_one(self):
+        a = [(51.500, -0.100), (51.500, -0.099)]      # near London
+        b = [(40.700, -74.000), (40.701, -74.000)]    # NYC — buffers can't overlap
+        assert area_iou_score(a, b, buffer_m=20) == pytest.approx(1.0, abs=1e-3)
+
+    def test_in_unit_interval(self):
+        ideal = [(51.500, -0.100), (51.500, -0.090), (51.510, -0.090)]
+        offset_lat = 60 / 111_320.0
+        snap = [(p[0] + offset_lat, p[1]) for p in ideal]
+        s = area_iou_score(ideal, snap, buffer_m=50)
+        assert 0.0 < s < 1.0
+
+
+class TestCombinedScore:
+    def test_perfect_tracing_scores_zero(self):
+        ideal = [(51.500, -0.100), (51.500, -0.090), (51.510, -0.090),
+                 (51.510, -0.100), (51.500, -0.100)]
+        assert combined_score(ideal, ideal) == pytest.approx(0.0, abs=1e-6)
+
+    def test_breakdown_matches_constituents(self):
+        ideal = [(51.500, -0.100), (51.500, -0.090), (51.510, -0.090)]
+        offset_lat = 80 / 111_320.0
+        snap = [(p[0] + offset_lat, p[1]) for p in ideal]
+        score, br = combined_score(ideal, snap, return_breakdown=True)
+        # Breakdown holds the four constituents and the weights.
+        assert set(br) == {"hausdorff", "frechet", "area_iou", "turning", "weights"}
+        recomputed = (br["weights"]["hausdorff"] * br["hausdorff"]
+                      + br["weights"]["frechet"] * br["frechet"]
+                      + br["weights"]["area_iou"] * br["area_iou"]
+                      + br["weights"]["turning"] * br["turning"])
+        assert score == pytest.approx(recomputed, rel=1e-9)
+
+    def test_default_weights_sum_to_known_total(self):
+        # Phase 2 brings the turning-function term in at 0.15 → total 1.00.
+        # If anyone changes the weights, this test forces them to update
+        # the plan and the docstring at the same time.
+        total = sum(DEFAULT_WEIGHTS.values())
+        assert total == pytest.approx(1.00, abs=1e-6)
+        assert DEFAULT_WEIGHTS["turning"] == 0.15

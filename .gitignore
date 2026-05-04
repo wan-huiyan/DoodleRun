@@ -14,3 +14,14 @@ output/
 .pytest_cache/
 prototype/.pytest_cache/
 .playwright-mcp/
+
+# OSMnx graph cache — multi-MB GraphML files; regenerate from network as needed
+prototype/graph_cache/
+
+# OSMnx HTTP response cache (Overpass JSON dumps) — hundreds of MB.
+prototype/cache/
+
+# Quick Draw! ndjson dumps — multi-MB raw datasets; regenerate via
+# `python tools/quickdraw_to_shape.py`. The curated outlines committed
+# under prototype/quickdraw_variants/ are the consumed artifact.
+prototype/quickdraw_data/

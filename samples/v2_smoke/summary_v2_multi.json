@@ -1,0 +1,64 @@
+[
+  {
+    "slug": "london_e14",
+    "city": "London E14",
+    "lat": 51.5074,
+    "lon": -0.0148,
+    "distance_m": 19095.149723611554,
+    "score": 0.29365482966371304,
+    "fidelity_breakdown": {
+      "hausdorff": 0.009580484675741841,
+      "frechet": 0.08031368344346934,
+      "area_iou": 0.5131740042416796,
+      "turning": 1.0,
+      "weights": {
+        "hausdorff": 0.35,
+        "frechet": 0.3,
+        "area_iou": 0.2,
+        "turning": 0.15
+      }
+    },
+    "best_params": {
+      "offset_lat": 0.012359276632548037,
+      "offset_lon": -0.019458649912997977,
+      "scale_factor": 0.6874230707595614,
+      "rotation_deg": 161.89578922269916,
+      "variant_index": 0
+    },
+    "elapsed_s": 166.00013983802637,
+    "geojson": "london_e14_pig_search.geojson",
+    "png": "london_e14_pig_search.png",
+    "html_preview": "london_e14_pig_search.html"
+  },
+  {
+    "slug": "sf_sunset",
+    "city": "SF Sunset",
+    "lat": 37.7559,
+    "lon": -122.4828,
+    "distance_m": 13081.830412422947,
+    "score": 0.29531882715126967,
+    "fidelity_breakdown": {
+      "hausdorff": 0.014395434302925945,
+      "frechet": 0.18282327182916455,
+      "area_iou": 0.4515908953626136,
+      "turning": 0.27561813806878477,
+      "weights": {
+        "hausdorff": 0.35,
+        "frechet": 0.3,
+        "area_iou": 0.2,
+        "turning": 0.15
+      }
+    },
+    "best_params": {
+      "offset_lat": -0.007457261229760759,
+      "offset_lon": 0.06495540538544232,
+      "scale_factor": 0.5883472056456593,
+      "rotation_deg": 15.444927874213448,
+      "variant_index": 1
+    },
+    "elapsed_s": 126.37795361498138,
+    "geojson": "sf_sunset_pig_search.geojson",
+    "png": "sf_sunset_pig_search.png",
+    "html_preview": "sf_sunset_pig_search.html"
+  }
+]

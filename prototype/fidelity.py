@@ -1,20 +1,35 @@
 """Score how closely a snapped street route resembles its idealized animal outline.
 
-The score is a scale-normalized, symmetric, mean-nearest-neighbor distance
-between two polylines (the "Modified Hausdorff Distance" of Dubuisson & Jain
-1994 — more robust to single-point outliers than the classical max-min
-form). Lower is better; 0 would be a perfect tracing.
+The base score is a scale-normalized, symmetric, mean-nearest-neighbor
+distance between two polylines (the "Modified Hausdorff Distance" of
+Dubuisson & Jain 1994 — more robust to single-point outliers than the
+classical max-min form). Lower is better; 0 would be a perfect tracing.
+
+The Phase-1 ensemble adds two more metrics on top:
+
+- **Discrete Fréchet** via ``similaritymeasures.frechet_dist`` — order-
+  preserving, catches "right shape, wrong direction" failures that
+  Hausdorff (which is order-blind) misses.
+- **Buffered area-IoU** via ``shapely.symmetric_difference`` after a
+  per-polyline ``buffer(buffer_m)`` — catches "cut the corner" detours
+  that nearest-neighbor metrics never see.
+
+A weighted ensemble (``combined_score``) bundles all three. The
+turning-function term (rotation invariance) ships in Phase 2; until
+then its weight is held at zero in the ensemble.
 
 Scale normalization (divide by the idealized bounding-box diagonal in
-metres) lets us compare candidates at *different* shape sizes — a 5 km pig
-that's 5% off everywhere scores the same as a 10 km pig that's 5% off
-everywhere, even though their absolute deviations differ.
+metres) lets us compare candidates at *different* shape sizes.
 """
 
 from __future__ import annotations
 
 import math
 from typing import List, Tuple
+
+import numpy as np
+import similaritymeasures
+from shapely.geometry import LineString
 
 LatLon = Tuple[float, float]
 EARTH_R_M = 6_371_008.8
@@ -107,3 +122,185 @@ def fidelity_score(idealized: List[LatLon],
     a_to_b = _mean_min_distance(ideal_dense, snap_dense)
     b_to_a = _mean_min_distance(snap_dense, ideal_dense)
     return 0.5 * (a_to_b + b_to_a) / diag
+
+
+# ---------------------------------------------------------------------------
+# Phase-1 additions: Fréchet, buffered IoU, combined ensemble
+# ---------------------------------------------------------------------------
+
+
+def _to_local_xy(
+    points: List[LatLon],
+    origin: Tuple[float, float] | None = None,
+) -> np.ndarray:
+    """Project (lat, lon) into a metres-scale local Cartesian frame.
+
+    If ``origin`` is provided as a (lat, lon) anchor, the projection
+    uses it directly. Otherwise the input's own bounding-box centre is
+    used. **Pass a shared origin when you need two polylines to live in
+    the same frame** (e.g. for buffered-area IoU); using each polyline's
+    own bbox centre puts them on top of each other and breaks the
+    metric.
+
+    Returned shape: (N, 2) where columns are (x_east_m, y_north_m).
+    """
+    if not points:
+        return np.zeros((0, 2))
+    lats = np.array([p[0] for p in points], dtype=float)
+    lons = np.array([p[1] for p in points], dtype=float)
+    if origin is None:
+        lat0 = (lats.min() + lats.max()) / 2.0
+        lon0 = (lons.min() + lons.max()) / 2.0
+    else:
+        lat0, lon0 = origin
+    m_per_deg_lat = 111_320.0
+    m_per_deg_lon = m_per_deg_lat * math.cos(math.radians(lat0))
+    x = (lons - lon0) * m_per_deg_lon
+    y = (lats - lat0) * m_per_deg_lat
+    return np.column_stack([x, y])
+
+
+def _shared_origin(*polylines: List[LatLon]) -> Tuple[float, float]:
+    """Pick a (lat, lon) anchor that sits inside the union bounding box
+    of all input polylines. Used to project two polylines into the same
+    local-tangent frame for area / shape comparisons."""
+    lats: List[float] = []
+    lons: List[float] = []
+    for poly in polylines:
+        for lat, lon in poly:
+            lats.append(lat)
+            lons.append(lon)
+    if not lats:
+        return (0.0, 0.0)
+    return ((min(lats) + max(lats)) / 2.0, (min(lons) + max(lons)) / 2.0)
+
+
+def frechet_score(idealized: List[LatLon], snapped: List[LatLon]) -> float:
+    """Discrete Fréchet distance, normalised by the idealized polyline's
+    bounding-box diagonal.
+
+    Uses ``similaritymeasures.frechet_dist`` on a local-tangent
+    projection (so the units are metres). Order-preserving: a snapped
+    path that traverses the right region in the wrong sequence will
+    score worse than an order-blind metric like MHD.
+    """
+    if not idealized or not snapped:
+        return float("inf")
+    diag = bbox_diagonal_m(idealized)
+    if diag <= 0:
+        return float("inf")
+    origin = _shared_origin(idealized, snapped)
+    a = _to_local_xy(idealized, origin=origin)
+    b = _to_local_xy(snapped, origin=origin)
+    return float(similaritymeasures.frechet_dist(a, b)) / diag
+
+
+def area_iou_score(
+    idealized: List[LatLon],
+    snapped: List[LatLon],
+    buffer_m: float = 50.0,
+) -> float:
+    """Buffered symmetric-difference IoU — fraction of buffered-shape
+    area that is *not* shared between the two polylines.
+
+    Both polylines are projected to local metres, buffered by
+    ``buffer_m`` (the apparent width of a city block), and combined via
+    Shapely's symmetric_difference / union. Returns a value in [0, 1]
+    where 0 = identical buffered footprints, 1 = no overlap. Unlike
+    Hausdorff or Fréchet, this catches "cut the corner" detours.
+    """
+    if not idealized or not snapped or buffer_m <= 0:
+        return 1.0
+    origin = _shared_origin(idealized, snapped)
+    a_xy = _to_local_xy(idealized, origin=origin)
+    b_xy = _to_local_xy(snapped, origin=origin)
+    if len(a_xy) < 2 or len(b_xy) < 2:
+        return 1.0
+    poly_a = LineString(a_xy).buffer(buffer_m)
+    poly_b = LineString(b_xy).buffer(buffer_m)
+    union = poly_a.union(poly_b).area
+    if union <= 0:
+        return 1.0
+    sym_diff = poly_a.symmetric_difference(poly_b).area
+    return float(sym_diff / union)
+
+
+# Default ensemble weights. Phase 2 wires in turning-function and bumps
+# the total to 1.00. Documented here so callers can override per-call.
+DEFAULT_WEIGHTS = {
+    "hausdorff": 0.35,
+    "frechet": 0.30,
+    "area_iou": 0.20,
+    "turning": 0.15,
+}
+
+
+def turning_score(
+    idealized: List[LatLon],
+    snapped: List[LatLon],
+    *,
+    closed: bool = True,
+    n_phase_shifts: int = 0,
+) -> float:
+    """Rotation-invariant turning-function distance, normalised to [0, 1].
+
+    Wraps the in-tree ``turning_function.turning_distance`` (we ship our
+    own because the canonical PyPI wheel only supports Python ≤3.10).
+    Both polylines are first projected into a shared local-tangent frame
+    so distances are computed in metres-comparable units, matching the
+    other metrics in the ensemble.
+    """
+    if not idealized or not snapped:
+        return 1.0
+    from turning_function import turning_distance
+
+    origin = _shared_origin(idealized, snapped)
+    a_xy = _to_local_xy(idealized, origin=origin)
+    b_xy = _to_local_xy(snapped, origin=origin)
+    if len(a_xy) < 3 or len(b_xy) < 3:
+        return 1.0
+    return float(turning_distance(
+        [(float(x), float(y)) for x, y in a_xy],
+        [(float(x), float(y)) for x, y in b_xy],
+        closed=closed,
+        normalize=True,
+        n_phase_shifts=n_phase_shifts,
+    ))
+
+
+def combined_score(
+    idealized: List[LatLon],
+    snapped: List[LatLon],
+    *,
+    densify_step_m: float = 25.0,
+    buffer_m: float = 50.0,
+    weights: dict | None = None,
+    return_breakdown: bool = False,
+) -> float | Tuple[float, dict]:
+    """Weighted ensemble of (MHD, Fréchet, area-IoU, turning). Lower is better.
+
+    All four constituent metrics are scale-normalised and in comparable
+    units (distances normalised by bbox diagonal, ratios in [0, 1], or
+    radians divided by π), so a simple linear blend is fine. Pass
+    ``return_breakdown=True`` to also receive the per-metric values for
+    debugging.
+    """
+    w = dict(DEFAULT_WEIGHTS)
+    if weights:
+        w.update(weights)
+
+    h = fidelity_score(idealized, snapped, densify_step_m=densify_step_m)
+    f = frechet_score(idealized, snapped)
+    a = area_iou_score(idealized, snapped, buffer_m=buffer_m)
+    t = turning_score(idealized, snapped) if w.get("turning", 0) else 0.0
+
+    score = (w["hausdorff"] * h
+             + w["frechet"] * f
+             + w["area_iou"] * a
+             + w.get("turning", 0) * t)
+    if return_breakdown:
+        return score, {
+            "hausdorff": h, "frechet": f, "area_iou": a, "turning": t,
+            "weights": w,
+        }
+    return score

@@ -1,2 +1,20 @@
+# Existing
 requests>=2.31
 folium>=0.15
+
+# Phase 1 (Waschk-Krüger shape-aware routing on a local OSM graph)
+# All four below replace network/HTTP work or hand-rolled algorithms with mature libraries.
+osmnx>=2.0              # OSM graph download + cache + nearest-node + NetworkX integration
+shapely>=2.0            # buffered area-IoU, geometry primitives
+simplification>=0.7     # Rust-backed Visvalingam-Whyatt + RDP polyline simplification
+similaritymeasures>=1.0 # Fréchet, area-between-curves, DTW, MAE, PCM
+numpy>=1.24             # transitive but pin explicitly
+scikit-learn>=1.3       # osmnx.distance.nearest_nodes uses BallTree on unprojected graphs
+
+# Phase 2 (Optuna search + grid prescreener + turning-function ensemble)
+optuna>=3.0             # TPE-sampled (offset, scale, rotation) search
+# turning-function: PyPI ships only Py 3.7-3.10 wheels (no sdist). The
+# in-tree `prototype/turning_function.py` implements Arkin et al. 1991
+# directly so we don't depend on a wheel that may never support our
+# interpreter. If/when an upstream wheel for Py 3.11+ appears, swap the
+# import in prototype/fidelity.py:turning_score back to the package.
