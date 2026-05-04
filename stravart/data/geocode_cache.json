@@ -1,0 +1,275 @@
+{
+  "hits": {
+    "manchester, united kingdom": {
+      "lat": 53.4424618,
+      "lon": -2.2324547,
+      "display_name": "Manchester, Greater Manchester, England, United Kingdom",
+      "country": "United Kingdom",
+      "raw_query": "Manchester, United Kingdom"
+    },
+    "vienna, austria": {
+      "lat": 48.2083537,
+      "lon": 16.3725042,
+      "display_name": "Vienna, Austria",
+      "country": "Austria",
+      "raw_query": "Vienna, Austria"
+    },
+    "berlin, germany": {
+      "lat": 52.5173885,
+      "lon": 13.3951309,
+      "display_name": "Berlin, Germany",
+      "country": "Germany",
+      "raw_query": "Berlin, Germany"
+    },
+    "maybe": {
+      "lat": 1.6831191,
+      "lon": 110.3177499,
+      "display_name": "Maybe, Petra Jaya, Kampung Pasir Pandak, Kuching, Kuching Division, Sarawak, Malaysia",
+      "country": "Malaysia",
+      "raw_query": "Maybe"
+    },
+    "pigeon": {
+      "lat": 43.8300075,
+      "lon": -83.2704555,
+      "display_name": "Pigeon, Huron County, Michigan, United States",
+      "country": "United States",
+      "raw_query": "Pigeon"
+    },
+    "nz wood pigeon": {
+      "lat": -43.0913954,
+      "lon": 172.3082281,
+      "display_name": "Pigeon Bush, Waimakariri District, Canterbury, New Zealand",
+      "country": "New Zealand",
+      "raw_query": "Nz Wood Pigeon"
+    },
+    "tok tok": {
+      "lat": 47.564671,
+      "lon": 18.7310553,
+      "display_name": "T\u00f6k, Budakeszi j\u00e1r\u00e1s, Pest, Central Hungary, 2073, Hungary",
+      "country": "Hungary",
+      "raw_query": "Tok Tok"
+    },
+    "energy ++": {
+      "lat": 37.7740055,
+      "lon": -89.0266269,
+      "display_name": "Energy, Williamson County, Illinois, 62933, United States",
+      "country": "United States",
+      "raw_query": "Energy ++"
+    },
+    "jake": {
+      "lat": -0.5021498,
+      "lon": 101.4675007,
+      "display_name": "Jake, Kuantan Tengah, Kuantan Singingi, Riau, Sumatra, Indonesia",
+      "country": "Indonesia",
+      "raw_query": "Jake"
+    },
+    "ct": {
+      "lat": 41.8523094,
+      "lon": 1.5745043,
+      "display_name": "Catalonia, Spain",
+      "country": "Spain",
+      "raw_query": "Ct"
+    },
+    "cambridge, united kingdom": {
+      "lat": 52.1975846,
+      "lon": 0.1391537,
+      "display_name": "Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, United Kingdom",
+      "country": "United Kingdom",
+      "raw_query": "Cambridge, United Kingdom"
+    },
+    "uk": {
+      "lat": 54.7023545,
+      "lon": -3.2765753,
+      "display_name": "United Kingdom",
+      "country": "United Kingdom",
+      "raw_query": "Uk"
+    },
+    "brisbane, australia": {
+      "lat": -27.4689623,
+      "lon": 153.0235009,
+      "display_name": "Brisbane, Queensland, Australia",
+      "country": "Australia",
+      "raw_query": "Brisbane, Australia"
+    },
+    "but gentle": {
+      "lat": 51.151247,
+      "lon": -0.9722815,
+      "display_name": "Nothing But The Tooth, 44, Normandy Street, Alton, East Hampshire, Hampshire, England, GU34 1BX, United Kingdom",
+      "country": "United Kingdom",
+      "raw_query": "But Gentle"
+    },
+    "kyoto, japan": {
+      "lat": 35.0115754,
+      "lon": 135.7681441,
+      "display_name": "Kyoto, Kyoto Prefecture, Japan",
+      "country": "Japan",
+      "raw_query": "Kyoto, Japan"
+    },
+    "be kind \ufe0f": {
+      "lat": 50.1820727,
+      "lon": -119.2314554,
+      "display_name": "Be Kind, Area B (Westside/Swan Lake/Kalamalka Lake), Regional District of North Okanagan, British Columbia, V1B 2L9, Canada",
+      "country": "Canada",
+      "raw_query": "Be Kind \ufe0f"
+    },
+    "singapore, singapore": {
+      "lat": 1.357107,
+      "lon": 103.8194992,
+      "display_name": "Singapore",
+      "country": "Singapore",
+      "raw_query": "Singapore, Singapore"
+    },
+    "munich, germany": {
+      "lat": 48.1371079,
+      "lon": 11.5753822,
+      "display_name": "Munich, Bavaria, Germany",
+      "country": "Germany",
+      "raw_query": "Munich, Germany"
+    },
+    "toronto, canada": {
+      "lat": 43.6534817,
+      "lon": -79.3839347,
+      "display_name": "Toronto, Golden Horseshoe, Ontario, Canada",
+      "country": "Canada",
+      "raw_query": "Toronto, Canada"
+    },
+    "london, united kingdom": {
+      "lat": 51.5074456,
+      "lon": -0.1277653,
+      "display_name": "Greater London, England, United Kingdom",
+      "country": "United Kingdom",
+      "raw_query": "London, United Kingdom"
+    },
+    "repeat": {
+      "lat": 44.2991845,
+      "lon": -73.0307989,
+      "display_name": "Repeat, Hinesburg, Chittenden County, Vermont, 05462, United States",
+      "country": "United States",
+      "raw_query": "Repeat"
+    },
+    "little cat": {
+      "lat": 35.4692468,
+      "lon": 139.6194235,
+      "display_name": "little cat, Kanjo 1go(Loop 1), Tsuruyacho 2-chome, Kami-Tammachi, Kanagawa Ward, Yokohama, Kanagawa Prefecture, 231-0017, Japan",
+      "country": "Japan",
+      "raw_query": "Little Cat"
+    },
+    "sydney, australia": {
+      "lat": -33.8698439,
+      "lon": 151.2082848,
+      "display_name": "Sydney, New South Wales, Australia",
+      "country": "Australia",
+      "raw_query": "Sydney, Australia"
+    },
+    "sun": {
+      "lat": 48.037975,
+      "lon": -4.8522495,
+      "display_name": "\u00cele-de-Sein, Quimper, Finist\u00e8re, Brittany, Metropolitan France, 29990, France",
+      "country": "France",
+      "raw_query": "Sun"
+    },
+    "rotterdam, netherlands": {
+      "lat": 51.9244424,
+      "lon": 4.47775,
+      "display_name": "Rotterdam, South Holland, Netherlands",
+      "country": "Netherlands",
+      "raw_query": "Rotterdam, Netherlands"
+    },
+    "chicken \ufe0f": {
+      "lat": 64.0849365,
+      "lon": -141.8744488,
+      "display_name": "Chicken, Unorganized Borough, Alaska, 99732, United States",
+      "country": "United States",
+      "raw_query": "Chicken \ufe0f"
+    },
+    "nz fur seal": {
+      "lat": -50.491526,
+      "lon": 166.31919,
+      "display_name": "Fur Seal Cliffs, New Zealand",
+      "country": "New Zealand",
+      "raw_query": "Nz Fur Seal"
+    },
+    "tokyo, japan": {
+      "lat": 35.6768601,
+      "lon": 139.7638947,
+      "display_name": "Tokyo, Japan",
+      "country": "Japan",
+      "raw_query": "Tokyo, Japan"
+    },
+    "crab": {
+      "lat": 37.2651436,
+      "lon": -76.4910612,
+      "display_name": "Crab, Gloucester Point, Gloucester County, Virginia, 23062, United States",
+      "country": "United States",
+      "raw_query": "Crab"
+    },
+    "st albans, united kingdom": {
+      "lat": 51.753051,
+      "lon": -0.3379675,
+      "display_name": "St Albans, Hertfordshire, England, United Kingdom",
+      "country": "United Kingdom",
+      "raw_query": "St Albans, United Kingdom"
+    },
+    "paris, france": {
+      "lat": 48.8534951,
+      "lon": 2.3483915,
+      "display_name": "Paris, Ile-de-France, Metropolitan France, France",
+      "country": "France",
+      "raw_query": "Paris, France"
+    },
+    "amsterdam, netherlands": {
+      "lat": 52.3730796,
+      "lon": 4.8924534,
+      "display_name": "Amsterdam, North Holland, Netherlands",
+      "country": "Netherlands",
+      "raw_query": "Amsterdam, Netherlands"
+    },
+    "mmxxii": {
+      "lat": 49.1668883,
+      "lon": 19.6116558,
+      "display_name": "MMXXII, Vy\u0161n\u00fd z\u00e1voz, Babky, Pavlova Ves, District of Liptovsk\u00fd Mikul\u00e1\u0161, Region of \u017dilina, Stredn\u00e9 Slovensko, 032 21, Slovakia",
+      "country": "Slovakia",
+      "raw_query": "Mmxxii"
+    },
+    "new york, united states": {
+      "lat": 40.7127281,
+      "lon": -74.0060152,
+      "display_name": "New York, United States",
+      "country": "United States",
+      "raw_query": "New York, United States"
+    },
+    "montreal, canada": {
+      "lat": 45.5031824,
+      "lon": -73.5698065,
+      "display_name": "Montreal, Urban agglomeration of Montreal, Montreal (administrative region), Quebec, Canada",
+      "country": "Canada",
+      "raw_query": "Montreal, Canada"
+    },
+    "hamburg, germany": {
+      "lat": 53.5501721,
+      "lon": 10.0013165,
+      "display_name": "Hamburg, Germany",
+      "country": "Germany",
+      "raw_query": "Hamburg, Germany"
+    }
+  },
+  "negatives": [
+    "......",
+    "000-year-old nazca lines",
+    "30min strava-art",
+    "60min strava-art",
+    "a female deer\u201d",
+    "bear gpsart",
+    "boy ...seek em",
+    "cat chasing ball",
+    "de nederlandse leeuw",
+    "it\u2019s almost spring",
+    "it\u2019s mr trex",
+    "nz famous dolphin",
+    "plastic soup foundation",
+    "pleistocene wolf",
+    "ridesolo",
+    "some koala-ty miles",
+    "those yellow boots"
+  ]
+}
