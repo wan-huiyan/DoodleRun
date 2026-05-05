@@ -1,0 +1,2 @@
+2026-05-05 05:35:59,468 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1673455430780-FGE1NQBJYXLYB3QYASJ4/DUMBO-2023-01-11-at-16.42.44.jpg "HTTP/1.1 200 OK"
+2026-05-05 05:36:32,347 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1673455430780-FGE1NQBJYXLYB3QYASJ4/DUMBO-2023-01-11-at-16.42.44.jpg "HTTP/1.1 200 OK"

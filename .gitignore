@@ -15,3 +15,7 @@ output/
 .pytest_cache/
 prototype/.pytest_cache/
 .playwright-mcp/
+
+# OSMnx HTTP cache (created at runtime by stravart/mapmatch.py).
+# Per-bbox JSON; regenerated automatically on cache miss.
+/cache/

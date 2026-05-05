@@ -1,0 +1,2 @@
+2026-05-05 05:34:51,572 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1624205411141-5HCGITYPWD5RPG84LRWZ/RegentsDog-2021-06-20-at-17.09.05.jpg "HTTP/1.1 200 OK"
+2026-05-05 05:35:27,684 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1624205411141-5HCGITYPWD5RPG84LRWZ/RegentsDog-2021-06-20-at-17.09.05.jpg "HTTP/1.1 200 OK"

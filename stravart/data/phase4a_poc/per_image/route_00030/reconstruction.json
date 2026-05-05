@@ -1,0 +1,25 @@
+{
+  "route_id": 30,
+  "title": "THE ONE WITH THE DOGGO IN VIENNA \ud83d\udc36\u2764\ufe0f",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1640698908058-PB3H5JQQG8N1MLY70ZMN/DOGGO-2021-12-28-at-13.40.49.jpg",
+  "elapsed_s": 14.08,
+  "confidence": 0.0,
+  "failure": "ocr: no street candidates",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 2411,
+      "length_px": 2851.137443927347
+    },
+    "ocr": {
+      "n_street_candidates": 0,
+      "candidates": [],
+      "n_fragments": 17
+    },
+    "crossref": null,
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}

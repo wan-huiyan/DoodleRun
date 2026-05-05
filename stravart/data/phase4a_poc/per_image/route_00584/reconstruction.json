@@ -1,0 +1,130 @@
+{
+  "route_id": 584,
+  "title": "TRAVELLING ELEPHANT, UK \ud83d\udc18\ud83c\uddec\ud83c\udde7",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1636373908166-EXNHDUDQ9HM0SW03B8FA/ELE-2021-11-08-at-12.17.20.jpg",
+  "elapsed_s": 25.46,
+  "confidence": 0.5011402619237173,
+  "failure": "confidence: 0.50 < 0.60",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 2710,
+      "length_px": 3073.922148450697
+    },
+    "ocr": {
+      "n_street_candidates": 15,
+      "candidates": [
+        {
+          "text": "The Park",
+          "conf": 1.0
+        },
+        {
+          "text": "Felix Road",
+          "conf": 1.0
+        },
+        {
+          "text": "Hamilton Road",
+          "conf": 0.999
+        },
+        {
+          "text": "Craven Road",
+          "conf": 0.998
+        },
+        {
+          "text": "Ridley Avenue",
+          "conf": 0.997
+        },
+        {
+          "text": "Mattock Lane",
+          "conf": 0.994
+        },
+        {
+          "text": "Freeland Road",
+          "conf": 0.983
+        },
+        {
+          "text": "Bramley Road",
+          "conf": 0.976
+        },
+        {
+          "text": "Hessel Road",
+          "conf": 0.852
+        },
+        {
+          "text": "Elm Avenue",
+          "conf": 0.851
+        },
+        {
+          "text": "Drayton Avenue",
+          "conf": 0.841
+        },
+        {
+          "text": "Pope'S Lane",
+          "conf": 0.797
+        },
+        {
+          "text": "Almond Avenue",
+          "conf": 0.779
+        },
+        {
+          "text": "Grange Road",
+          "conf": 0.742
+        },
+        {
+          "text": "Ands Road",
+          "conf": 0.658
+        }
+      ],
+      "n_fragments": 20
+    },
+    "crossref": {
+      "n_matches": {
+        "The Park": 39,
+        "Felix Road": 40,
+        "Hamilton Road": 40,
+        "Craven Road": 40,
+        "Ridley Avenue": 40,
+        "Mattock Lane": 9
+      },
+      "cluster": {
+        "lat": 51.5088552,
+        "lon": -0.31418820000000003,
+        "bbox": [
+          51.487961,
+          51.5141683,
+          -0.3262592,
+          -0.2954318
+        ],
+        "streets": [
+          "Craven Road",
+          "Felix Road",
+          "Hamilton Road",
+          "Mattock Lane",
+          "Ridley Avenue"
+        ],
+        "n_ways": 15,
+        "confidence": 0.95,
+        "city": "Greater London",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": {
+      "n_anchors": 4,
+      "rmse_m": 2.5049077609598998,
+      "max_residual_m": 4.097169145767309
+    },
+    "mapmatch": {
+      "n_snapped_points": 460,
+      "unreachable_segments": 0
+    },
+    "fidelity": {
+      "score": 0.18967196896497618,
+      "frechet_m": 685.0810961940836,
+      "buffered_iou": 0.3161199482749603
+    }
+  },
+  "diagnostics": {
+    "n_gcps": 5,
+    "mean_ocr_conf": 0.9975973450701398
+  }
+}

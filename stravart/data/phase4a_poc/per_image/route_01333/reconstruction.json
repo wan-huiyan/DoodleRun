@@ -1,0 +1,35 @@
+{
+  "route_id": 1333,
+  "title": "YESSSS \ud83e\udd88\ud83e\udd88\ud83e\udd88 50km DE GPS DRAWING DANS PARIS!",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1589887330846-0QTWEKETYBCX560PLKS6/ParisSharkA.jpg",
+  "elapsed_s": 19.15,
+  "confidence": 0.0,
+  "failure": "crossref: no consensus cluster",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1986,
+      "length_px": 2339.9810229537425
+    },
+    "ocr": {
+      "n_street_candidates": 1,
+      "candidates": [
+        {
+          "text": "Rue De Belleville",
+          "conf": 0.938
+        }
+      ],
+      "n_fragments": 25
+    },
+    "crossref": {
+      "n_matches": {
+        "Rue De Belleville": 40
+      },
+      "cluster": null
+    },
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}

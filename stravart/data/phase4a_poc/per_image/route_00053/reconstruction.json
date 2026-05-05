@@ -1,0 +1,119 @@
+{
+  "route_id": 53,
+  "title": "REGENT\u2019S PARK, GREAT DAY FOR DOGGIN",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1624205411141-5HCGITYPWD5RPG84LRWZ/RegentsDog-2021-06-20-at-17.09.05.jpg",
+  "elapsed_s": 36.07,
+  "confidence": 0.5772069504557248,
+  "failure": "confidence: 0.58 < 0.60",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 2516,
+      "length_px": 2861.6967517062803
+    },
+    "ocr": {
+      "n_street_candidates": 12,
+      "candidates": [
+        {
+          "text": "Weymouth Street",
+          "conf": 0.993
+        },
+        {
+          "text": "Norfolk Road",
+          "conf": 0.98
+        },
+        {
+          "text": "Cromer Street",
+          "conf": 0.953
+        },
+        {
+          "text": "Chester Road",
+          "conf": 0.949
+        },
+        {
+          "text": "Handyside Street",
+          "conf": 0.874
+        },
+        {
+          "text": "Howland Street",
+          "conf": 0.854
+        },
+        {
+          "text": "Chapel Street",
+          "conf": 0.784
+        },
+        {
+          "text": "King Henrys Road",
+          "conf": 0.611
+        },
+        {
+          "text": "Iclifton Hill",
+          "conf": 0.589
+        },
+        {
+          "text": "Elsworthy Road",
+          "conf": 0.575
+        },
+        {
+          "text": "Blomfield E Road",
+          "conf": 0.564
+        },
+        {
+          "text": "Pell Street",
+          "conf": 0.533
+        }
+      ],
+      "n_fragments": 37
+    },
+    "crossref": {
+      "n_matches": {
+        "Weymouth Street": 40,
+        "Norfolk Road": 40,
+        "Cromer Street": 40,
+        "Chester Road": 40,
+        "Handyside Street": 10,
+        "Howland Street": 40
+      },
+      "cluster": {
+        "lat": 51.5261632,
+        "lon": -0.14103386363636364,
+        "bbox": [
+          51.5200097,
+          51.5385796,
+          -0.1716869,
+          -0.1210534
+        ],
+        "streets": [
+          "Chester Road",
+          "Cromer Street",
+          "Handyside Street",
+          "Howland Street",
+          "Norfolk Road",
+          "Weymouth Street"
+        ],
+        "n_ways": 33,
+        "confidence": 0.95,
+        "city": "Greater London",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": {
+      "n_anchors": 4,
+      "rmse_m": 12.680883663110718,
+      "max_residual_m": 14.613346241073579
+    },
+    "mapmatch": {
+      "n_snapped_points": 474,
+      "unreachable_segments": 0
+    },
+    "fidelity": {
+      "score": 0.35665232941346525,
+      "frechet_m": 134.35572741687824,
+      "buffered_iou": 0.37560630707870285
+    }
+  },
+  "diagnostics": {
+    "n_gcps": 6,
+    "mean_ocr_conf": 0.9336893345509533
+  }
+}

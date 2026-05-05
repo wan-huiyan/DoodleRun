@@ -2,9 +2,9 @@
   "route_id": 1272,
   "title": "THE ST ALBANS SHARK \ud83e\udd88",
   "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1592383825472-YOXXJWKYEX1ZLGIVEOIW/StAlbansFish.jpg",
-  "elapsed_s": 89.75,
-  "confidence": 0.0,
-  "failure": "georef: only 2 GCPs (need \u22653)",
+  "elapsed_s": 26.09,
+  "confidence": 0.28508853931975026,
+  "failure": "confidence: 0.29 < 0.60",
   "shipped": false,
   "stages": {
     "contour": {
@@ -35,9 +35,9 @@
     },
     "crossref": {
       "n_matches": {
-        "Victoria Street": 40,
+        "Victoria Street": 49,
         "Jennings Road": 40,
-        "N Orbital Road": 40,
+        "N Orbital Road": 77,
         "Chiswell Green": 1
       },
       "cluster": {
@@ -61,11 +61,23 @@
         "country": "United Kingdom"
       }
     },
-    "georef": null,
-    "mapmatch": null,
-    "fidelity": null
+    "georef": {
+      "n_anchors": 3,
+      "rmse_m": 4.644145587453804e-13,
+      "max_residual_m": 5.684341886080801e-13
+    },
+    "mapmatch": {
+      "n_snapped_points": 893,
+      "unreachable_segments": 0
+    },
+    "fidelity": {
+      "score": 0.1416014084580306,
+      "frechet_m": 345.35222543741037,
+      "buffered_iou": 0.23600234743005102
+    }
   },
   "diagnostics": {
-    "n_gcps": 2
+    "n_gcps": 4,
+    "mean_ocr_conf": 0.9329996006798172
   }
 }

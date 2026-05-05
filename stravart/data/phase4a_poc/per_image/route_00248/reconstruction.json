@@ -1,0 +1,25 @@
+{
+  "route_id": 248,
+  "title": "1st BERLIN DRAWING. HUAWEI \u274c ADIDAS /// \ud83e\udd85\ud83e\udd73\ud83d\ude4c\ud83c\udffb",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1640699262202-GP9G5RA1UJYRNQQ74XUC/eagle-2021-12-28-at-13.46.34.jpg",
+  "elapsed_s": 19.8,
+  "confidence": 0.0,
+  "failure": "ocr: no street candidates",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1316,
+      "length_px": 1540.746391493337
+    },
+    "ocr": {
+      "n_street_candidates": 0,
+      "candidates": [],
+      "n_fragments": 36
+    },
+    "crossref": null,
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}
