@@ -1,0 +1,4 @@
+cache/
+previews/_smoke_*
+__pycache__/
+*.pyc

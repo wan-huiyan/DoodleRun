@@ -1,0 +1,314 @@
+{
+  "animal": "duck",
+  "vote_range": 30,
+  "n_quickdraw_voted": 30,
+  "n_stravart_voted": 30,
+  "approved_quickdraw": [
+    {
+      "vote_id": "DUC-Q01",
+      "rank_when_voted": 0,
+      "key_id": "6028069120770048"
+    },
+    {
+      "vote_id": "DUC-Q02",
+      "rank_when_voted": 1,
+      "key_id": "5367978629529600"
+    },
+    {
+      "vote_id": "DUC-Q03",
+      "rank_when_voted": 2,
+      "key_id": "5211897102073856"
+    },
+    {
+      "vote_id": "DUC-Q05",
+      "rank_when_voted": 4,
+      "key_id": "4609350872072192"
+    },
+    {
+      "vote_id": "DUC-Q06",
+      "rank_when_voted": 5,
+      "key_id": "6135402714890240"
+    },
+    {
+      "vote_id": "DUC-Q08",
+      "rank_when_voted": 7,
+      "key_id": "5490158923153408"
+    },
+    {
+      "vote_id": "DUC-Q11",
+      "rank_when_voted": 10,
+      "key_id": "4602781908336640"
+    },
+    {
+      "vote_id": "DUC-Q12",
+      "rank_when_voted": 11,
+      "key_id": "5044628795424768"
+    },
+    {
+      "vote_id": "DUC-Q13",
+      "rank_when_voted": 12,
+      "key_id": "6039545386631168"
+    },
+    {
+      "vote_id": "DUC-Q14",
+      "rank_when_voted": 13,
+      "key_id": "4754738119704576"
+    },
+    {
+      "vote_id": "DUC-Q15",
+      "rank_when_voted": 14,
+      "key_id": "5981497712443392"
+    },
+    {
+      "vote_id": "DUC-Q16",
+      "rank_when_voted": 15,
+      "key_id": "6728345146359808"
+    },
+    {
+      "vote_id": "DUC-Q18",
+      "rank_when_voted": 17,
+      "key_id": "5974919248609280"
+    },
+    {
+      "vote_id": "DUC-Q21",
+      "rank_when_voted": 20,
+      "key_id": "6358873352962048"
+    },
+    {
+      "vote_id": "DUC-Q22",
+      "rank_when_voted": 21,
+      "key_id": "5357989877776384"
+    },
+    {
+      "vote_id": "DUC-Q23",
+      "rank_when_voted": 22,
+      "key_id": "5205482052517888"
+    },
+    {
+      "vote_id": "DUC-Q24",
+      "rank_when_voted": 23,
+      "key_id": "4682529732820992"
+    },
+    {
+      "vote_id": "DUC-Q25",
+      "rank_when_voted": 24,
+      "key_id": "5499255445782528"
+    },
+    {
+      "vote_id": "DUC-Q26",
+      "rank_when_voted": 25,
+      "key_id": "4783922535727104"
+    },
+    {
+      "vote_id": "DUC-Q27",
+      "rank_when_voted": 26,
+      "key_id": "6129025414070272"
+    },
+    {
+      "vote_id": "DUC-Q30",
+      "rank_when_voted": 29,
+      "key_id": "5693506817359872"
+    }
+  ],
+  "rejected_quickdraw": [
+    {
+      "vote_id": "DUC-Q04",
+      "rank_when_voted": 3,
+      "key_id": "5307613686267904"
+    },
+    {
+      "vote_id": "DUC-Q07",
+      "rank_when_voted": 6,
+      "key_id": "5535969614757888"
+    },
+    {
+      "vote_id": "DUC-Q09",
+      "rank_when_voted": 8,
+      "key_id": "4842489766739968"
+    },
+    {
+      "vote_id": "DUC-Q10",
+      "rank_when_voted": 9,
+      "key_id": "5520658664521728"
+    },
+    {
+      "vote_id": "DUC-Q17",
+      "rank_when_voted": 16,
+      "key_id": "5886761307734016"
+    },
+    {
+      "vote_id": "DUC-Q19",
+      "rank_when_voted": 18,
+      "key_id": "5784340342505472"
+    },
+    {
+      "vote_id": "DUC-Q20",
+      "rank_when_voted": 19,
+      "key_id": "6696828374351872"
+    },
+    {
+      "vote_id": "DUC-Q28",
+      "rank_when_voted": 27,
+      "key_id": "6253950321819648"
+    },
+    {
+      "vote_id": "DUC-Q29",
+      "rank_when_voted": 28,
+      "key_id": "6188463260958720"
+    }
+  ],
+  "approved_stravart": [
+    {
+      "vote_id": "DUC-S01",
+      "rank_when_voted": 0,
+      "source": "069_1593104188496-C3E6B2Z4II9DKG6CX1J1.jpg"
+    },
+    {
+      "vote_id": "DUC-S03",
+      "rank_when_voted": 2,
+      "source": "049_1606221212496-YT4LVM90AG96POTLZOSY.jpg"
+    },
+    {
+      "vote_id": "DUC-S04",
+      "rank_when_voted": 3,
+      "source": "044_1608568619121-Y0YNWNFBIGBHLJPVGYVH.jpg"
+    },
+    {
+      "vote_id": "DUC-S05",
+      "rank_when_voted": 4,
+      "source": "058_1602070652843-Z4D901A9ER6NHGXQ79BT.jpg"
+    },
+    {
+      "vote_id": "DUC-S06",
+      "rank_when_voted": 5,
+      "source": "002_1652007560479-NJVI4NKYFZAUOBHARO83.jpg"
+    },
+    {
+      "vote_id": "DUC-S07",
+      "rank_when_voted": 6,
+      "source": "035_1614686418792-XGBWSB77V6PW6Z3ESOBJ.jpg"
+    },
+    {
+      "vote_id": "DUC-S08",
+      "rank_when_voted": 7,
+      "source": "030_1617788208088-S0RQNNBQTDWCS215UB0B.jpg"
+    },
+    {
+      "vote_id": "DUC-S09",
+      "rank_when_voted": 8,
+      "source": "026_1618563462291-OLMLN7KY0PBT9VU6GMAV.jpg"
+    },
+    {
+      "vote_id": "DUC-S10",
+      "rank_when_voted": 9,
+      "source": "020_1624376217555-4R8MKQZUX1DYCVUL7EQ3.jpg"
+    },
+    {
+      "vote_id": "DUC-S11",
+      "rank_when_voted": 10,
+      "source": "071_1592747342490-XM0TLN88COSD58135I46.jpg"
+    },
+    {
+      "vote_id": "DUC-S12",
+      "rank_when_voted": 11,
+      "source": "042_1609258564577-UJEVE880YM016QWCBNUI.jpg"
+    },
+    {
+      "vote_id": "DUC-S13",
+      "rank_when_voted": 12,
+      "source": "034_1615303335467-WIH0U8JIZVOUFSZ17U0O.jpg"
+    },
+    {
+      "vote_id": "DUC-S14",
+      "rank_when_voted": 13,
+      "source": "078_1589372284180-R4IM2IJTPLA4W8GL4M19.jpg"
+    },
+    {
+      "vote_id": "DUC-S16",
+      "rank_when_voted": 15,
+      "source": "059_1600858645768-PSUY400U0P02IUWU2EXJ.jpg"
+    },
+    {
+      "vote_id": "DUC-S17",
+      "rank_when_voted": 16,
+      "source": "006_1641487109423-LE7KRU8Y1E8VQZW9ZLU6.jpg"
+    },
+    {
+      "vote_id": "DUC-S18",
+      "rank_when_voted": 17,
+      "source": "067_1595599306716-9ZV0YAG730NHB731PH6J.jpg"
+    },
+    {
+      "vote_id": "DUC-S19",
+      "rank_when_voted": 18,
+      "source": "009_1638984030088-8L6SXRAQ0Q6JB7HAGUSX.jpg"
+    },
+    {
+      "vote_id": "DUC-S20",
+      "rank_when_voted": 19,
+      "source": "061_1600089020414-RIGWNOZFSYJBZ01XUWWX.jpg"
+    },
+    {
+      "vote_id": "DUC-S21",
+      "rank_when_voted": 20,
+      "source": "011_1636977675493-CO4GNX550DPY21PNA6M8.jpg"
+    },
+    {
+      "vote_id": "DUC-S22",
+      "rank_when_voted": 21,
+      "source": "013_1636133352167-E6NEC7P64AMCYLPPN438.jpg"
+    },
+    {
+      "vote_id": "DUC-S23",
+      "rank_when_voted": 22,
+      "source": "022_1622825853895-XSKUG8V6XULYYP1J1I1H.jpg"
+    },
+    {
+      "vote_id": "DUC-S24",
+      "rank_when_voted": 23,
+      "source": "029_1617802129343-XHIGDICOSSIX7AH1GQA1.jpg"
+    },
+    {
+      "vote_id": "DUC-S25",
+      "rank_when_voted": 24,
+      "source": "072_1591621736713-S6KF8CAYVCM69OF17O9F.jpg"
+    },
+    {
+      "vote_id": "DUC-S26",
+      "rank_when_voted": 25,
+      "source": "008_1640083636887-7NT9V7G18W7AID4DMJOJ.jpg"
+    },
+    {
+      "vote_id": "DUC-S27",
+      "rank_when_voted": 26,
+      "source": "000_1710498232636-CF7KW10WADISVHS1Y4UR.jpg"
+    },
+    {
+      "vote_id": "DUC-S28",
+      "rank_when_voted": 27,
+      "source": "066_1596463374385-0JBDND6V8V8U41N04L69.jpg"
+    },
+    {
+      "vote_id": "DUC-S29",
+      "rank_when_voted": 28,
+      "source": "028_1617803471807-ZY7AIROMD32ULFXV7YZE.jpg"
+    }
+  ],
+  "rejected_stravart": [
+    {
+      "vote_id": "DUC-S02",
+      "rank_when_voted": 1,
+      "source": "018_1626707552281-Y0WP1YCR3K14OC2XLAGO.jpg"
+    },
+    {
+      "vote_id": "DUC-S15",
+      "rank_when_voted": 14,
+      "source": "010_1638191296492-16MWTUVXGQ536ZFGLOXX.jpg"
+    },
+    {
+      "vote_id": "DUC-S30",
+      "rank_when_voted": 29,
+      "source": "033_1615541557146-Y34WJT08X3LJRLLS962S.jpg"
+    }
+  ]
+}
