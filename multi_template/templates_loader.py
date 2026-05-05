@@ -17,6 +17,22 @@ import numpy as np
 TEMPLATE_ROOT = Path(__file__).parent / "templates"
 
 
+def _splice_loop(combined: np.ndarray, inner: np.ndarray) -> np.ndarray:
+    """Splice an inner loop into a polyline at its closest-point pair.
+
+    Finds (a, b) minimizing ||combined[a] - inner[b]||, then returns
+    combined[:a+1] + inner_rotated_to_start_at_b_and_back_to_b + combined[a:].
+    The double-listed bridge edge is the "go in, trace loop, come back" path —
+    Dijkstra later re-routes it along available roads.
+    """
+    d2 = ((combined[:, None, :] - inner[None, :, :]) ** 2).sum(axis=2)
+    flat = int(np.argmin(d2))
+    a = flat // d2.shape[1]
+    b = flat % d2.shape[1]
+    rotated = np.concatenate([inner[b:], inner[:b], inner[b:b + 1]], axis=0)
+    return np.concatenate([combined[:a + 1], rotated, combined[a:]], axis=0)
+
+
 def _silhouette_outline(
     pts: np.ndarray,
     *,
@@ -24,17 +40,21 @@ def _silhouette_outline(
     pad: float = 0.06,
     dilate_k: int = 3,
     close_k: int = 7,
+    min_inner_area_frac: float = 0.005,
 ) -> np.ndarray:
-    """Convert an unordered skeleton point cloud to an ordered silhouette outline.
+    """Convert an unordered skeleton point cloud to a single ordered polyline
+    that includes both the outer silhouette AND interior loops.
 
-    Pipeline: rasterize → tiny dilate → morphological close → flood-fill holes →
-    outer contour. The contour traces every appendage bump (trunk, legs, ears,
-    tail) because they are protrusions on the silhouette boundary.
+    Pipeline: rasterize → tiny dilate → morphological close → RETR_TREE contour
+    hierarchy → splice each first-level child (interior hole) into the outer
+    contour at its closest-point pair. Outer protrusions (trunk, ears, tail)
+    are traced by the silhouette boundary; interior detail (gaps between legs,
+    eye loops) is preserved by the spliced inner loops.
 
-    This intentionally does NOT use a concave hull — concave_hull(ratio=0.18)
-    smooths every appendage out into a body blob, destroying the features that
-    make a recognizable animal. See skill `gps-art-template-extraction` ("Never
-    reduce a multi-loop route to its outer envelope").
+    RETR_EXTERNAL would flatten those inner loops into the outer envelope,
+    losing the distinctive features that make the shape recognizable — see
+    skill `gps-art-template-extraction` ("Never reduce a multi-loop route to
+    its outer envelope"). Each spliced inner loop adds 5–15% perimeter.
     """
     if len(pts) < 4:
         return pts
@@ -56,21 +76,46 @@ def _silhouette_outline(
         cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_k, close_k)),
         iterations=2,
     )
-    # Flood-fill the background from a corner; pixels still off after fill are
-    # interior holes (e.g. the eye-loop on some elephants) — fill them in so
-    # the contour traces the elephant body, not its eye.
-    inv = cv2.bitwise_not(closed)
-    flood = inv.copy()
-    cv2.floodFill(flood, None, (0, 0), 128)
-    holes = (flood == 255).astype(np.uint8) * 255
-    filled = cv2.bitwise_or(closed, holes)
-    contours, _ = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    if not contours:
+    contours, hierarchy = cv2.findContours(
+        closed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
+    )
+    if not contours or hierarchy is None:
         return pts
-    largest = max(contours, key=cv2.contourArea)
-    cpts = largest.reshape(-1, 2).astype(float)
-    nx_pts = (cpts[:, 0] / (raster_size - 1)) * span - 0.5 - pad
-    ny_pts = -((cpts[:, 1] / (raster_size - 1)) * span - 0.5 - pad)
+    h = hierarchy[0]  # each row: [next, prev, first_child, parent]
+
+    # Pick the outermost (parent == -1) contour with the largest area.
+    outer_idx, outer_area = -1, 0.0
+    for i, ent in enumerate(h):
+        if ent[3] == -1:
+            a_i = cv2.contourArea(contours[i])
+            if a_i > outer_area:
+                outer_area, outer_idx = a_i, i
+    if outer_idx < 0:
+        return pts
+    outer = contours[outer_idx].reshape(-1, 2).astype(float)
+
+    # First-level interior holes (direct children) above an area threshold;
+    # tiny holes are usually rasterization noise, not features.
+    min_area = max(min_inner_area_frac * outer_area, 12.0)
+    inner_loops = []
+    ci = h[outer_idx][2]  # first child
+    while ci != -1:
+        if cv2.contourArea(contours[ci]) >= min_area:
+            inner_loops.append(contours[ci].reshape(-1, 2).astype(float))
+        ci = h[ci][0]  # next sibling
+
+    # Splice inner loops in largest-first order so smaller features can attach
+    # to whichever segment (outer OR previously spliced inner) is closest.
+    inner_loops.sort(
+        key=lambda c: -cv2.contourArea(c.astype(np.float32))
+    )
+    combined = outer
+    for inner in inner_loops:
+        combined = _splice_loop(combined, inner)
+
+    # Raster pixel coords → normalized template coords [-0.5 .. 0.5].
+    nx_pts = (combined[:, 0] / (raster_size - 1)) * span - 0.5 - pad
+    ny_pts = -((combined[:, 1] / (raster_size - 1)) * span - 0.5 - pad)
     outline = np.column_stack([nx_pts, ny_pts])
     # Make the loop explicitly closed.
     if not np.allclose(outline[0], outline[-1]):
