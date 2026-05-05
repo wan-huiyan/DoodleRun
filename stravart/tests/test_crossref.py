@@ -38,6 +38,30 @@ class FakeClient:
         return list(self.responses.get(name.lower(), []))
 
 
+class FakeNominatimClient(FakeClient):
+    """FakeClient that also exposes ``ways_named_in`` so two-pass-verify runs.
+
+    ``city_responses`` is keyed on (lower(name), city, country) so we can
+    set up scenarios where the worldwide top-40 misses a city but the
+    explicit city-filtered call finds it.
+    """
+
+    def __init__(
+        self,
+        responses: dict[str, list[OverpassWay]],
+        city_responses: dict[tuple[str, str, str], list[OverpassWay]] | None = None,
+    ) -> None:
+        super().__init__(responses)
+        self.city_responses = {
+            (n.lower(), c, k): v for (n, c, k), v in (city_responses or {}).items()
+        }
+        self.city_calls: list[tuple[str, str, str]] = []
+
+    def ways_named_in(self, name: str, city: str, country: str) -> list[OverpassWay]:
+        self.city_calls.append((name, city, country))
+        return list(self.city_responses.get((name.lower(), city, country), []))
+
+
 # ---------------------------------------------------------------- haversine
 
 class TestHaversine:
@@ -173,6 +197,63 @@ class TestFindGeocode:
         assert result.cluster is not None
         assert "Broomfield Road" in client.calls
         assert result.cluster.city == "Chelmsford"
+
+    def test_two_pass_recovery_splices_hits_back_into_matches(self) -> None:
+        """Phase 4a regression: when the worldwide top-40 misses the city for
+        a common-name street (e.g. ``Victoria Street``), the two-pass-verify
+        recovers the cluster via ``ways_named_in``. The recovered hits MUST be
+        spliced back into the returned ``CrossRefResult.matches`` so that
+        downstream GCP joiners can intersect against the cluster bbox.
+        """
+        # Worldwide pass: only the rare names hit anything in the right city;
+        # ``Victoria Street`` returns 40 worldwide hits, none in St Albans.
+        worldwide_victoria = [OverpassWay("Victoria Street",
+                                          51.50 + 0.001 * i, -0.10 + 0.001 * i,
+                                          city="London", country="UK")
+                              for i in range(40)]
+        client = FakeNominatimClient(
+            responses={
+                "Victoria Street": worldwide_victoria,
+                "Jennings Road":   [OverpassWay("Jennings Road",  51.752, -0.339,
+                                                city="St Albans", country="UK")],
+                "Chiswell Green":  [OverpassWay("Chiswell Green", 51.738, -0.378,
+                                                city="St Albans", country="UK")],
+            },
+            city_responses={
+                # The city-filtered lookup IS aware of St Albans' Victoria St.
+                ("Victoria Street", "St Albans", "UK"): [
+                    OverpassWay("Victoria Street", 51.751, -0.341,
+                                city="St Albans", country="UK"),
+                ],
+            },
+        )
+        result = find_geocode(
+            [_candidate("Victoria Street", 1.0),
+             _candidate("Jennings Road",   0.95),
+             _candidate("Chiswell Green",  0.85)],
+            client,                                                   # type: ignore[arg-type]
+            min_streets=3,
+            cluster_radius_km=3.0,
+        )
+        assert result.cluster is not None
+        assert result.cluster.city == "St Albans"
+        # The fix: matches["Victoria Street"] must now contain the
+        # St Albans hit, not just the 40 London hits.
+        st_albans_hits = [
+            w for w in result.matches.get("Victoria Street", [])
+            if w.city == "St Albans"
+        ]
+        assert len(st_albans_hits) == 1, (
+            "Two-pass verification recovered Victoria Street in St Albans, "
+            "but the recovered hit was not spliced back into matches — "
+            "downstream GCP joiners will silently lose this anchor."
+        )
+        # And the worldwide London hits must still be there (additive splice).
+        london_hits = [
+            w for w in result.matches.get("Victoria Street", [])
+            if w.city == "London"
+        ]
+        assert len(london_hits) == 40
 
     def test_min_streets_threshold(self) -> None:
         # Only one street name returns ways, so even with min_streets=1 we
