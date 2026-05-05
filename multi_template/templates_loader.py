@@ -95,10 +95,11 @@ def _normalize_points(raw: List[List[float]]) -> np.ndarray:
     pts = np.asarray(raw, dtype=float)
     if pts.ndim != 2 or pts.shape[1] != 2 or len(pts) < 4:
         raise ValueError("invalid points payload")
-    # Templates from quickdraw use (x, y) where +y is "down" in image coords.
-    # Flip y so visual up == positive y for routing/preview consistency.
+    # Both extractors (Quick Draw + strav.art) already store points with
+    # Y-up convention (per gps-art-template-extraction skill: `ny = -(ys - cy)/s`
+    # # flip Y: image coords are Y-down). Don't flip again — that would render
+    # the elephant upside down on the map.
     pts = pts.copy()
-    pts[:, 1] = -pts[:, 1]
     # Center on bbox center, scale so longest side = 1.0.
     mn = pts.min(axis=0)
     mx = pts.max(axis=0)
