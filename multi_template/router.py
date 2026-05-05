@@ -124,7 +124,7 @@ def route_through_waypoints(
     waypoints: List[Tuple[float, float]],
     *,
     alpha: float = 3.0,
-    beta: float = 0.4,
+    beta: float = 2.5,
     revisit_penalty_m: float = 4000.0,
 ) -> Optional[RoutedShape]:
     """Snap each waypoint to the nearest graph node, then shape-aware-Dijkstra

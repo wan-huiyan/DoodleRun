@@ -11,35 +11,71 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+import cv2
 import numpy as np
-from shapely import concave_hull
-from shapely.geometry import MultiPoint
 
 TEMPLATE_ROOT = Path(__file__).parent / "templates"
 
 
-def _outline_from_pointcloud(pts: np.ndarray, ratio: float = 0.18) -> np.ndarray:
-    """The raw `points` are unordered skeleton pixels. Compute a concave
-    hull outline so we have a sensible single closed traversal for routing.
+def _silhouette_outline(
+    pts: np.ndarray,
+    *,
+    raster_size: int = 512,
+    pad: float = 0.06,
+    dilate_k: int = 3,
+    close_k: int = 7,
+) -> np.ndarray:
+    """Convert an unordered skeleton point cloud to an ordered silhouette outline.
 
-    `ratio` controls "tightness": 0 → convex hull, 1 → very tight to points.
-    0.15-0.25 gives a nice silhouette for blob-like animals.
+    Pipeline: rasterize → tiny dilate → morphological close → flood-fill holes →
+    outer contour. The contour traces every appendage bump (trunk, legs, ears,
+    tail) because they are protrusions on the silhouette boundary.
+
+    This intentionally does NOT use a concave hull — concave_hull(ratio=0.18)
+    smooths every appendage out into a body blob, destroying the features that
+    make a recognizable animal. See skill `gps-art-template-extraction` ("Never
+    reduce a multi-loop route to its outer envelope").
     """
     if len(pts) < 4:
         return pts
-    mp = MultiPoint([tuple(p) for p in pts])
-    poly = concave_hull(mp, ratio=ratio)
-    if poly is None or poly.is_empty:
+    img = np.zeros((raster_size, raster_size), dtype=np.uint8)
+    span = 1.0 + 2.0 * pad
+    x = ((pts[:, 0] + 0.5 + pad) / span * (raster_size - 1)).astype(int)
+    # Image y goes down; template y is "up positive" — flip.
+    y = ((-pts[:, 1] + 0.5 + pad) / span * (raster_size - 1)).astype(int)
+    x = np.clip(x, 0, raster_size - 1)
+    y = np.clip(y, 0, raster_size - 1)
+    img[y, x] = 255
+    if dilate_k > 0:
+        img = cv2.dilate(
+            img, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_k, dilate_k))
+        )
+    closed = cv2.morphologyEx(
+        img,
+        cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_k, close_k)),
+        iterations=2,
+    )
+    # Flood-fill the background from a corner; pixels still off after fill are
+    # interior holes (e.g. the eye-loop on some elephants) — fill them in so
+    # the contour traces the elephant body, not its eye.
+    inv = cv2.bitwise_not(closed)
+    flood = inv.copy()
+    cv2.floodFill(flood, None, (0, 0), 128)
+    holes = (flood == 255).astype(np.uint8) * 255
+    filled = cv2.bitwise_or(closed, holes)
+    contours, _ = cv2.findContours(filled, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    if not contours:
         return pts
-    if poly.geom_type == "Polygon":
-        coords = np.asarray(poly.exterior.coords)
-    elif poly.geom_type == "MultiPolygon":
-        # Pick the largest piece
-        best = max(poly.geoms, key=lambda g: g.area)
-        coords = np.asarray(best.exterior.coords)
-    else:
-        return pts
-    return coords
+    largest = max(contours, key=cv2.contourArea)
+    cpts = largest.reshape(-1, 2).astype(float)
+    nx_pts = (cpts[:, 0] / (raster_size - 1)) * span - 0.5 - pad
+    ny_pts = -((cpts[:, 1] / (raster_size - 1)) * span - 0.5 - pad)
+    outline = np.column_stack([nx_pts, ny_pts])
+    # Make the loop explicitly closed.
+    if not np.allclose(outline[0], outline[-1]):
+        outline = np.vstack([outline, outline[:1]])
+    return outline
 
 
 @dataclass
@@ -86,12 +122,13 @@ def _resample_polyline(pts: np.ndarray, target: int) -> np.ndarray:
     return np.column_stack([out_x, out_y])
 
 
-def load_template(path: Path, resample_n: int = 200, hull_ratio: float = 0.18) -> Template:
+def load_template(path: Path, resample_n: int = 400) -> Template:
     raw = json.loads(path.read_text())
     pts = _normalize_points(raw["points"])
-    # The raw points are unordered skeleton pixels. Replace with the concave
-    # hull boundary — that's an actual silhouette outline we can route.
-    pts = _outline_from_pointcloud(pts, ratio=hull_ratio)
+    # The raw points are an unordered skeleton point cloud. Convert to an
+    # ordered silhouette outline that preserves protrusions (trunk, legs, ears,
+    # tail) — see _silhouette_outline above.
+    pts = _silhouette_outline(pts)
     if resample_n and len(pts) != resample_n:
         pts = _resample_polyline(pts, resample_n)
     return Template(
@@ -107,7 +144,7 @@ def load_animal_templates(
     animal: str,
     *,
     source_kind: Optional[str] = None,
-    resample_n: int = 200,
+    resample_n: int = 400,
     max_templates: Optional[int] = None,
 ) -> List[Template]:
     """Load every approved template for an animal.
