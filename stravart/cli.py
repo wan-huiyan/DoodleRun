@@ -23,6 +23,9 @@ from .ocr_pipeline import db_stats as ocr_db_stats
 from .ocr_pipeline import run_batch as ocr_run_batch
 from .ocr_pipeline import summary as ocr_summary
 from .pipeline import index_jsonl, stats
+from .reconstruct_pipeline import db_stats as reconstruct_db_stats
+from .reconstruct_pipeline import run_batch as reconstruct_run_batch
+from .reconstruct_pipeline import summary as reconstruct_summary
 from .scrape import scrape_all
 from .search import search_as_dicts
 from .synonyms import CATEGORIES
@@ -77,6 +80,38 @@ def _add_ocr_stats(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--db", type=Path, required=True)
 
 
+def _add_reconstruct(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser(
+        "reconstruct",
+        help="Phase 3: turn geocoded routes into GPX via image → contour → "
+             "georef → map-match",
+    )
+    p.add_argument("--db", type=Path, required=True)
+    p.add_argument("--crossref-cache", type=Path, default=None,
+                   help="Path to JSON cache for street-name lookups (shared "
+                        "with ocr-geocode)")
+    p.add_argument("--crossref-backend", choices=["nominatim", "overpass"],
+                   default="nominatim")
+    p.add_argument("--categories", nargs="+", default=None,
+                   help="Restrict to these category slugs")
+    p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--retry-attempted", action="store_true",
+                   help="Re-run reconstruction on rows that previously failed")
+    p.add_argument("--min-confidence", type=float, default=0.6,
+                   help="Below this, no GPX is written (still recorded as "
+                        "attempted with the failure reason)")
+    p.add_argument("--waypoint-step-m", type=float, default=30.0,
+                   help="Spacing between map-match waypoints (metres)")
+
+
+def _add_reconstruct_stats(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser(
+        "reconstruct-stats",
+        help="Print reconstruction attempt / ship counts",
+    )
+    p.add_argument("--db", type=Path, required=True)
+
+
 def _add_search(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("search", help="Local query against the catalog")
     p.add_argument("--db", type=Path, required=True)
@@ -100,6 +135,8 @@ def main(argv: list[str] | None = None) -> int:
     _add_search(sub)
     _add_ocr_geocode(sub)
     _add_ocr_stats(sub)
+    _add_reconstruct(sub)
+    _add_reconstruct_stats(sub)
     args = parser.parse_args(argv)
 
     if args.cmd == "scrape":
@@ -143,6 +180,24 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "ocr-stats":
         print(json.dumps(ocr_db_stats(args.db), indent=2))
+        return 0
+
+    if args.cmd == "reconstruct":
+        outcomes = reconstruct_run_batch(
+            db_path=args.db,
+            crossref_cache=args.crossref_cache,
+            crossref_backend=args.crossref_backend,
+            only_categories=args.categories,
+            limit=args.limit,
+            retry_attempted=args.retry_attempted,
+            min_confidence=args.min_confidence,
+            waypoint_step_m=args.waypoint_step_m,
+        )
+        print(json.dumps(reconstruct_summary(outcomes), indent=2))
+        return 0
+
+    if args.cmd == "reconstruct-stats":
+        print(json.dumps(reconstruct_db_stats(args.db), indent=2))
         return 0
 
     if args.cmd == "search":

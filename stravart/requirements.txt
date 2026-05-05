@@ -6,3 +6,11 @@ easyocr>=1.7
 opencv-python>=4.8
 numpy>=1.26
 torch>=2.0       # easyocr backend; CPU-only is fine
+
+# Phase 3 reconstruction (image -> GPX)
+scikit-image>=0.22   # skeletonize for the route stroke; transform.estimate_transform
+scikit-learn>=1.3    # osmnx unprojected nearest_nodes uses BallTree; see lessons #1
+osmnx>=2.0           # OSM street graph + nearest_nodes/shortest_path
+networkx>=3.2        # already a transitive osmnx dep, pinned for clarity
+gpxpy>=1.6           # GPX serialiser
+shapely>=2.0         # buffered-IoU shape comparison

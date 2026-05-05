@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
@@ -111,6 +111,11 @@ class OcrResult:
 
     fragments: list[tuple[str, float]]   # post-merge text fragments, with conf
     street_candidates: list[StreetCandidate]
+    # Phase 3: per-fragment bbox metadata, kept parallel to ``fragments``.
+    # Each entry is ``(x_center, y_center, width, height)`` in image pixel
+    # coordinates of the merged fragment. Used by ``georef`` to anchor each
+    # OCR'd street to a known geographic point.
+    fragment_boxes: list[tuple[float, float, float, float]] = field(default_factory=list)
 
 
 def _bbox_metrics(bbox) -> tuple[float, float, float, float, float]:
@@ -148,7 +153,10 @@ def _merge_horizontal_neighbors(
     *,
     y_tol: float = 0.7,
     x_gap_max: float = 1.5,
-) -> list[tuple[str, float]]:
+    return_boxes: bool = False,
+) -> list[tuple[str, float]] | tuple[
+    list[tuple[str, float]], list[tuple[float, float, float, float]]
+]:
     """Glue together OCR fragments that sit on the same line.
 
     EasyOCR routinely splits "Dixon Ave" or "Partridge Ave" into two adjacent
@@ -163,6 +171,9 @@ def _merge_horizontal_neighbors(
         inter-bbox gap is at most ``x_gap_max·h``.
 
     Returns ``[(text, mean_confidence), ...]`` for the merged fragments.
+    With ``return_boxes=True`` also returns a parallel list of
+    ``(x_center, y_center, width, height)`` bboxes covering each merged
+    group — used by Phase 3 to anchor street labels to image-pixel positions.
     """
     items = []
     for bbox, text, conf in raw:
@@ -170,16 +181,21 @@ def _merge_horizontal_neighbors(
         if not _is_alpha_label(text):
             continue
         xc, yc, x_min, x_max, h = _bbox_metrics(bbox)
+        # Pull width too — same axis convention as _bbox_metrics.
+        xs = [p[0] for p in bbox]
+        ys = [p[1] for p in bbox]
         items.append({
             "text": text, "conf": float(conf),
             "xc": xc, "yc": yc,
             "x_min": x_min, "x_max": x_max,
+            "y_min": min(ys), "y_max": max(ys),
             "h": max(h, 4.0),
         })
 
     items.sort(key=lambda it: (it["yc"], it["xc"]))
 
     merged: list[tuple[str, float]] = []
+    boxes: list[tuple[float, float, float, float]] = []
     while items:
         seed = items.pop(0)
         line = [seed]
@@ -208,7 +224,19 @@ def _merge_horizontal_neighbors(
             text = " ".join(it["text"] for it in g)
             avg_conf = sum(it["conf"] for it in g) / len(g)
             merged.append((text, avg_conf))
+            x_min = min(it["x_min"] for it in g)
+            x_max = max(it["x_max"] for it in g)
+            y_min = min(it["y_min"] for it in g)
+            y_max = max(it["y_max"] for it in g)
+            boxes.append((
+                (x_min + x_max) / 2.0,
+                (y_min + y_max) / 2.0,
+                x_max - x_min,
+                y_max - y_min,
+            ))
 
+    if return_boxes:
+        return merged, boxes
     return merged
 
 
@@ -235,11 +263,60 @@ def ocr_image(
         low_text=0.3,
         text_threshold=0.5,
     )
-    fragments = _merge_horizontal_neighbors(raw)
+    fragments, boxes = _merge_horizontal_neighbors(raw, return_boxes=True)
     streets = filter_street_candidates(fragments, min_confidence=min_confidence)
-    return OcrResult(fragments=fragments, street_candidates=streets)
+    return OcrResult(
+        fragments=fragments,
+        street_candidates=streets,
+        fragment_boxes=boxes,
+    )
 
 
 def ocr_url(url: str, **kw) -> OcrResult:
     """Convenience: fetch + ocr one URL."""
     return ocr_image(fetch_image(url), **kw)
+
+
+# ---------------------------------------------- Phase 3 anchor-extraction
+
+def candidate_pixel_anchors(
+    result: OcrResult,
+) -> list[tuple[StreetCandidate, tuple[float, float]]]:
+    """Pair each :class:`StreetCandidate` with its (x, y) image-pixel center.
+
+    Phase 3 needs ground control points: ``(image_pixel_xy, lat_lon)`` pairs.
+    The lat/lon side comes from cross-referencing the candidate against
+    Nominatim; the pixel side is the bbox center of the OCR fragment that
+    produced the candidate. We re-run :func:`streets.parse_street` on each
+    fragment so we can match (the streets list itself was de-duped on
+    normalised name, losing the fragment index).
+
+    Multiple fragments may parse to the same canonical street — we take the
+    fragment whose confidence equals the candidate's, breaking ties by the
+    first occurrence (top-left in reading order, since the upstream merge
+    sorts by (y, x)).
+    """
+    from .streets import parse_street
+
+    # Build {normalized → list[(box, conf)]} from raw fragments.
+    by_norm: dict[str, list[tuple[tuple[float, float, float, float], float]]] = {}
+    for (text, conf), box in zip(result.fragments, result.fragment_boxes):
+        cand = parse_street(text, conf)
+        if cand is None:
+            continue
+        by_norm.setdefault(cand.normalized.lower(), []).append((box, conf))
+
+    out: list[tuple[StreetCandidate, tuple[float, float]]] = []
+    for cand in result.street_candidates:
+        candidates_for_norm = by_norm.get(cand.normalized.lower(), [])
+        if not candidates_for_norm:
+            continue
+        # Prefer the fragment whose confidence matches the candidate's
+        # (selected by filter_street_candidates as the highest-confidence read).
+        best = min(
+            candidates_for_norm,
+            key=lambda be: abs(be[1] - cand.confidence),
+        )
+        bx, by, _, _ = best[0]
+        out.append((cand, (float(bx), float(by))))
+    return out
