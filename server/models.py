@@ -79,6 +79,32 @@ class GenerateResponse(BaseModel):
     chosen_lon: float = Field(..., description="Final route center lon")
 
 
+class PreviewRequest(BaseModel):
+    """Render the idealized outline at a given center+distance, no OSRM call.
+
+    Used by the SPA to show a doodle preview before the user commits to a
+    full /generate (which is slow + rate-limited)."""
+    shape: str = Field(..., examples=["pig"])
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    distance_km: float = Field(..., gt=0, le=50,
+                               description="Sets scale via the same heuristic "
+                                           "the router uses to seed its grid")
+
+
+class PreviewResponse(BaseModel):
+    shape: str
+    scale_m_per_unit: float
+    center_lat: float
+    center_lon: float
+    waypoints: List[Tuple[float, float]] = Field(
+        ..., description="Idealized outline in (lat, lon)",
+    )
+    geojson: GeoJSONLineString = Field(
+        ..., description="Same outline as a GeoJSON LineString for map drawing",
+    )
+
+
 class ShareRequest(BaseModel):
     """Caller may either pass a previously-generated route inline OR pass
     the same fields as /generate to have the server compute one and store it.

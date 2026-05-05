@@ -131,6 +131,41 @@ class TestGenerate:
         assert "Route generation failed" in r.json()["detail"]
 
 
+class TestPreviewEndpoint:
+    """The /preview endpoint must return projected waypoints WITHOUT calling
+    OSRM — that's the whole point: shape-design iteration without burning
+    rate-limited routing requests."""
+
+    def test_returns_waypoints_without_osrm(self, client):
+        # If preview accidentally hit OSRM this patch would break it; the
+        # request must succeed without ever entering route_through.
+        with patch("route_generator.route_through",
+                   side_effect=AssertionError("preview must not call OSRM")):
+            r = client.post("/preview", json={
+                "shape": "pig", "lat": 51.75, "lon": -0.34, "distance_km": 10.0,
+            })
+        assert r.status_code == 200
+        body = r.json()
+        assert body["shape"] == "pig"
+        assert body["scale_m_per_unit"] > 0
+        assert len(body["waypoints"]) >= 10
+        # Bbox center should be the requested lat/lon.
+        lats = [p[0] for p in body["waypoints"]]
+        lons = [p[1] for p in body["waypoints"]]
+        assert abs(((min(lats) + max(lats)) / 2) - 51.75) < 1e-4
+        assert abs(((min(lons) + max(lons)) / 2) - -0.34) < 1e-4
+        # GeoJSON coords must be [lon, lat] pairs.
+        gj_coords = body["geojson"]["coordinates"]
+        assert len(gj_coords) == len(body["waypoints"])
+        assert gj_coords[0][1] == body["waypoints"][0][0]   # geojson lat == waypoint lat
+
+    def test_unknown_shape_404(self, client):
+        r = client.post("/preview", json={
+            "shape": "unicorn", "lat": 0, "lon": 0, "distance_km": 10.0,
+        })
+        assert r.status_code == 404
+
+
 class TestCors:
     def test_options_preflight_succeeds(self, client):
         r = client.options(

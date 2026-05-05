@@ -65,3 +65,47 @@ def bounding_box(points: List[Point]) -> Tuple[float, float, float, float]:
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
     return min(xs), min(ys), max(xs), max(ys)
+
+
+def compose_route(
+    outline: List[Point],
+    interior_features: List[List[Point]] | None = None,
+) -> List[Point]:
+    """Combine an outline polyline with interior-feature polylines into a single
+    closed route a runner can trace in one pass.
+
+    For each interior feature, the route detours from the outline anchor
+    closest to the feature's first point, traces the feature, then jumps
+    back to the same anchor before continuing along the outline. Interior
+    features are anchored independently — order is determined by which
+    anchor each feature is closest to, so multiple features attached to the
+    same anchor stack in insertion order.
+
+    This is generic — no animal-specific logic. Whether a feature is a
+    whisker, nostril, eye, or any other thin stroke is irrelevant; the
+    composer just needs (outline polyline, list of feature polylines).
+    """
+    if not interior_features:
+        return list(outline)
+
+    # Index features by closest outline anchor (index in `outline`).
+    by_anchor: dict[int, List[List[Point]]] = {}
+    for feat in interior_features:
+        if not feat:
+            continue
+        first = feat[0]
+        best_i = min(
+            range(len(outline)),
+            key=lambda i: (outline[i][0] - first[0]) ** 2 + (outline[i][1] - first[1]) ** 2,
+        )
+        by_anchor.setdefault(best_i, []).append(feat)
+
+    out: List[Point] = []
+    for i, anchor in enumerate(outline):
+        out.append(anchor)
+        if i in by_anchor:
+            for feat in by_anchor[i]:
+                # Trace feature: anchor → feature points → back to anchor
+                out.extend(feat)
+                out.append(anchor)
+    return out

@@ -16,6 +16,12 @@ import os
 from gpx_export import write_gpx
 from kml_export import write_kml
 from osrm_client import macos_keychain_bundle
+from preview import (
+    project_outline,
+    render_preview_html,
+    render_shape_png,
+    scale_for_distance,
+)
 from route_generator import generate, generate_search
 from shapes import SHAPES
 from visualize import render
@@ -51,6 +57,11 @@ def parse_args() -> argparse.Namespace:
                    help="With --search-radius-km, number of scale candidates "
                         "per center (geometrically spaced 0.5x..1.6x of the "
                         "scale that would hit --distance). Default 3.")
+    p.add_argument("--preview-only", action="store_true",
+                   help="Skip OSRM entirely. Render the idealized shape outline "
+                        "as a PNG (unit space) and an HTML map (projected at "
+                        "--lat/--lon, --distance-sized). Use for fast shape "
+                        "iteration without burning rate-limited OSRM requests.")
     return p.parse_args()
 
 
@@ -61,6 +72,22 @@ def main() -> None:
     outline = SHAPES[args.shape]
     name = args.name or f"{args.shape.capitalize()} Run"
     target_m = args.distance * 1000.0
+
+    if args.preview_only:
+        png_path = os.path.join(args.out, f"{args.shape}_preview.png")
+        html_path = os.path.join(args.out, f"{args.shape}_preview.html")
+        scale = scale_for_distance(outline, target_m)
+        waypoints = project_outline(outline, args.lat, args.lon, scale)
+        render_shape_png(outline, png_path, title=name)
+        render_preview_html(waypoints, html_path,
+                            title=f"{name} preview — {args.distance:.1f} km nominal "
+                                  f"(no street snap)")
+        print(f"Preview only: scale={scale:.1f} m/unit at "
+              f"({args.lat:.4f}, {args.lon:.4f})")
+        print(f"  PNG:  {os.path.abspath(png_path)}")
+        print(f"  Map:  {os.path.abspath(html_path)}")
+        return
+
     print(f"Generating {args.shape} route: center=({args.lat}, {args.lon}), "
           f"target={args.distance:.2f} km, waypoints={args.waypoints}")
 
