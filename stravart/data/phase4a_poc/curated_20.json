@@ -1,0 +1,30 @@
+{
+  "selection_date": "2026-05-05",
+  "branch": "claude/stravart-phase4a-poc",
+  "selection_rule": "UK-first (per Phase 4a brief), then nearest-EU fillers. All title-mentioned cities; mix of well-known and lesser-known UK locations to test generality. We pick from BOTH the geocoded subset (lat/lon already populated) AND the UK rows whose titles say UK but Phase 1 title-geocoding didn't catch them — because reconstruct() does its own OCR + crossref and doesn't depend on the row's existing lat/lon.",
+  "uk_count": 11,
+  "eu_filler_count": 9,
+  "total": 20,
+  "routes": [
+    {"id":   5, "title": "MANCHESTER DOG",                                 "city_hint": "Manchester",      "country_hint": "United Kingdom"},
+    {"id":  36, "title": "100k GPS ART TOUR OF WEST DEVON. WOOF!",         "city_hint": "West Devon",      "country_hint": "United Kingdom"},
+    {"id":  53, "title": "REGENT'S PARK, GREAT DAY FOR DOGGIN",            "city_hint": "London",          "country_hint": "United Kingdom"},
+    {"id":  60, "title": "DOGGIN' MY WAY THROUGH HAMPSTEAD HEATH",         "city_hint": "London",          "country_hint": "United Kingdom"},
+    {"id": 577, "title": "DUMBO VISITS CAMBRIDGE",                         "city_hint": "Cambridge",       "country_hint": "United Kingdom"},
+    {"id": 584, "title": "TRAVELLING ELEPHANT, UK",                        "city_hint": "?",               "country_hint": "United Kingdom"},
+    {"id": 910, "title": "THE LONDON MARATHON",                            "city_hint": "London",          "country_hint": "United Kingdom"},
+    {"id": 921, "title": "THE HACKNEY HORSE",                              "city_hint": "London",          "country_hint": "United Kingdom"},
+    {"id": 942, "title": "THE LONDON BEAR HALF MARATHON",                  "city_hint": "London",          "country_hint": "United Kingdom"},
+    {"id":1272, "title": "THE ST ALBANS SHARK",                            "city_hint": "St Albans",       "country_hint": "United Kingdom"},
+    {"id":1294, "title": "A WHALE IN WALES",                               "city_hint": "?",               "country_hint": "United Kingdom"},
+    {"id":  30, "title": "THE ONE WITH THE DOGGO IN VIENNA",               "city_hint": "Vienna",          "country_hint": "Austria"},
+    {"id": 208, "title": "BERLIN MUTT",                                    "city_hint": "Berlin",          "country_hint": "Germany"},
+    {"id": 248, "title": "1st BERLIN DRAWING. HUAWEI X ADIDAS",            "city_hint": "Berlin",          "country_hint": "Germany"},
+    {"id": 799, "title": "BULLFIGHT IN MUNICH",                            "city_hint": "Munich",          "country_hint": "Germany"},
+    {"id": 800, "title": "MUNICH LION",                                    "city_hint": "Munich",          "country_hint": "Germany"},
+    {"id":1135, "title": "ROTTERDAM HAS ADDED TWO TURTLES",                "city_hint": "Rotterdam",       "country_hint": "Netherlands"},
+    {"id":1333, "title": "PARIS — 50km DE GPS DRAWING DANS PARIS!",        "city_hint": "Paris",           "country_hint": "France"},
+    {"id":1359, "title": "AMSTERDAM IS AJAX",                              "city_hint": "Amsterdam",       "country_hint": "Netherlands"},
+    {"id":1565, "title": "STRAVA LOGO IN HAMBURG",                         "city_hint": "Hamburg",         "country_hint": "Germany"}
+  ]
+}

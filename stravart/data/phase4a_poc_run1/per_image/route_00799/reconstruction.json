@@ -1,0 +1,25 @@
+{
+  "route_id": 799,
+  "title": "BULLFIGHT IN MUNICH",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1631288899346-C0QBTL8MRHAV2NGAY43L/ole-2021-09-10-at-16.40.44.jpg",
+  "elapsed_s": 22.64,
+  "confidence": 0.0,
+  "failure": "ocr: no street candidates",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1261,
+      "length_px": 1384.6782822743016
+    },
+    "ocr": {
+      "n_street_candidates": 0,
+      "candidates": [],
+      "n_fragments": 92
+    },
+    "crossref": null,
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}

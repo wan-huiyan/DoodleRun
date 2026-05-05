@@ -1,0 +1,25 @@
+{
+  "route_id": 800,
+  "title": "MUNICH LION",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1629813384197-H4R01L9L9RETM2IJXUFO/Lion-2021-08-24-at-14.55.05.jpg",
+  "elapsed_s": 23.77,
+  "confidence": 0.0,
+  "failure": "ocr: no street candidates",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 2318,
+      "length_px": 2608.1921343482863
+    },
+    "ocr": {
+      "n_street_candidates": 0,
+      "candidates": [],
+      "n_fragments": 42
+    },
+    "crossref": null,
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}

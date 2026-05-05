@@ -1,0 +1,2 @@
+2026-05-05 05:41:01,847 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1629813384197-H4R01L9L9RETM2IJXUFO/Lion-2021-08-24-at-14.55.05.jpg "HTTP/1.1 200 OK"
+2026-05-05 05:41:18,163 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1629813384197-H4R01L9L9RETM2IJXUFO/Lion-2021-08-24-at-14.55.05.jpg "HTTP/1.1 200 OK"

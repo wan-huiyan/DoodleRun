@@ -1,0 +1,2 @@
+2026-05-05 05:39:44,223 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1640698908058-PB3H5JQQG8N1MLY70ZMN/DOGGO-2021-12-28-at-13.40.49.jpg "HTTP/1.1 200 OK"
+2026-05-05 05:39:58,305 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1640698908058-PB3H5JQQG8N1MLY70ZMN/DOGGO-2021-12-28-at-13.40.49.jpg "HTTP/1.1 200 OK"

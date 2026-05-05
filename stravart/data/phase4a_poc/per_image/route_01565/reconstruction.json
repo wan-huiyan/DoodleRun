@@ -1,0 +1,25 @@
+{
+  "route_id": 1565,
+  "title": "STRAVA LOGO IN HAMBURG",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1587043498608-3Y316ZUMU5I66Z7BG399/strava.jpg",
+  "elapsed_s": 40.98,
+  "confidence": 0.0,
+  "failure": "ocr: no street candidates",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 2579,
+      "length_px": 3026.5932880500623
+    },
+    "ocr": {
+      "n_street_candidates": 0,
+      "candidates": [],
+      "n_fragments": 19
+    },
+    "crossref": null,
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}

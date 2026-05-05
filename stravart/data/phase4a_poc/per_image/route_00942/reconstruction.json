@@ -1,0 +1,122 @@
+{
+  "route_id": 942,
+  "title": "THE ONE WITH THE LONDON BEAR HALF MARATHON \ud83d\udc3b",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1593858890744-OBPAMOXVEN5HNOUKC8OK/BermondseyBear.jpg",
+  "elapsed_s": 29.87,
+  "confidence": 0.3091552988063333,
+  "failure": "confidence: 0.31 < 0.60",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1403,
+      "length_px": 1631.4743135546948
+    },
+    "ocr": {
+      "n_street_candidates": 13,
+      "candidates": [
+        {
+          "text": "Peckham Road",
+          "conf": 1.0
+        },
+        {
+          "text": "Verney Road",
+          "conf": 0.999
+        },
+        {
+          "text": "Lisford Street",
+          "conf": 0.979
+        },
+        {
+          "text": "Rodney F Road",
+          "conf": 0.976
+        },
+        {
+          "text": "Tower Mill Road",
+          "conf": 0.939
+        },
+        {
+          "text": "Edric Road",
+          "conf": 0.869
+        },
+        {
+          "text": "New Cross Road",
+          "conf": 0.866
+        },
+        {
+          "text": "Nin Road",
+          "conf": 0.811
+        },
+        {
+          "text": "Rollins Street",
+          "conf": 0.751
+        },
+        {
+          "text": "Leo Clifton Crescent",
+          "conf": 0.686
+        },
+        {
+          "text": "Varcoe Road",
+          "conf": 0.668
+        },
+        {
+          "text": "Lndham F Road",
+          "conf": 0.664
+        },
+        {
+          "text": "Rter Street",
+          "conf": 0.225
+        }
+      ],
+      "n_fragments": 49
+    },
+    "crossref": {
+      "n_matches": {
+        "Peckham Road": 40,
+        "Verney Road": 40,
+        "Lisford Street": 2,
+        "Rodney F Road": 5,
+        "Tower Mill Road": 11,
+        "Edric Road": 3
+      },
+      "cluster": {
+        "lat": 51.478156365217394,
+        "lon": -0.07314325652173913,
+        "bbox": [
+          51.4734956,
+          51.4857858,
+          -0.0865557,
+          -0.0488623
+        ],
+        "streets": [
+          "Edric Road",
+          "Lisford Street",
+          "Peckham Road",
+          "Tower Mill Road",
+          "Verney Road"
+        ],
+        "n_ways": 23,
+        "confidence": 0.95,
+        "city": "Greater London",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": {
+      "n_anchors": 3,
+      "rmse_m": 6.590323774252692e-13,
+      "max_residual_m": 9.134827610062187e-13
+    },
+    "mapmatch": {
+      "n_snapped_points": 487,
+      "unreachable_segments": 0
+    },
+    "fidelity": {
+      "score": 0.19087061800863336,
+      "frechet_m": 229.62511587342695,
+      "buffered_iou": 0.3181176966810556
+    }
+  },
+  "diagnostics": {
+    "n_gcps": 5,
+    "mean_ocr_conf": 0.9571889891806483
+  }
+}

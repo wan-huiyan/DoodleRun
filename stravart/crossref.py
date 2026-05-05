@@ -499,10 +499,19 @@ def _two_pass_verify(
     # (cheap structural confirm), then by frequency descending.
     ordered = sorted(hyp_counts.items(), key=lambda kv: -kv[1])
 
-    best: tuple[GeocodeCluster, int] | None = None
+    best: tuple[GeocodeCluster, int, dict[str, list[OverpassWay]]] | None = None
     for (city, country), _ in ordered[:25]:    # cap to keep API quota sane
         verified_streets: list[OverpassWay] = []
         verified_names: set[str] = set()
+        # Per-candidate verified hits. Phase 4a recovery: when this hypothesis
+        # wins we splice these back into the global ``matches`` dict so that
+        # downstream consumers (notably ``reconstruct._gcps_from_ocr``, which
+        # builds ground-control points by intersecting ``matches`` with the
+        # cluster bbox) can find the actual city-resident hit. Without this
+        # the GCP joiner sees only the worldwide top-40 hits, and for common
+        # street names (Victoria Street, High Street, etc.) zero of those 40
+        # land in the right city — so each such anchor silently disappears.
+        verified_per_candidate: dict[str, list[OverpassWay]] = {}
         for cand in candidates:
             # Already confirmed via worldwide pass? Use that hit.
             already = [
@@ -526,6 +535,7 @@ def _two_pass_verify(
             if hits:
                 verified_streets.extend(hits)
                 verified_names.add(cand.normalized)
+                verified_per_candidate[cand.normalized] = hits
 
         if len(verified_names) < min_streets:
             continue
@@ -547,9 +557,22 @@ def _two_pass_verify(
             city=city, country=country,
         )
         if best is None or len(verified_names) > best[1]:
-            best = (cluster, len(verified_names))
+            best = (cluster, len(verified_names), verified_per_candidate)
 
-    return best[0] if best else None
+    if best is None:
+        return None
+    cluster, _, verified_per_candidate = best
+    # Splice recovered hits back into the caller's matches dict so that
+    # ``_gcps_from_ocr`` (which intersects matches with cluster bbox) can
+    # reach the city-resident hit for common-name streets.
+    for name, hits in verified_per_candidate.items():
+        existing = matches.setdefault(name, [])
+        seen = {(w.lat, w.lon) for w in existing}
+        for h in hits:
+            if (h.lat, h.lon) not in seen:
+                existing.append(h)
+                seen.add((h.lat, h.lon))
+    return cluster
 
 
 def find_geocode(

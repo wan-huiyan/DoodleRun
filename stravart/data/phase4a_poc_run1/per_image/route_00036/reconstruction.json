@@ -1,0 +1,25 @@
+{
+  "route_id": 36,
+  "title": "100k GPS ART TOUR OF WEST DEVON. WOOF!",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1638017959519-PRFKDO33AIPU5P36RZQD/DOG-2021-11-27-at-12.57.44.jpg",
+  "elapsed_s": 15.36,
+  "confidence": 0.0,
+  "failure": "ocr: no street candidates",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 2494,
+      "length_px": 2941.179074487689
+    },
+    "ocr": {
+      "n_street_candidates": 0,
+      "candidates": [],
+      "n_fragments": 58
+    },
+    "crossref": null,
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {}
+}

@@ -1,0 +1,3 @@
+2026-05-05 05:34:05,377 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1706183192869-6BFI980AFJRA6SFB3ISD/dog-2024-01-25-at-11.44.43.jpg "HTTP/1.1 200 OK"
+2026-05-05 05:34:10,352 INFO stravart.ocr: loading easyocr models (langs=('en',)) …
+2026-05-05 05:34:30,261 INFO httpx: HTTP Request: GET https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1706183192869-6BFI980AFJRA6SFB3ISD/dog-2024-01-25-at-11.44.43.jpg "HTTP/1.1 200 OK"

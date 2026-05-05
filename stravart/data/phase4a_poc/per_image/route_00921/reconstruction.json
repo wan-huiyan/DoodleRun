@@ -1,0 +1,123 @@
+{
+  "route_id": 921,
+  "title": "THE HACKNEY HORSE \ud83d\udc0e",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1598970730659-QFV6T9JAOAWD8GKISKYI/HackneyHorse.jpg",
+  "elapsed_s": 35.29,
+  "confidence": 0.6218622054934687,
+  "failure": null,
+  "shipped": true,
+  "stages": {
+    "contour": {
+      "polyline_points": 2988,
+      "length_px": 3450.9191898578665
+    },
+    "ocr": {
+      "n_street_candidates": 13,
+      "candidates": [
+        {
+          "text": "Chart Street",
+          "conf": 1.0
+        },
+        {
+          "text": "Luke Street",
+          "conf": 1.0
+        },
+        {
+          "text": "Bevenden Street",
+          "conf": 0.999
+        },
+        {
+          "text": "Old Nichol Street",
+          "conf": 0.988
+        },
+        {
+          "text": "Falkirk Street",
+          "conf": 0.979
+        },
+        {
+          "text": "Crondall Street",
+          "conf": 0.95
+        },
+        {
+          "text": "Fleet Street",
+          "conf": 0.947
+        },
+        {
+          "text": "Banner Street",
+          "conf": 0.907
+        },
+        {
+          "text": "Wenlock Street",
+          "conf": 0.894
+        },
+        {
+          "text": "Purcell Street",
+          "conf": 0.879
+        },
+        {
+          "text": "Gre Tham Street",
+          "conf": 0.86
+        },
+        {
+          "text": "Gerrard Road",
+          "conf": 0.711
+        },
+        {
+          "text": "Nile Street",
+          "conf": 0.706
+        }
+      ],
+      "n_fragments": 39
+    },
+    "crossref": {
+      "n_matches": {
+        "Chart Street": 10,
+        "Luke Street": 40,
+        "Bevenden Street": 3,
+        "Old Nichol Street": 3,
+        "Falkirk Street": 40,
+        "Crondall Street": 5
+      },
+      "cluster": {
+        "lat": 51.528163146666664,
+        "lon": -0.08126376666666667,
+        "bbox": [
+          51.5240551,
+          51.5310356,
+          -0.0866905,
+          -0.0740275
+        ],
+        "streets": [
+          "Bevenden Street",
+          "Chart Street",
+          "Crondall Street",
+          "Falkirk Street",
+          "Luke Street",
+          "Old Nichol Street"
+        ],
+        "n_ways": 15,
+        "confidence": 0.95,
+        "city": "Greater London",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": {
+      "n_anchors": 4,
+      "rmse_m": 5.374431250675111,
+      "max_residual_m": 7.844312378441337
+    },
+    "mapmatch": {
+      "n_snapped_points": 397,
+      "unreachable_segments": 0
+    },
+    "fidelity": {
+      "score": 0.45503355067096507,
+      "frechet_m": 111.59559819896023,
+      "buffered_iou": 0.46370791178147597
+    }
+  },
+  "diagnostics": {
+    "n_gcps": 6,
+    "mean_ocr_conf": 0.9859490809340355
+  }
+}
