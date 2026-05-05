@@ -1,0 +1,99 @@
+{
+  "route_id": 577,
+  "title": "DUMBO VISITS CAMBRIDGE",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1673455430780-FGE1NQBJYXLYB3QYASJ4/DUMBO-2023-01-11-at-16.42.44.jpg",
+  "elapsed_s": 96.74,
+  "confidence": 0.0,
+  "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1946,
+      "length_px": 2347.6155826266486
+    },
+    "ocr": {
+      "n_street_candidates": 10,
+      "candidates": [
+        {
+          "text": "Mill Lane",
+          "conf": 0.968
+        },
+        {
+          "text": "Victoria Road",
+          "conf": 0.901
+        },
+        {
+          "text": "Carter-Bridge Argyle Street",
+          "conf": 0.762
+        },
+        {
+          "text": "New Street",
+          "conf": 0.76
+        },
+        {
+          "text": "Clarkson F Road",
+          "conf": 0.746
+        },
+        {
+          "text": "Broad Street",
+          "conf": 0.718
+        },
+        {
+          "text": "New Square",
+          "conf": 0.708
+        },
+        {
+          "text": "Jesus Lane",
+          "conf": 0.698
+        },
+        {
+          "text": "Church Street",
+          "conf": 0.52
+        },
+        {
+          "text": "Westfield Lane",
+          "conf": 0.375
+        }
+      ],
+      "n_fragments": 28
+    },
+    "crossref": {
+      "n_matches": {
+        "Mill Lane": 40,
+        "Victoria Road": 40,
+        "New Street": 38,
+        "Clarkson F Road": 40,
+        "Broad Street": 31
+      },
+      "cluster": {
+        "lat": 40.70628502,
+        "lon": -74.01127097999999,
+        "bbox": [
+          40.7046526,
+          40.707486,
+          -74.0122515,
+          -74.0101902
+        ],
+        "streets": [
+          "Broad Street",
+          "Mill Lane",
+          "New Street"
+        ],
+        "n_ways": 5,
+        "confidence": 0.95,
+        "city": "New York",
+        "country": "United States"
+      }
+    },
+    "georef": {
+      "n_anchors": 3,
+      "rmse_m": 6.602856404255251e-14,
+      "max_residual_m": 1.0822664515137473e-13
+    },
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {
+    "n_gcps": 3
+  }
+}

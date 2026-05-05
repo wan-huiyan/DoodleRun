@@ -1,0 +1,74 @@
+{
+  "route_id": 1294,
+  "title": "A WHALE IN WALES",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1589887875557-RA4A1OZALAP8ZIE3O4VK/WhaleWalesA.jpg",
+  "elapsed_s": 87.73,
+  "confidence": 0.0,
+  "failure": "georef: only 2 GCPs (need \u22653)",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1732,
+      "length_px": 1917.8103166302658
+    },
+    "ocr": {
+      "n_street_candidates": 5,
+      "candidates": [
+        {
+          "text": "New Road",
+          "conf": 0.898
+        },
+        {
+          "text": "Rover Way",
+          "conf": 0.723
+        },
+        {
+          "text": "Agans Road",
+          "conf": 0.651
+        },
+        {
+          "text": "Ocean Way",
+          "conf": 0.642
+        },
+        {
+          "text": "Wmastern Avenue",
+          "conf": 0.391
+        }
+      ],
+      "n_fragments": 44
+    },
+    "crossref": {
+      "n_matches": {
+        "New Road": 40,
+        "Rover Way": 32,
+        "Agans Road": 1,
+        "Ocean Way": 40
+      },
+      "cluster": {
+        "lat": 51.48670333333333,
+        "lon": -3.1390980511111115,
+        "bbox": [
+          51.467431,
+          51.5043857,
+          -3.1608517,
+          -3.1213817
+        ],
+        "streets": [
+          "New Road",
+          "Ocean Way",
+          "Rover Way"
+        ],
+        "n_ways": 45,
+        "confidence": 0.95,
+        "city": "Cardiff",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {
+    "n_gcps": 2
+  }
+}

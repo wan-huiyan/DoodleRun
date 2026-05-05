@@ -1,0 +1,1192 @@
+[
+  {
+    "route_id": 5,
+    "title": "MANCHESTER DOG",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1706183192869-6BFI980AFJRA6SFB3ISD/dog-2024-01-25-at-11.44.43.jpg",
+    "elapsed_s": 20.48,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2887,
+        "length_px": 3362.7598102914326
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 58
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 36,
+    "title": "100k GPS ART TOUR OF WEST DEVON. WOOF!",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1638017959519-PRFKDO33AIPU5P36RZQD/DOG-2021-11-27-at-12.57.44.jpg",
+    "elapsed_s": 15.36,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2494,
+        "length_px": 2941.179074487689
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 58
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 53,
+    "title": "REGENT\u2019S PARK, GREAT DAY FOR DOGGIN",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1624205411141-5HCGITYPWD5RPG84LRWZ/RegentsDog-2021-06-20-at-17.09.05.jpg",
+    "elapsed_s": 122.39,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2516,
+        "length_px": 2861.6967517062803
+      },
+      "ocr": {
+        "n_street_candidates": 12,
+        "candidates": [
+          {
+            "text": "Weymouth Street",
+            "conf": 0.993
+          },
+          {
+            "text": "Norfolk Road",
+            "conf": 0.98
+          },
+          {
+            "text": "Cromer Street",
+            "conf": 0.953
+          },
+          {
+            "text": "Chester Road",
+            "conf": 0.949
+          },
+          {
+            "text": "Handyside Street",
+            "conf": 0.874
+          },
+          {
+            "text": "Howland Street",
+            "conf": 0.854
+          },
+          {
+            "text": "Chapel Street",
+            "conf": 0.784
+          },
+          {
+            "text": "King Henrys Road",
+            "conf": 0.611
+          },
+          {
+            "text": "Iclifton Hill",
+            "conf": 0.589
+          },
+          {
+            "text": "Elsworthy Road",
+            "conf": 0.575
+          },
+          {
+            "text": "Blomfield E Road",
+            "conf": 0.564
+          },
+          {
+            "text": "Pell Street",
+            "conf": 0.533
+          }
+        ],
+        "n_fragments": 37
+      },
+      "crossref": {
+        "n_matches": {
+          "Weymouth Street": 40,
+          "Norfolk Road": 40,
+          "Cromer Street": 40,
+          "Chester Road": 40,
+          "Handyside Street": 10,
+          "Howland Street": 40
+        },
+        "cluster": {
+          "lat": 51.5261632,
+          "lon": -0.14103386363636364,
+          "bbox": [
+            51.5200097,
+            51.5385796,
+            -0.1716869,
+            -0.1210534
+          ],
+          "streets": [
+            "Chester Road",
+            "Cromer Street",
+            "Handyside Street",
+            "Howland Street",
+            "Norfolk Road",
+            "Weymouth Street"
+          ],
+          "n_ways": 33,
+          "confidence": 0.95,
+          "city": "Greater London",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": {
+        "n_anchors": 4,
+        "rmse_m": 12.680883663110718,
+        "max_residual_m": 14.613346241073579
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 6
+    }
+  },
+  {
+    "route_id": 60,
+    "title": "DOGGIN\u2019 MY WAY THROUGH HAMPSTEAD HEATH",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1619518323926-LETQFGQMIDPGZ6YUXACR/Dogging.jpg",
+    "elapsed_s": 87.89,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1321,
+        "length_px": 1623.2043276571058
+      },
+      "ocr": {
+        "n_street_candidates": 7,
+        "candidates": [
+          {
+            "text": "Mercers Road",
+            "conf": 0.999
+          },
+          {
+            "text": "Makepeace Avenue",
+            "conf": 0.9
+          },
+          {
+            "text": "Hampstead Lane",
+            "conf": 0.878
+          },
+          {
+            "text": "Che Wynd F Rd Churchill Road",
+            "conf": 0.791
+          },
+          {
+            "text": "Laurier Road",
+            "conf": 0.706
+          },
+          {
+            "text": "Tufnell E Park Road",
+            "conf": 0.589
+          },
+          {
+            "text": "Anson Road",
+            "conf": 0.365
+          }
+        ],
+        "n_fragments": 28
+      },
+      "crossref": {
+        "n_matches": {
+          "Mercers Road": 9,
+          "Makepeace Avenue": 10,
+          "Hampstead Lane": 40,
+          "Laurier Road": 27,
+          "Tufnell E Park Road": 40
+        },
+        "cluster": {
+          "lat": 51.56036058846154,
+          "lon": -0.1330788,
+          "bbox": [
+            51.546336,
+            51.5729832,
+            -0.1728224,
+            -0.1183585
+          ],
+          "streets": [
+            "Hampstead Lane",
+            "Laurier Road",
+            "Makepeace Avenue",
+            "Mercers Road",
+            "Tufnell E Park Road"
+          ],
+          "n_ways": 52,
+          "confidence": 0.95,
+          "city": "Greater London",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": {
+        "n_anchors": 3,
+        "rmse_m": 5.012223052900821e-13,
+        "max_residual_m": 6.12222357532858e-13
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 5
+    }
+  },
+  {
+    "route_id": 577,
+    "title": "DUMBO VISITS CAMBRIDGE",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1673455430780-FGE1NQBJYXLYB3QYASJ4/DUMBO-2023-01-11-at-16.42.44.jpg",
+    "elapsed_s": 96.74,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1946,
+        "length_px": 2347.6155826266486
+      },
+      "ocr": {
+        "n_street_candidates": 10,
+        "candidates": [
+          {
+            "text": "Mill Lane",
+            "conf": 0.968
+          },
+          {
+            "text": "Victoria Road",
+            "conf": 0.901
+          },
+          {
+            "text": "Carter-Bridge Argyle Street",
+            "conf": 0.762
+          },
+          {
+            "text": "New Street",
+            "conf": 0.76
+          },
+          {
+            "text": "Clarkson F Road",
+            "conf": 0.746
+          },
+          {
+            "text": "Broad Street",
+            "conf": 0.718
+          },
+          {
+            "text": "New Square",
+            "conf": 0.708
+          },
+          {
+            "text": "Jesus Lane",
+            "conf": 0.698
+          },
+          {
+            "text": "Church Street",
+            "conf": 0.52
+          },
+          {
+            "text": "Westfield Lane",
+            "conf": 0.375
+          }
+        ],
+        "n_fragments": 28
+      },
+      "crossref": {
+        "n_matches": {
+          "Mill Lane": 40,
+          "Victoria Road": 40,
+          "New Street": 38,
+          "Clarkson F Road": 40,
+          "Broad Street": 31
+        },
+        "cluster": {
+          "lat": 40.70628502,
+          "lon": -74.01127097999999,
+          "bbox": [
+            40.7046526,
+            40.707486,
+            -74.0122515,
+            -74.0101902
+          ],
+          "streets": [
+            "Broad Street",
+            "Mill Lane",
+            "New Street"
+          ],
+          "n_ways": 5,
+          "confidence": 0.95,
+          "city": "New York",
+          "country": "United States"
+        }
+      },
+      "georef": {
+        "n_anchors": 3,
+        "rmse_m": 6.602856404255251e-14,
+        "max_residual_m": 1.0822664515137473e-13
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 3
+    }
+  },
+  {
+    "route_id": 584,
+    "title": "TRAVELLING ELEPHANT, UK \ud83d\udc18\ud83c\uddec\ud83c\udde7",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1636373908166-EXNHDUDQ9HM0SW03B8FA/ELE-2021-11-08-at-12.17.20.jpg",
+    "elapsed_s": 84.75,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2710,
+        "length_px": 3073.922148450697
+      },
+      "ocr": {
+        "n_street_candidates": 15,
+        "candidates": [
+          {
+            "text": "The Park",
+            "conf": 1.0
+          },
+          {
+            "text": "Felix Road",
+            "conf": 1.0
+          },
+          {
+            "text": "Hamilton Road",
+            "conf": 0.999
+          },
+          {
+            "text": "Craven Road",
+            "conf": 0.998
+          },
+          {
+            "text": "Ridley Avenue",
+            "conf": 0.997
+          },
+          {
+            "text": "Mattock Lane",
+            "conf": 0.994
+          },
+          {
+            "text": "Freeland Road",
+            "conf": 0.983
+          },
+          {
+            "text": "Bramley Road",
+            "conf": 0.976
+          },
+          {
+            "text": "Hessel Road",
+            "conf": 0.852
+          },
+          {
+            "text": "Elm Avenue",
+            "conf": 0.851
+          },
+          {
+            "text": "Drayton Avenue",
+            "conf": 0.841
+          },
+          {
+            "text": "Pope'S Lane",
+            "conf": 0.797
+          },
+          {
+            "text": "Almond Avenue",
+            "conf": 0.779
+          },
+          {
+            "text": "Grange Road",
+            "conf": 0.742
+          },
+          {
+            "text": "Ands Road",
+            "conf": 0.658
+          }
+        ],
+        "n_fragments": 20
+      },
+      "crossref": {
+        "n_matches": {
+          "The Park": 39,
+          "Felix Road": 40,
+          "Hamilton Road": 40,
+          "Craven Road": 40,
+          "Ridley Avenue": 40,
+          "Mattock Lane": 9
+        },
+        "cluster": {
+          "lat": 51.5088552,
+          "lon": -0.31418820000000003,
+          "bbox": [
+            51.487961,
+            51.5141683,
+            -0.3262592,
+            -0.2954318
+          ],
+          "streets": [
+            "Craven Road",
+            "Felix Road",
+            "Hamilton Road",
+            "Mattock Lane",
+            "Ridley Avenue"
+          ],
+          "n_ways": 15,
+          "confidence": 0.95,
+          "city": "Greater London",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": {
+        "n_anchors": 4,
+        "rmse_m": 2.5049077609598998,
+        "max_residual_m": 4.097169145767309
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 5
+    }
+  },
+  {
+    "route_id": 910,
+    "title": "THE LONDON MARATHON. THIS IS MY RACE, THIS IS MY CITY, LONDON \ud83e\udd8d\ud83c\udf33",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1602067815291-JMWW33DU7EPW3FGVMO2H/ApeTree.jpg",
+    "elapsed_s": 91.33,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1192,
+        "length_px": 1318.1635636485403
+      },
+      "ocr": {
+        "n_street_candidates": 12,
+        "candidates": [
+          {
+            "text": "Wilton Way",
+            "conf": 1.0
+          },
+          {
+            "text": "Cable Street",
+            "conf": 1.0
+          },
+          {
+            "text": "Mapledene Road",
+            "conf": 0.999
+          },
+          {
+            "text": "Albion Drive",
+            "conf": 0.995
+          },
+          {
+            "text": "Clark Street",
+            "conf": 0.993
+          },
+          {
+            "text": "Market F Road",
+            "conf": 0.981
+          },
+          {
+            "text": "Whiston Road",
+            "conf": 0.83
+          },
+          {
+            "text": "Old Street",
+            "conf": 0.817
+          },
+          {
+            "text": "North Road",
+            "conf": 0.792
+          },
+          {
+            "text": "Alie Street",
+            "conf": 0.756
+          },
+          {
+            "text": "Nelson Street",
+            "conf": 0.728
+          },
+          {
+            "text": "Well Street",
+            "conf": 0.626
+          }
+        ],
+        "n_fragments": 65
+      },
+      "crossref": {
+        "n_matches": {
+          "Wilton Way": 40,
+          "Cable Street": 40,
+          "Mapledene Road": 8,
+          "Albion Drive": 40,
+          "Clark Street": 40,
+          "Market F Road": 1
+        },
+        "cluster": {
+          "lat": 51.528465391489355,
+          "lon": -0.05790225957446809,
+          "bbox": [
+            51.5109085,
+            51.5457142,
+            -0.0735685,
+            -0.0422315
+          ],
+          "streets": [
+            "Albion Drive",
+            "Cable Street",
+            "Clark Street",
+            "Mapledene Road",
+            "Wilton Way"
+          ],
+          "n_ways": 47,
+          "confidence": 0.95,
+          "city": "Greater London",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": {
+        "n_anchors": 4,
+        "rmse_m": 5.461375994098457,
+        "max_residual_m": 8.05448497347301
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 5
+    }
+  },
+  {
+    "route_id": 921,
+    "title": "THE HACKNEY HORSE \ud83d\udc0e",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1598970730659-QFV6T9JAOAWD8GKISKYI/HackneyHorse.jpg",
+    "elapsed_s": 90.72,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2988,
+        "length_px": 3450.9191898578665
+      },
+      "ocr": {
+        "n_street_candidates": 13,
+        "candidates": [
+          {
+            "text": "Chart Street",
+            "conf": 1.0
+          },
+          {
+            "text": "Luke Street",
+            "conf": 1.0
+          },
+          {
+            "text": "Bevenden Street",
+            "conf": 0.999
+          },
+          {
+            "text": "Old Nichol Street",
+            "conf": 0.988
+          },
+          {
+            "text": "Falkirk Street",
+            "conf": 0.979
+          },
+          {
+            "text": "Crondall Street",
+            "conf": 0.95
+          },
+          {
+            "text": "Fleet Street",
+            "conf": 0.947
+          },
+          {
+            "text": "Banner Street",
+            "conf": 0.907
+          },
+          {
+            "text": "Wenlock Street",
+            "conf": 0.894
+          },
+          {
+            "text": "Purcell Street",
+            "conf": 0.879
+          },
+          {
+            "text": "Gre Tham Street",
+            "conf": 0.86
+          },
+          {
+            "text": "Gerrard Road",
+            "conf": 0.711
+          },
+          {
+            "text": "Nile Street",
+            "conf": 0.706
+          }
+        ],
+        "n_fragments": 39
+      },
+      "crossref": {
+        "n_matches": {
+          "Chart Street": 10,
+          "Luke Street": 40,
+          "Bevenden Street": 3,
+          "Old Nichol Street": 3,
+          "Falkirk Street": 40,
+          "Crondall Street": 5
+        },
+        "cluster": {
+          "lat": 51.528163146666664,
+          "lon": -0.08126376666666667,
+          "bbox": [
+            51.5240551,
+            51.5310356,
+            -0.0866905,
+            -0.0740275
+          ],
+          "streets": [
+            "Bevenden Street",
+            "Chart Street",
+            "Crondall Street",
+            "Falkirk Street",
+            "Luke Street",
+            "Old Nichol Street"
+          ],
+          "n_ways": 15,
+          "confidence": 0.95,
+          "city": "Greater London",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": {
+        "n_anchors": 4,
+        "rmse_m": 5.374431250675111,
+        "max_residual_m": 7.844312378441337
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 6
+    }
+  },
+  {
+    "route_id": 942,
+    "title": "THE ONE WITH THE LONDON BEAR HALF MARATHON \ud83d\udc3b",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1593858890744-OBPAMOXVEN5HNOUKC8OK/BermondseyBear.jpg",
+    "elapsed_s": 88.29,
+    "confidence": 0.0,
+    "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1403,
+        "length_px": 1631.4743135546948
+      },
+      "ocr": {
+        "n_street_candidates": 13,
+        "candidates": [
+          {
+            "text": "Peckham Road",
+            "conf": 1.0
+          },
+          {
+            "text": "Verney Road",
+            "conf": 0.999
+          },
+          {
+            "text": "Lisford Street",
+            "conf": 0.979
+          },
+          {
+            "text": "Rodney F Road",
+            "conf": 0.976
+          },
+          {
+            "text": "Tower Mill Road",
+            "conf": 0.939
+          },
+          {
+            "text": "Edric Road",
+            "conf": 0.869
+          },
+          {
+            "text": "New Cross Road",
+            "conf": 0.866
+          },
+          {
+            "text": "Nin Road",
+            "conf": 0.811
+          },
+          {
+            "text": "Rollins Street",
+            "conf": 0.751
+          },
+          {
+            "text": "Leo Clifton Crescent",
+            "conf": 0.686
+          },
+          {
+            "text": "Varcoe Road",
+            "conf": 0.668
+          },
+          {
+            "text": "Lndham F Road",
+            "conf": 0.664
+          },
+          {
+            "text": "Rter Street",
+            "conf": 0.225
+          }
+        ],
+        "n_fragments": 49
+      },
+      "crossref": {
+        "n_matches": {
+          "Peckham Road": 40,
+          "Verney Road": 40,
+          "Lisford Street": 2,
+          "Rodney F Road": 5,
+          "Tower Mill Road": 11,
+          "Edric Road": 3
+        },
+        "cluster": {
+          "lat": 51.478156365217394,
+          "lon": -0.07314325652173913,
+          "bbox": [
+            51.4734956,
+            51.4857858,
+            -0.0865557,
+            -0.0488623
+          ],
+          "streets": [
+            "Edric Road",
+            "Lisford Street",
+            "Peckham Road",
+            "Tower Mill Road",
+            "Verney Road"
+          ],
+          "n_ways": 23,
+          "confidence": 0.95,
+          "city": "Greater London",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": {
+        "n_anchors": 3,
+        "rmse_m": 6.590323774252692e-13,
+        "max_residual_m": 9.134827610062187e-13
+      },
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 5
+    }
+  },
+  {
+    "route_id": 1272,
+    "title": "THE ST ALBANS SHARK \ud83e\udd88",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1592383825472-YOXXJWKYEX1ZLGIVEOIW/StAlbansFish.jpg",
+    "elapsed_s": 89.75,
+    "confidence": 0.0,
+    "failure": "georef: only 2 GCPs (need \u22653)",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 3898,
+        "length_px": 4640.927558022079
+      },
+      "ocr": {
+        "n_street_candidates": 4,
+        "candidates": [
+          {
+            "text": "Victoria Street",
+            "conf": 1.0
+          },
+          {
+            "text": "Jennings Road",
+            "conf": 0.977
+          },
+          {
+            "text": "N Orbital Road",
+            "conf": 0.883
+          },
+          {
+            "text": "Chiswell Green",
+            "conf": 0.872
+          }
+        ],
+        "n_fragments": 25
+      },
+      "crossref": {
+        "n_matches": {
+          "Victoria Street": 40,
+          "Jennings Road": 40,
+          "N Orbital Road": 40,
+          "Chiswell Green": 1
+        },
+        "cluster": {
+          "lat": 51.730336010204084,
+          "lon": -0.3351987857142857,
+          "bbox": [
+            51.7079557,
+            51.7568399,
+            -0.3802414,
+            -0.2625545
+          ],
+          "streets": [
+            "Chiswell Green",
+            "Jennings Road",
+            "N Orbital Road",
+            "Victoria Street"
+          ],
+          "n_ways": 49,
+          "confidence": 0.95,
+          "city": "St Albans",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 2
+    }
+  },
+  {
+    "route_id": 1294,
+    "title": "A WHALE IN WALES",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1589887875557-RA4A1OZALAP8ZIE3O4VK/WhaleWalesA.jpg",
+    "elapsed_s": 87.73,
+    "confidence": 0.0,
+    "failure": "georef: only 2 GCPs (need \u22653)",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1732,
+        "length_px": 1917.8103166302658
+      },
+      "ocr": {
+        "n_street_candidates": 5,
+        "candidates": [
+          {
+            "text": "New Road",
+            "conf": 0.898
+          },
+          {
+            "text": "Rover Way",
+            "conf": 0.723
+          },
+          {
+            "text": "Agans Road",
+            "conf": 0.651
+          },
+          {
+            "text": "Ocean Way",
+            "conf": 0.642
+          },
+          {
+            "text": "Wmastern Avenue",
+            "conf": 0.391
+          }
+        ],
+        "n_fragments": 44
+      },
+      "crossref": {
+        "n_matches": {
+          "New Road": 40,
+          "Rover Way": 32,
+          "Agans Road": 1,
+          "Ocean Way": 40
+        },
+        "cluster": {
+          "lat": 51.48670333333333,
+          "lon": -3.1390980511111115,
+          "bbox": [
+            51.467431,
+            51.5043857,
+            -3.1608517,
+            -3.1213817
+          ],
+          "streets": [
+            "New Road",
+            "Ocean Way",
+            "Rover Way"
+          ],
+          "n_ways": 45,
+          "confidence": 0.95,
+          "city": "Cardiff",
+          "country": "United Kingdom"
+        }
+      },
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {
+      "n_gcps": 2
+    }
+  },
+  {
+    "route_id": 30,
+    "title": "THE ONE WITH THE DOGGO IN VIENNA \ud83d\udc36\u2764\ufe0f",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1640698908058-PB3H5JQQG8N1MLY70ZMN/DOGGO-2021-12-28-at-13.40.49.jpg",
+    "elapsed_s": 14.68,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2411,
+        "length_px": 2851.137443927347
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 17
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 208,
+    "title": "BERLIN MUTT",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1590153627281-86ELXP1A3X28VC17L0FH/DogE.jpg",
+    "elapsed_s": 23.1,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 3169,
+        "length_px": 3610.380084614466
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 34
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 248,
+    "title": "1st BERLIN DRAWING. HUAWEI \u274c ADIDAS /// \ud83e\udd85\ud83e\udd73\ud83d\ude4c\ud83c\udffb",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1640699262202-GP9G5RA1UJYRNQQ74XUC/eagle-2021-12-28-at-13.46.34.jpg",
+    "elapsed_s": 20.11,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1316,
+        "length_px": 1540.746391493337
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 36
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 799,
+    "title": "BULLFIGHT IN MUNICH",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1631288899346-C0QBTL8MRHAV2NGAY43L/ole-2021-09-10-at-16.40.44.jpg",
+    "elapsed_s": 22.64,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1261,
+        "length_px": 1384.6782822743016
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 92
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 800,
+    "title": "MUNICH LION",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1629813384197-H4R01L9L9RETM2IJXUFO/Lion-2021-08-24-at-14.55.05.jpg",
+    "elapsed_s": 23.77,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2318,
+        "length_px": 2608.1921343482863
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 42
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 1135,
+    "title": "ROTTERDAM HAS ADDED TWO TURTLES \ud83d\udc22\ud83d\udc22 \ud83d\ude07",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1625571310507-8T8SJLH1EN7Y9YJXBEAV/TURTLE-2021-07-06-at-12.32.55.jpg",
+    "elapsed_s": 19.29,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2231,
+        "length_px": 2577.9393923934
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 21
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 1333,
+    "title": "YESSSS \ud83e\udd88\ud83e\udd88\ud83e\udd88 50km DE GPS DRAWING DANS PARIS!",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1589887330846-0QTWEKETYBCX560PLKS6/ParisSharkA.jpg",
+    "elapsed_s": 19.23,
+    "confidence": 0.0,
+    "failure": "crossref: no consensus cluster",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1986,
+        "length_px": 2339.9810229537425
+      },
+      "ocr": {
+        "n_street_candidates": 1,
+        "candidates": [
+          {
+            "text": "Rue De Belleville",
+            "conf": 0.938
+          }
+        ],
+        "n_fragments": 25
+      },
+      "crossref": {
+        "n_matches": {
+          "Rue De Belleville": 40
+        },
+        "cluster": null
+      },
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 1359,
+    "title": "AMSTERDAM IS AJAX - AJAX IS AMSTERDAM",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1694349452082-CQGSHTX7WDNNHJPD51VE/Ajax-2023-09-10-at-12.59.26.jpg",
+    "elapsed_s": 21.72,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 1335,
+        "length_px": 1604.0672426672581
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 63
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  },
+  {
+    "route_id": 1565,
+    "title": "STRAVA LOGO IN HAMBURG",
+    "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1587043498608-3Y316ZUMU5I66Z7BG399/strava.jpg",
+    "elapsed_s": 41.48,
+    "confidence": 0.0,
+    "failure": "ocr: no street candidates",
+    "shipped": false,
+    "stages": {
+      "contour": {
+        "polyline_points": 2579,
+        "length_px": 3026.5932880500623
+      },
+      "ocr": {
+        "n_street_candidates": 0,
+        "candidates": [],
+        "n_fragments": 19
+      },
+      "crossref": null,
+      "georef": null,
+      "mapmatch": null,
+      "fidelity": null
+    },
+    "diagnostics": {}
+  }
+]

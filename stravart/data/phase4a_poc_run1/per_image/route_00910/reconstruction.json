@@ -1,0 +1,110 @@
+{
+  "route_id": 910,
+  "title": "THE LONDON MARATHON. THIS IS MY RACE, THIS IS MY CITY, LONDON \ud83e\udd8d\ud83c\udf33",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1602067815291-JMWW33DU7EPW3FGVMO2H/ApeTree.jpg",
+  "elapsed_s": 91.33,
+  "confidence": 0.0,
+  "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1192,
+      "length_px": 1318.1635636485403
+    },
+    "ocr": {
+      "n_street_candidates": 12,
+      "candidates": [
+        {
+          "text": "Wilton Way",
+          "conf": 1.0
+        },
+        {
+          "text": "Cable Street",
+          "conf": 1.0
+        },
+        {
+          "text": "Mapledene Road",
+          "conf": 0.999
+        },
+        {
+          "text": "Albion Drive",
+          "conf": 0.995
+        },
+        {
+          "text": "Clark Street",
+          "conf": 0.993
+        },
+        {
+          "text": "Market F Road",
+          "conf": 0.981
+        },
+        {
+          "text": "Whiston Road",
+          "conf": 0.83
+        },
+        {
+          "text": "Old Street",
+          "conf": 0.817
+        },
+        {
+          "text": "North Road",
+          "conf": 0.792
+        },
+        {
+          "text": "Alie Street",
+          "conf": 0.756
+        },
+        {
+          "text": "Nelson Street",
+          "conf": 0.728
+        },
+        {
+          "text": "Well Street",
+          "conf": 0.626
+        }
+      ],
+      "n_fragments": 65
+    },
+    "crossref": {
+      "n_matches": {
+        "Wilton Way": 40,
+        "Cable Street": 40,
+        "Mapledene Road": 8,
+        "Albion Drive": 40,
+        "Clark Street": 40,
+        "Market F Road": 1
+      },
+      "cluster": {
+        "lat": 51.528465391489355,
+        "lon": -0.05790225957446809,
+        "bbox": [
+          51.5109085,
+          51.5457142,
+          -0.0735685,
+          -0.0422315
+        ],
+        "streets": [
+          "Albion Drive",
+          "Cable Street",
+          "Clark Street",
+          "Mapledene Road",
+          "Wilton Way"
+        ],
+        "n_ways": 47,
+        "confidence": 0.95,
+        "city": "Greater London",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": {
+      "n_anchors": 4,
+      "rmse_m": 5.461375994098457,
+      "max_residual_m": 8.05448497347301
+    },
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {
+    "n_gcps": 5
+  }
+}

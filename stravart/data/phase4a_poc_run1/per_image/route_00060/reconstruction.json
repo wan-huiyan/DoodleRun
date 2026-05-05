@@ -1,0 +1,89 @@
+{
+  "route_id": 60,
+  "title": "DOGGIN\u2019 MY WAY THROUGH HAMPSTEAD HEATH",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1619518323926-LETQFGQMIDPGZ6YUXACR/Dogging.jpg",
+  "elapsed_s": 87.89,
+  "confidence": 0.0,
+  "failure": "mapmatch: graph load: SSLError(MaxRetryError(\"HTTPSConnectionPool(host='overpass-api.de', port=443): Max retries exceeded with url: /api/interpreter (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1000)')))\"))",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 1321,
+      "length_px": 1623.2043276571058
+    },
+    "ocr": {
+      "n_street_candidates": 7,
+      "candidates": [
+        {
+          "text": "Mercers Road",
+          "conf": 0.999
+        },
+        {
+          "text": "Makepeace Avenue",
+          "conf": 0.9
+        },
+        {
+          "text": "Hampstead Lane",
+          "conf": 0.878
+        },
+        {
+          "text": "Che Wynd F Rd Churchill Road",
+          "conf": 0.791
+        },
+        {
+          "text": "Laurier Road",
+          "conf": 0.706
+        },
+        {
+          "text": "Tufnell E Park Road",
+          "conf": 0.589
+        },
+        {
+          "text": "Anson Road",
+          "conf": 0.365
+        }
+      ],
+      "n_fragments": 28
+    },
+    "crossref": {
+      "n_matches": {
+        "Mercers Road": 9,
+        "Makepeace Avenue": 10,
+        "Hampstead Lane": 40,
+        "Laurier Road": 27,
+        "Tufnell E Park Road": 40
+      },
+      "cluster": {
+        "lat": 51.56036058846154,
+        "lon": -0.1330788,
+        "bbox": [
+          51.546336,
+          51.5729832,
+          -0.1728224,
+          -0.1183585
+        ],
+        "streets": [
+          "Hampstead Lane",
+          "Laurier Road",
+          "Makepeace Avenue",
+          "Mercers Road",
+          "Tufnell E Park Road"
+        ],
+        "n_ways": 52,
+        "confidence": 0.95,
+        "city": "Greater London",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": {
+      "n_anchors": 3,
+      "rmse_m": 5.012223052900821e-13,
+      "max_residual_m": 6.12222357532858e-13
+    },
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {
+    "n_gcps": 5
+  }
+}
