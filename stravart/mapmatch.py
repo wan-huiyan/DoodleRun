@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 from dataclasses import dataclass
 
 import networkx as nx
@@ -42,6 +43,36 @@ import numpy as np
 
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_macos_keychain_ca_for_requests() -> None:
+    """Make ``requests``/``urllib3`` (used by OSMnx for Overpass) trust the
+    macOS keychain.
+
+    OSMnx's Overpass calls go through ``requests`` rather than ``httpx``, so
+    the SSL context configured in :mod:`stravart.crossref` doesn't apply.
+    On corporate-proxied macOS hosts the system root store includes a
+    self-signed cert that ``certifi``'s bundle does not, and the call
+    fails with ``SSL_VERIFY_FAILED``. Setting ``REQUESTS_CA_BUNDLE`` (and
+    ``SSL_CERT_FILE``) to the keychain dump from
+    :func:`stravart.crossref._macos_keychain_bundle` lets the existing
+    cached bundle do the same job for ``requests``.
+
+    No-op on non-macOS or when the bundle has already been exported.
+    """
+    if "REQUESTS_CA_BUNDLE" in os.environ and os.path.exists(os.environ["REQUESTS_CA_BUNDLE"]):
+        return
+    try:
+        from .crossref import _macos_keychain_bundle
+    except Exception:                                              # noqa: BLE001
+        return
+    bundle = _macos_keychain_bundle()
+    if bundle:
+        os.environ["REQUESTS_CA_BUNDLE"] = bundle
+        os.environ.setdefault("SSL_CERT_FILE", bundle)
+
+
+_ensure_macos_keychain_ca_for_requests()
 
 
 # ---------------------------------------------------- waypoint sampling
