@@ -1,0 +1,71 @@
+{
+  "route_id": 1272,
+  "title": "THE ST ALBANS SHARK \ud83e\udd88",
+  "image_url": "https://images.squarespace-cdn.com/content/v1/5b4dbfd8da02bcfcf39bce03/1592383825472-YOXXJWKYEX1ZLGIVEOIW/StAlbansFish.jpg",
+  "elapsed_s": 89.75,
+  "confidence": 0.0,
+  "failure": "georef: only 2 GCPs (need \u22653)",
+  "shipped": false,
+  "stages": {
+    "contour": {
+      "polyline_points": 3898,
+      "length_px": 4640.927558022079
+    },
+    "ocr": {
+      "n_street_candidates": 4,
+      "candidates": [
+        {
+          "text": "Victoria Street",
+          "conf": 1.0
+        },
+        {
+          "text": "Jennings Road",
+          "conf": 0.977
+        },
+        {
+          "text": "N Orbital Road",
+          "conf": 0.883
+        },
+        {
+          "text": "Chiswell Green",
+          "conf": 0.872
+        }
+      ],
+      "n_fragments": 25
+    },
+    "crossref": {
+      "n_matches": {
+        "Victoria Street": 40,
+        "Jennings Road": 40,
+        "N Orbital Road": 40,
+        "Chiswell Green": 1
+      },
+      "cluster": {
+        "lat": 51.730336010204084,
+        "lon": -0.3351987857142857,
+        "bbox": [
+          51.7079557,
+          51.7568399,
+          -0.3802414,
+          -0.2625545
+        ],
+        "streets": [
+          "Chiswell Green",
+          "Jennings Road",
+          "N Orbital Road",
+          "Victoria Street"
+        ],
+        "n_ways": 49,
+        "confidence": 0.95,
+        "city": "St Albans",
+        "country": "United Kingdom"
+      }
+    },
+    "georef": null,
+    "mapmatch": null,
+    "fidelity": null
+  },
+  "diagnostics": {
+    "n_gcps": 2
+  }
+}
