@@ -1,0 +1,26 @@
+{
+  "pig": {
+    "requested": 12,
+    "downloaded": 12
+  },
+  "cat": {
+    "requested": 34,
+    "downloaded": 34
+  },
+  "dog": {
+    "requested": 80,
+    "downloaded": 80
+  },
+  "dragon": {
+    "requested": 73,
+    "downloaded": 73
+  },
+  "duck": {
+    "requested": 80,
+    "downloaded": 80
+  },
+  "elephant": {
+    "requested": 80,
+    "downloaded": 80
+  }
+}
