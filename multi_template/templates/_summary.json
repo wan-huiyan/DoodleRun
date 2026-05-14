@@ -1,0 +1,32 @@
+{
+  "elephant": {
+    "quickdraw": 10,
+    "stravart": 26,
+    "total": 36
+  },
+  "cat": {
+    "quickdraw": 5,
+    "stravart": 26,
+    "total": 31
+  },
+  "dog": {
+    "quickdraw": 2,
+    "stravart": 27,
+    "total": 29
+  },
+  "dragon": {
+    "quickdraw": 4,
+    "stravart": 29,
+    "total": 33
+  },
+  "duck": {
+    "quickdraw": 21,
+    "stravart": 27,
+    "total": 48
+  },
+  "pig": {
+    "quickdraw": 15,
+    "stravart": 10,
+    "total": 25
+  }
+}

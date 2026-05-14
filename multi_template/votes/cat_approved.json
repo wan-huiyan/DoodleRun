@@ -1,0 +1,314 @@
+{
+  "animal": "cat",
+  "vote_range": 30,
+  "n_quickdraw_voted": 30,
+  "n_stravart_voted": 30,
+  "approved_quickdraw": [
+    {
+      "vote_id": "CAT-Q03",
+      "rank_when_voted": 2,
+      "key_id": "5613674771251200"
+    },
+    {
+      "vote_id": "CAT-Q05",
+      "rank_when_voted": 4,
+      "key_id": "5200810516414464"
+    },
+    {
+      "vote_id": "CAT-Q11",
+      "rank_when_voted": 10,
+      "key_id": "5531276004032512"
+    },
+    {
+      "vote_id": "CAT-Q22",
+      "rank_when_voted": 21,
+      "key_id": "6024683277254656"
+    },
+    {
+      "vote_id": "CAT-Q25",
+      "rank_when_voted": 24,
+      "key_id": "4670583767826432"
+    }
+  ],
+  "rejected_quickdraw": [
+    {
+      "vote_id": "CAT-Q01",
+      "rank_when_voted": 0,
+      "key_id": "6165440709525504"
+    },
+    {
+      "vote_id": "CAT-Q02",
+      "rank_when_voted": 1,
+      "key_id": "6341110542630912"
+    },
+    {
+      "vote_id": "CAT-Q04",
+      "rank_when_voted": 3,
+      "key_id": "5075273642934272"
+    },
+    {
+      "vote_id": "CAT-Q06",
+      "rank_when_voted": 5,
+      "key_id": "5849550277312512"
+    },
+    {
+      "vote_id": "CAT-Q07",
+      "rank_when_voted": 6,
+      "key_id": "6078687436865536"
+    },
+    {
+      "vote_id": "CAT-Q08",
+      "rank_when_voted": 7,
+      "key_id": "4706080435208192"
+    },
+    {
+      "vote_id": "CAT-Q09",
+      "rank_when_voted": 8,
+      "key_id": "5745449736601600"
+    },
+    {
+      "vote_id": "CAT-Q10",
+      "rank_when_voted": 9,
+      "key_id": "4593391511797760"
+    },
+    {
+      "vote_id": "CAT-Q12",
+      "rank_when_voted": 11,
+      "key_id": "5472730667286528"
+    },
+    {
+      "vote_id": "CAT-Q13",
+      "rank_when_voted": 12,
+      "key_id": "6022207765479424"
+    },
+    {
+      "vote_id": "CAT-Q14",
+      "rank_when_voted": 13,
+      "key_id": "6726340688478208"
+    },
+    {
+      "vote_id": "CAT-Q15",
+      "rank_when_voted": 14,
+      "key_id": "6226793512042496"
+    },
+    {
+      "vote_id": "CAT-Q16",
+      "rank_when_voted": 15,
+      "key_id": "6663935132434432"
+    },
+    {
+      "vote_id": "CAT-Q17",
+      "rank_when_voted": 16,
+      "key_id": "5532206954971136"
+    },
+    {
+      "vote_id": "CAT-Q18",
+      "rank_when_voted": 17,
+      "key_id": "6517641130803200"
+    },
+    {
+      "vote_id": "CAT-Q19",
+      "rank_when_voted": 18,
+      "key_id": "4659243913314304"
+    },
+    {
+      "vote_id": "CAT-Q20",
+      "rank_when_voted": 19,
+      "key_id": "6196925403496448"
+    },
+    {
+      "vote_id": "CAT-Q21",
+      "rank_when_voted": 20,
+      "key_id": "5842872475582464"
+    },
+    {
+      "vote_id": "CAT-Q23",
+      "rank_when_voted": 22,
+      "key_id": "5005083878096896"
+    },
+    {
+      "vote_id": "CAT-Q24",
+      "rank_when_voted": 23,
+      "key_id": "5725773279264768"
+    },
+    {
+      "vote_id": "CAT-Q26",
+      "rank_when_voted": 25,
+      "key_id": "4515562929520640"
+    },
+    {
+      "vote_id": "CAT-Q27",
+      "rank_when_voted": 26,
+      "key_id": "4615974030409728"
+    },
+    {
+      "vote_id": "CAT-Q28",
+      "rank_when_voted": 27,
+      "key_id": "4865766761431040"
+    },
+    {
+      "vote_id": "CAT-Q29",
+      "rank_when_voted": 28,
+      "key_id": "4939913990504448"
+    },
+    {
+      "vote_id": "CAT-Q30",
+      "rank_when_voted": 29,
+      "key_id": "6347385154306048"
+    }
+  ],
+  "approved_stravart": [
+    {
+      "vote_id": "CAT-S01",
+      "rank_when_voted": 0,
+      "source": "003_1642497266744-3GU2KSV7SBQFXOZXAY9G.jpg"
+    },
+    {
+      "vote_id": "CAT-S02",
+      "rank_when_voted": 1,
+      "source": "012_1608645379017-QC0ZXONKR0QRROK9BUTH.jpg"
+    },
+    {
+      "vote_id": "CAT-S04",
+      "rank_when_voted": 3,
+      "source": "029_1590153694148-VSM03ZQDTVIB50TDZTXH.jpg"
+    },
+    {
+      "vote_id": "CAT-S05",
+      "rank_when_voted": 4,
+      "source": "021_1590148140345-U9DSSE7ZXBRPVRUTHWWM.jpg"
+    },
+    {
+      "vote_id": "CAT-S06",
+      "rank_when_voted": 5,
+      "source": "004_1641894875726-OGN4IC22XHU770MT7XK0.jpg"
+    },
+    {
+      "vote_id": "CAT-S07",
+      "rank_when_voted": 6,
+      "source": "015_1607171616312-WNCTF7QSU6Y63P8RIPYD.jpg"
+    },
+    {
+      "vote_id": "CAT-S08",
+      "rank_when_voted": 7,
+      "source": "023_1588167259514-76MUPU9WNNSES24P22V8.jpg"
+    },
+    {
+      "vote_id": "CAT-S09",
+      "rank_when_voted": 8,
+      "source": "007_1620654070495-GN0VLMJH10V3QXJHC0YS.jpg"
+    },
+    {
+      "vote_id": "CAT-S10",
+      "rank_when_voted": 9,
+      "source": "005_1638198862645-KPDKQ0RVU7T86NLPMP1K.jpg"
+    },
+    {
+      "vote_id": "CAT-S11",
+      "rank_when_voted": 10,
+      "source": "024_1587299550482-AR6EXTKJC43TXK9264EX.jpg"
+    },
+    {
+      "vote_id": "CAT-S12",
+      "rank_when_voted": 11,
+      "source": "009_1613130638232-FU5PTILZPXNVJKUDE4GW.jpg"
+    },
+    {
+      "vote_id": "CAT-S13",
+      "rank_when_voted": 12,
+      "source": "018_1600513580727-5CR7GPBR8H6EV2CA1TYL.jpg"
+    },
+    {
+      "vote_id": "CAT-S14",
+      "rank_when_voted": 13,
+      "source": "006_1621937937295-EI9J093W9FTWTXZNEBN7.jpg"
+    },
+    {
+      "vote_id": "CAT-S16",
+      "rank_when_voted": 15,
+      "source": "008_1614273980098-438OJ7VGZ1E89410F2I5.jpg"
+    },
+    {
+      "vote_id": "CAT-S17",
+      "rank_when_voted": 16,
+      "source": "001_1672397173881-2QDPEEBAXAKF7NMNG958.jpg"
+    },
+    {
+      "vote_id": "CAT-S18",
+      "rank_when_voted": 17,
+      "source": "016_1605625089538-MHDGMKIZLG794WRIH398.jpg"
+    },
+    {
+      "vote_id": "CAT-S19",
+      "rank_when_voted": 18,
+      "source": "033_1590153354099-79TF2ZLM49ONYY6F4ZHE.jpg"
+    },
+    {
+      "vote_id": "CAT-S20",
+      "rank_when_voted": 19,
+      "source": "022_1588680631639-H4ZRLTJWE2UN94YWD4I4.jpg"
+    },
+    {
+      "vote_id": "CAT-S21",
+      "rank_when_voted": 20,
+      "source": "019_1600090080864-HUP4BRQEVRJJBKZL41RN.jpg"
+    },
+    {
+      "vote_id": "CAT-S22",
+      "rank_when_voted": 21,
+      "source": "002_1646316168358-2E7VHRSOSCOJ6K46MR5H.jpg"
+    },
+    {
+      "vote_id": "CAT-S23",
+      "rank_when_voted": 22,
+      "source": "032_1590153366165-IEAZGWHBBUJU1L6VIEYD.jpg"
+    },
+    {
+      "vote_id": "CAT-S24",
+      "rank_when_voted": 23,
+      "source": "031_1590153678747-GPU6NQ0U0IHD684ERXKJ.jpg"
+    },
+    {
+      "vote_id": "CAT-S25",
+      "rank_when_voted": 24,
+      "source": "028_1580980907268-ZLIS7ZWL644FYQS37MK1.jpg"
+    },
+    {
+      "vote_id": "CAT-S26",
+      "rank_when_voted": 25,
+      "source": "027_1590153856628-JNZSW6V8TAEU43CC3CLM.jpg"
+    },
+    {
+      "vote_id": "CAT-S27",
+      "rank_when_voted": 26,
+      "source": "017_1605196824761-HFZTA4N647FJZYBRI4G1.jpg"
+    },
+    {
+      "vote_id": "CAT-S28",
+      "rank_when_voted": 27,
+      "source": "014_1608124813545-RFL313TD4K3E51G9UVS1.jpg"
+    }
+  ],
+  "rejected_stravart": [
+    {
+      "vote_id": "CAT-S03",
+      "rank_when_voted": 2,
+      "source": "013_1608129235636-9J2N5FW8FCMGXVP3595Z.jpg"
+    },
+    {
+      "vote_id": "CAT-S15",
+      "rank_when_voted": 14,
+      "source": "010_1610449667488-XM3A63GRUANLYSUF8752.jpg"
+    },
+    {
+      "vote_id": "CAT-S29",
+      "rank_when_voted": 28,
+      "source": "020_1592384013755-PSWTG8MEBS3H9GDKOU3G.jpg"
+    },
+    {
+      "vote_id": "CAT-S30",
+      "rank_when_voted": 29,
+      "source": "011_1608649897468-2AROQA53Q6ED1XP6O6SR.jpg"
+    }
+  ]
+}
