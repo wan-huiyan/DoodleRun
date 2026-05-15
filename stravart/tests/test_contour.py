@@ -142,6 +142,105 @@ class TestTraceRoute:
         assert trace_route(skel) == []
 
 
+# --- Phase 4b: full-coverage skeleton trace ---------------------------
+
+class TestTraceAllPolylines:
+    """The legacy ``trace_route`` returns one longest path; for a branching
+    skeleton (animal with legs) it drops every branch. ``trace_all_polylines``
+    decomposes the skeleton into one polyline per node-to-node edge so the
+    full cartoon shape is preserved."""
+
+    def test_recovers_all_branches_of_y_shape(self):
+        from stravart.contour import trace_all_polylines
+        # Y-shaped skeleton: 3 branches meeting at (50, 50).
+        skel = np.zeros((100, 100), dtype=np.uint8)
+        # vertical trunk
+        skel[10:50, 50] = 1
+        # left branch
+        for i in range(40):
+            skel[50 + i, 50 - i] = 1
+        # right branch
+        for i in range(40):
+            skel[50 + i, 50 + i] = 1
+        polylines = trace_all_polylines(skel)
+        # Three branches → 3 polylines
+        assert len(polylines) == 3
+        # Every skeleton pixel appears in at least one polyline
+        skel_pixels = set(zip(*np.nonzero(skel)))
+        covered: set[tuple[int, int]] = set()
+        for p in polylines:
+            for x, y in p:
+                covered.add((y, x))   # back to (y, x) for skeleton-space compare
+        # All skel pixels are covered (modulo the order — the junction may
+        # be in multiple polylines, which is correct)
+        missing = skel_pixels - covered
+        assert not missing, f"{len(missing)} skeleton pixels missing"
+
+    def test_simple_line_returns_one_polyline(self):
+        from stravart.contour import trace_all_polylines
+        skel = np.zeros((50, 50), dtype=np.uint8)
+        skel[25, 5:45] = 1
+        polylines = trace_all_polylines(skel)
+        assert len(polylines) == 1
+        assert len(polylines[0]) == 40
+
+    def test_closed_loop_returns_one_polyline(self):
+        from stravart.contour import trace_all_polylines
+        skel = np.zeros((100, 100), dtype=np.uint8)
+        cv2.circle(skel, (50, 50), 30, 1, thickness=1)
+        polylines = trace_all_polylines(skel)
+        assert len(polylines) == 1
+        # Skeleton trace of a circle ≈ circumference (~188 px)
+        assert len(polylines[0]) > 100
+
+    def test_empty_skeleton_returns_empty_list(self):
+        from stravart.contour import trace_all_polylines
+        skel = np.zeros((50, 50), dtype=np.uint8)
+        assert trace_all_polylines(skel) == []
+
+    def test_coverage_exceeds_legacy_trace_on_branching_shape(self):
+        from stravart.contour import trace_all_polylines, trace_route
+        # An "H" — two vertical arms connected by a crossbar = 4 endpoints,
+        # 2 junctions, 5 edges. Legacy trace_route picks one endpoint-to-
+        # endpoint path covering ~3 of the 5 edges; trace_all_polylines
+        # returns all 5.
+        skel = np.zeros((100, 100), dtype=np.uint8)
+        # left arm
+        skel[20:80, 30] = 1
+        # right arm
+        skel[20:80, 70] = 1
+        # crossbar
+        skel[50, 30:71] = 1
+        legacy = trace_route(skel)
+        full = trace_all_polylines(skel)
+        total_full = sum(len(p) for p in full)
+        # Each polyline shares one pixel with the crossbar/arm intersection,
+        # so total ≥ legacy AND the coverage of unique pixels is more.
+        unique_full = set()
+        for p in full:
+            for pt in p:
+                unique_full.add(pt)
+        assert len(unique_full) > len(set(legacy))
+
+
+class TestExtractRouteMultiPolylines:
+    def test_populates_polylines_field(self):
+        from stravart.contour import extract_route
+        bg = _grey_basemap(300, 300)
+        # Y-shape stroke
+        img = _stroke(bg, [(150, 50), (150, 150)], color=(0, 0, 220), thickness=5)
+        _stroke(img, [(150, 150), (50, 250)], color=(0, 0, 220), thickness=5)
+        _stroke(img, [(150, 150), (250, 250)], color=(0, 0, 220), thickness=5)
+        result = extract_route(img)
+        # Three branches: expect ≥ 3 polylines (could be more if the
+        # rendering creates extra junction artefacts)
+        assert len(result.polylines) >= 3
+        # Skeleton coverage is high — way better than the single-path trace
+        assert result.skeleton_coverage > 0.9
+        # Total length across polylines >> single longest path
+        assert result.total_length_px > result.length_px
+
+
 # --- End-to-end --------------------------------------------------------
 
 class TestExtractRoute:

@@ -35,9 +35,18 @@ _EARTH_R_M = 6_371_000.0
 
 @dataclass(frozen=True)
 class CentroidProjection:
-    """Result of a city-scale fallback projection."""
+    """Result of a city-scale fallback projection.
 
-    polyline: list[tuple[float, float]]   # (lat, lon) in geographic order
+    ``polyline`` is the concatenation of every segment in ``polylines``
+    (in source order), for callers that want a single flat list.
+    ``polylines`` is the per-segment decomposition, used by GPX export
+    to emit multiple track segments so the cartoon's branching shape
+    (legs, ears, tail) is preserved instead of being drawn as one
+    continuous line that doubles back across itself.
+    """
+
+    polyline: list[tuple[float, float]]                    # flat concat
+    polylines: list[list[tuple[float, float]]]             # per-segment
     centre_lat: float
     centre_lon: float
     scale_m_per_pixel: float
@@ -46,7 +55,7 @@ class CentroidProjection:
 
 
 def centroid_project_contour(
-    contour_pixels: list[tuple[int, int]],
+    contour_pixels: list[tuple[int, int]] | list[list[tuple[int, int]]],
     *,
     city_lat: float,
     city_lon: float,
@@ -54,34 +63,53 @@ def centroid_project_contour(
     target_width_m: float = 4_000.0,
     image_width: int | None = None,
 ) -> CentroidProjection:
-    """Place a pixel contour near a city centroid at a chosen metric scale.
+    """Place pixel contour(s) near a city centroid at a chosen metric scale.
 
-    The contour is centred at ``(city_lat, city_lon)`` and scaled
-    isotropically. Two scale-selection modes:
+    ``contour_pixels`` may be either:
+      * a flat list of ``(x, y)`` tuples — a single polyline; or
+      * a list of polylines (list of lists of tuples) — Phase 4b multi-
+        segment contours where each segment is a branch (leg, ear, tail)
+        of the cartoon. Detected by inspecting the first element.
 
-    * **Explicit** (``scale_m_per_pixel`` set) — use the given scale. Useful
-      when calibrating against a known city extent.
-    * **Derived from contour width** (default) — pick the scale that makes
-      the contour bbox width equal ``target_width_m`` metres. With the
-      typical 4 km default a 600-pixel-wide contour lands as a 4 km run,
-      which is in-line with most strav.art route lengths.
+    All polylines are placed in a **shared coordinate frame**: the bbox
+    centre across ALL pixels is anchored at ``(city_lat, city_lon)`` and
+    the same ``scale_m_per_pixel`` is applied uniformly. This preserves
+    the relative geometry of branches — a 100-pixel leg stays a 100-px
+    leg in metric terms.
 
-    ``image_width`` is accepted for API symmetry with the affine pipeline
-    but only used when caller explicitly supplies it; the contour bbox
-    alone is sufficient to choose the scale.
+    Two scale-selection modes:
 
-    Returns a :class:`CentroidProjection` with the geographic polyline
-    and the bbox extents in metres (for downstream sanity checks).
+    * **Explicit** (``scale_m_per_pixel`` set) — use the given scale.
+    * **Derived from contour bbox width** (default) — pick the scale that
+      makes the shared-bbox width equal ``target_width_m`` metres.
+
+    Returns a :class:`CentroidProjection` with both the concatenated
+    ``polyline`` and the per-segment ``polylines`` so GPX export can
+    emit each branch as its own track segment.
     """
     if not contour_pixels:
         raise ValueError("empty contour")
-    if len(contour_pixels) < 2:
-        raise ValueError("contour needs ≥2 points")
 
-    xs = [float(x) for x, _ in contour_pixels]
-    ys = [float(y) for _, y in contour_pixels]
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
+    # Normalise the two input shapes to a list of polylines.
+    first = contour_pixels[0]
+    if isinstance(first, tuple):
+        # Flat list of (x, y) tuples
+        polylines_in: list[list[tuple[int, int]]] = [list(contour_pixels)]
+    else:
+        polylines_in = [list(p) for p in contour_pixels if p]
+        if not polylines_in:
+            raise ValueError("empty contour (no non-empty polylines)")
+
+    # Validate point counts after normalisation
+    total_pts = sum(len(p) for p in polylines_in)
+    if total_pts < 2:
+        raise ValueError("contour needs ≥2 points (across all segments)")
+
+    # Shared bbox across all polylines
+    all_xs = [float(px) for p in polylines_in for px, _ in p]
+    all_ys = [float(py) for p in polylines_in for _, py in p]
+    min_x, max_x = min(all_xs), max(all_xs)
+    min_y, max_y = min(all_ys), max(all_ys)
     centre_x = (min_x + max_x) / 2.0
     centre_y = (min_y + max_y) / 2.0
     width_px = max(max_x - min_x, 1.0)
@@ -90,22 +118,26 @@ def centroid_project_contour(
     if scale_m_per_pixel is None:
         scale_m_per_pixel = target_width_m / width_px
 
-    # Geographic step per metre at this latitude.
     dlat_per_m = math.degrees(1.0 / _EARTH_R_M)
     cos_lat = max(math.cos(math.radians(city_lat)), 1e-6)
     dlon_per_m = math.degrees(1.0 / (_EARTH_R_M * cos_lat))
 
-    polyline: list[tuple[float, float]] = []
-    for px, py in contour_pixels:
+    def _project(px: int | float, py: int | float) -> tuple[float, float]:
         dx_m = (float(px) - centre_x) * scale_m_per_pixel
         # Image y grows downward; geographic latitude grows north (upward).
         dy_m = (centre_y - float(py)) * scale_m_per_pixel
         lat = city_lat + dy_m * dlat_per_m
         lon = city_lon + dx_m * dlon_per_m
-        polyline.append((lat, lon))
+        return lat, lon
+
+    out_polylines: list[list[tuple[float, float]]] = [
+        [_project(px, py) for px, py in p] for p in polylines_in
+    ]
+    flat = [pt for p in out_polylines for pt in p]
 
     return CentroidProjection(
-        polyline=polyline,
+        polyline=flat,
+        polylines=out_polylines,
         centre_lat=city_lat,
         centre_lon=city_lon,
         scale_m_per_pixel=float(scale_m_per_pixel),

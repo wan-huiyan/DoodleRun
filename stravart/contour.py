@@ -208,6 +208,13 @@ def trace_route(
       * Walk 8-connected neighbours, preferring the lowest-degree direction.
 
     Returns ``[(x, y), ...]`` in image coordinates (origin top-left).
+
+    **Known limitation (kept for backwards compatibility):** at a junction
+    (skeleton pixel with ≥3 neighbours) this function follows ONE branch
+    and discards the others. Routes shaped like an animal (4 legs + head)
+    have multiple junctions, so this often returns only ~30% of the
+    skeleton. For full coverage, callers should use
+    :func:`trace_all_polylines` instead.
     """
     if skel.dtype != np.uint8:
         skel = skel.astype(np.uint8)
@@ -232,23 +239,173 @@ def trace_route(
     return _trace_from(skel, seed)
 
 
+def _all_neighbours(skel: np.ndarray, y: int, x: int) -> list[tuple[int, int]]:
+    """All 8-connected on-pixel neighbours of (y, x)."""
+    h, w = skel.shape
+    out: list[tuple[int, int]] = []
+    for dy, dx in _NEIGHBORS_8:
+        ny, nx = y + dy, x + dx
+        if 0 <= ny < h and 0 <= nx < w and skel[ny, nx]:
+            out.append((ny, nx))
+    return out
+
+
+def trace_all_polylines(
+    skel: np.ndarray,
+) -> list[list[tuple[int, int]]]:
+    """Decompose the skeleton into ALL its simple-path edges.
+
+    The skeleton of a branching shape is a planar graph: pixels with
+    degree ≠ 2 are *nodes* (endpoints or junctions), pixels with degree 2
+    are interior path pixels. Every edge of the graph goes node → node
+    through some chain of degree-2 pixels. This function emits one
+    polyline per edge.
+
+    For a Y-shaped skeleton with junction J and tips T1, T2, T3 this
+    returns three polylines: [T1..J], [J..T2], [J..T3] — every pixel
+    covered, no pixel emitted twice (except junctions, which appear
+    in every incident polyline so the polylines visually stitch).
+
+    Empty input → empty list. A pure closed loop (no nodes) → one
+    polyline traced via :func:`_trace_from` from a deterministic seed.
+
+    Phase 4b: this fixes the dramatic loss documented in
+    ``phase4b_diag/skeleton_diag_*.png`` where ``trace_route`` was
+    only returning 25–67% of the skeleton's pixels on animal-shaped
+    routes.
+    """
+    if skel.dtype != np.uint8:
+        skel = skel.astype(np.uint8)
+    if not skel.any():
+        return []
+
+    h, w = skel.shape
+
+    # Pre-compute degree of every skeleton pixel
+    degree = np.zeros_like(skel, dtype=np.int8)
+    ys_arr, xs_arr = np.nonzero(skel)
+    for y, x in zip(ys_arr.tolist(), xs_arr.tolist()):
+        degree[y, x] = _neighbour_count(skel, y, x)
+
+    is_node = (skel == 1) & (degree != 2)
+
+    # No nodes → the skeleton is a single closed loop with no branches.
+    # Fall back to the single-path tracer (which handles loops deterministically).
+    if not is_node.any():
+        return [trace_route(skel)]
+
+    visited_non_node = np.zeros_like(skel, dtype=bool)
+    polylines: list[list[tuple[int, int]]] = []
+
+    node_ys, node_xs = np.nonzero(is_node)
+    for y, x in zip(node_ys.tolist(), node_xs.tolist()):
+        for ny, nx in _all_neighbours(skel, y, x):
+            if is_node[ny, nx]:
+                # node-to-node direct adjacency: emit once, in canonical order
+                if (y, x) < (ny, nx):
+                    polylines.append([(x, y), (nx, ny)])
+                continue
+            if visited_non_node[ny, nx]:
+                continue
+            # Walk along degree-2 pixels from (ny, nx) to the next node.
+            polyline: list[tuple[int, int]] = [(x, y), (nx, ny)]
+            visited_non_node[ny, nx] = True
+            prev_y, prev_x = y, x
+            cur_y, cur_x = ny, nx
+            while True:
+                next_nbr: tuple[int, int] | None = None
+                for ay, ax in _all_neighbours(skel, cur_y, cur_x):
+                    if (ay, ax) == (prev_y, prev_x):
+                        continue
+                    next_nbr = (ay, ax)
+                    break
+                if next_nbr is None:
+                    break
+                ay, ax = next_nbr
+                polyline.append((ax, ay))
+                if is_node[ay, ax]:
+                    break
+                if visited_non_node[ay, ax]:
+                    break
+                visited_non_node[ay, ax] = True
+                prev_y, prev_x = cur_y, cur_x
+                cur_y, cur_x = ay, ax
+            polylines.append(polyline)
+
+    # Sweep: any non-node skeleton pixels still unvisited belong to an
+    # isolated closed loop that wasn't reachable from any node. Walk each
+    # such loop deterministically.
+    leftover = (skel == 1) & (~is_node) & (~visited_non_node)
+    while leftover.any():
+        ys_l, xs_l = np.nonzero(leftover)
+        seed = (int(ys_l[0]), int(xs_l[0]))
+        loop_polyline = _trace_from(skel, seed)
+        if loop_polyline:
+            polylines.append(loop_polyline)
+            for x, y in loop_polyline:
+                visited_non_node[y, x] = True
+                leftover[y, x] = False
+        else:
+            break
+
+    return polylines
+
+
 # --------------------------------------------------------- public dataclass
 
 @dataclass(frozen=True)
 class RouteContour:
-    """Outcome of contour extraction on one image."""
+    """Outcome of contour extraction on one image.
 
-    polyline: list[tuple[int, int]]      # ordered (x, y) pixel coords
-    mask: np.ndarray                     # binary uint8 (255/0) cleaned mask
-    skeleton: np.ndarray                 # binary uint8 (1/0) skeleton
+    ``polyline`` is the legacy single-path trace (longest endpoint-to-endpoint
+    path through the skeleton). It loses 30–70% of the skeleton on branching
+    animal shapes — kept for backwards-compatibility with callers that
+    expect a single ordered polyline (the affine fit's input is just
+    *anchor* points so this is fine, but the city-scale fallback's input
+    is the *shape* and should use ``polylines``).
+
+    ``polylines`` is the full skeleton decomposed into simple-path edges —
+    one polyline per node-to-node edge of the skeleton graph. Every
+    skeleton pixel appears in at least one polyline. Use this when the
+    full cartoon shape matters (city-scale projection, GPX rendering).
+    """
+
+    polyline: list[tuple[int, int]]              # legacy: single longest path
+    polylines: list[list[tuple[int, int]]]       # full coverage (Phase 4b)
+    mask: np.ndarray                             # binary uint8 (255/0) cleaned mask
+    skeleton: np.ndarray                         # binary uint8 (1/0) skeleton
 
     @property
     def length_px(self) -> float:
-        """Polyline length in pixels (Euclidean sum of segments)."""
+        """Polyline length in pixels (Euclidean sum of segments, legacy path only)."""
         if len(self.polyline) < 2:
             return 0.0
         pts = np.asarray(self.polyline, dtype=float)
         return float(np.hypot(*np.diff(pts, axis=0).T).sum())
+
+    @property
+    def total_length_px(self) -> float:
+        """Total length across ALL polylines — the true cartoon perimeter."""
+        total = 0.0
+        for p in self.polylines:
+            if len(p) < 2:
+                continue
+            pts = np.asarray(p, dtype=float)
+            total += float(np.hypot(*np.diff(pts, axis=0).T).sum())
+        return total
+
+    @property
+    def skeleton_coverage(self) -> float:
+        """Fraction of skeleton pixels covered by ``polylines`` (sanity check)."""
+        skel_count = int(self.skeleton.sum()) if self.skeleton is not None else 0
+        if skel_count == 0:
+            return 0.0
+        # Pixels may appear in multiple polylines (at junctions); dedupe.
+        seen: set[tuple[int, int]] = set()
+        for p in self.polylines:
+            for px, py in p:
+                seen.add((px, py))
+        return len(seen) / float(skel_count)
 
 
 def extract_route(
@@ -263,9 +420,20 @@ def extract_route(
 
     See module docstring for stage details. Returns an empty polyline when
     the route mask is empty (e.g. a non-strav.art basemap-only image).
+
+    Phase 4b: populates both ``polyline`` (legacy single longest path —
+    used by the affine-fit's anchor list) AND ``polylines`` (full
+    skeleton decomposed into all simple-path edges — used by the
+    city-scale fallback and any caller that needs the complete cartoon).
     """
     raw = route_mask_colored(bgr, sat_min=sat_min, val_min=val_min)
     cleaned = clean_mask(raw, close_kernel=close_kernel, min_area=min_area)
     skel = skeleton_of(cleaned)
     polyline = trace_route(skel)
-    return RouteContour(polyline=polyline, mask=cleaned, skeleton=skel)
+    polylines = trace_all_polylines(skel)
+    return RouteContour(
+        polyline=polyline,
+        polylines=polylines,
+        mask=cleaned,
+        skeleton=skel,
+    )

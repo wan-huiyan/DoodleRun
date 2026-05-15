@@ -64,11 +64,18 @@ def render_one(rid: int, out_dir: Path) -> dict | None:
         print(f"  [{rid}] no contour")
         return None
 
+    # Phase 4b: project the FULL multi-polyline decomposition, not just the
+    # legacy single longest path. This is what fixes the "extracted contour
+    # got the part right but didn't finish the job" problem.
+    source = contour.polylines if contour.polylines else contour.polyline
     proj = centroid_project_contour(
-        contour.polyline,
+        source,
         city_lat=lat, city_lon=lon,
         target_width_m=4000.0,
     )
+    print(f"  [{rid}] skeleton_coverage={contour.skeleton_coverage:.1%}  "
+          f"segments={len(contour.polylines)}  legacy_polyline={len(contour.polyline)} pts  "
+          f"total={sum(len(p) for p in contour.polylines)} pts")
 
     # 3-panel diagnostic: original | extracted contour overlay | geographic placement
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -85,20 +92,31 @@ def render_one(rid: int, out_dir: Path) -> dict | None:
     axes[0].set_title("original (basemap shows place names, not streets)")
     axes[0].axis("off")
 
-    # panel 2: contour on top of grey image
+    # panel 2: ALL polyline segments coloured for visibility
     grey = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    axes[1].imshow(grey, cmap="gray", alpha=0.5)
-    xs, ys = zip(*contour.polyline)
-    axes[1].plot(xs, ys, "r-", linewidth=1.5)
-    axes[1].set_title(f"extracted contour ({len(contour.polyline)} points)")
+    axes[1].imshow(grey, cmap="gray", alpha=0.4)
+    total_pts = 0
+    for i, seg in enumerate(contour.polylines):
+        if len(seg) < 2:
+            continue
+        xs, ys = zip(*seg)
+        axes[1].plot(xs, ys, linewidth=1.5, alpha=0.9)
+        total_pts += len(seg)
+    axes[1].set_title(
+        f"extracted contour: {len(contour.polylines)} segments, {total_pts} pts\n"
+        f"(skeleton coverage = {contour.skeleton_coverage:.0%})"
+    )
     axes[1].set_xlim(0, img.shape[1])
     axes[1].set_ylim(img.shape[0], 0)
     axes[1].axis("off")
 
-    # panel 3: geographic placement (lat/lon)
-    plats, plons = zip(*proj.polyline)
-    axes[2].plot(plons, plats, "g-", linewidth=1.2, label="contour projected at city scale")
-    axes[2].plot(lon, lat, "k*", markersize=14, label=f"city centroid")
+    # panel 3: geographic placement — each segment its own colour
+    for seg in proj.polylines:
+        if len(seg) < 2:
+            continue
+        slats, slons = zip(*seg)
+        axes[2].plot(slons, slats, linewidth=1.2, alpha=0.9)
+    axes[2].plot(lon, lat, "k*", markersize=14, label="city centroid")
     axes[2].set_xlabel("longitude (°E)")
     axes[2].set_ylabel("latitude (°N)")
     axes[2].set_aspect("equal", adjustable="datalim")

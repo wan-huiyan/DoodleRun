@@ -5,7 +5,9 @@ from __future__ import annotations
 import gpxpy
 import pytest
 
-from stravart.gpx_export import GpxMetadata, build_gpx, write_gpx
+from stravart.gpx_export import (
+    GpxMetadata, build_gpx, build_gpx_multi_segment, write_gpx,
+)
 
 
 class TestBuildGpx:
@@ -38,6 +40,35 @@ class TestBuildGpx:
         parsed = gpxpy.parse(xml)
         assert len(parsed.routes) == 1
         assert len(parsed.routes[0].points) == 0
+
+
+class TestBuildGpxMultiSegment:
+    """Phase 4b: emit one ``<trk>`` with N ``<trkseg>`` for branching cartoons."""
+
+    def test_round_trip_with_multiple_segments(self):
+        segs = [
+            [(51.5, -0.1), (51.51, -0.1)],
+            [(51.5, -0.09), (51.51, -0.09)],
+            [(51.5, -0.08), (51.51, -0.08)],
+        ]
+        xml = build_gpx_multi_segment(segs, metadata=GpxMetadata(name="DOG"))
+        parsed = gpxpy.parse(xml)
+        assert len(parsed.tracks) == 1
+        track = parsed.tracks[0]
+        assert track.name == "DOG"
+        # All three segments preserved
+        assert len(track.segments) == 3
+        assert [len(s.points) for s in track.segments] == [2, 2, 2]
+
+    def test_drops_segments_with_under_two_valid_points(self):
+        segs = [
+            [(51.5, -0.1), (51.51, -0.1)],     # ok
+            [(51.5, -0.09)],                    # only 1 pt — drop
+            [(float("nan"), 0), (200.0, 0)],    # both invalid — drop
+        ]
+        xml = build_gpx_multi_segment(segs)
+        parsed = gpxpy.parse(xml)
+        assert len(parsed.tracks[0].segments) == 1
 
 
 class TestWriteGpx:

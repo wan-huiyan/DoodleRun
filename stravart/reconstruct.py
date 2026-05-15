@@ -48,7 +48,7 @@ from .georef import (
     fit_affine,
     project_polyline,
 )
-from .gpx_export import GpxMetadata, build_gpx
+from .gpx_export import GpxMetadata, build_gpx, build_gpx_multi_segment
 from .mapmatch import MatchedRoute, load_graph, map_match
 from .ocr import OcrResult, candidate_pixel_anchors, fetch_image, ocr_image
 
@@ -274,9 +274,13 @@ def _city_scale_fallback(
     """
     assert rec.contour is not None    # caller already validated
     city_lat, city_lon = title_latlon
+    # Use the full multi-polyline decomposition (Phase 4b) so the GPX captures
+    # the whole cartoon — legs, ears, tail — not just the single longest
+    # endpoint-to-endpoint path the legacy ``polyline`` field carries.
+    source = rec.contour.polylines if rec.contour.polylines else rec.contour.polyline
     try:
         proj = centroid_project_contour(
-            rec.contour.polyline,
+            source,
             city_lat=city_lat,
             city_lon=city_lon,
             target_width_m=target_width_m,
@@ -294,7 +298,10 @@ def _city_scale_fallback(
     rec.diagnostics["centroid_scale_m_per_px"] = proj.scale_m_per_pixel
     rec.diagnostics["centroid_bbox_width_m"] = proj.bbox_width_m
     rec.diagnostics["centroid_bbox_height_m"] = proj.bbox_height_m
-    rec.gpx_xml = build_gpx(proj.polyline, metadata=gpx_metadata)
+    rec.diagnostics["centroid_n_segments"] = len(proj.polylines)
+    # Multi-segment GPX track preserves branching shape; renderers break
+    # between segments instead of drawing impossible connector lines.
+    rec.gpx_xml = build_gpx_multi_segment(proj.polylines, metadata=gpx_metadata)
     return rec
 
 

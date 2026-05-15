@@ -86,6 +86,68 @@ class TestOrientation:
         assert east_lon > west_lon
 
 
+class TestMultiPolylineInput:
+    """Phase 4b: accept list-of-polylines (one per skeleton branch) and
+    place them in a shared coordinate frame."""
+
+    def test_accepts_list_of_polylines(self):
+        # Two parallel horizontal lines spaced 100px apart vertically
+        pix = [
+            [(0, 0), (100, 0)],
+            [(0, 100), (100, 100)],
+        ]
+        out = centroid_project_contour(pix, city_lat=51.5, city_lon=-0.1)
+        # Two segments returned, each with two points
+        assert len(out.polylines) == 2
+        assert all(len(p) == 2 for p in out.polylines)
+        # Flat polyline is the concatenation
+        assert len(out.polyline) == 4
+
+    def test_shared_scale_across_segments(self):
+        # A Y-shape: trunk + two branches, all 100px each.
+        pix = [
+            [(50, 0), (50, 100)],     # trunk going down
+            [(50, 100), (0, 200)],    # left branch
+            [(50, 100), (100, 200)],  # right branch
+        ]
+        out = centroid_project_contour(
+            pix, city_lat=51.5, city_lon=-0.1,
+            scale_m_per_pixel=10.0,
+        )
+        # All three segments use the same scale → metric distances should
+        # be consistent. Trunk: 100 px * 10 m/px = 1000m. Diagonal branch:
+        # sqrt(50^2 + 100^2) * 10 ≈ 1118m.
+        from stravart.tests.test_centroid_project import _haversine_m
+        trunk = out.polylines[0]
+        trunk_m = _haversine_m(trunk[0], trunk[-1])
+        assert 990 < trunk_m < 1010
+
+    def test_centre_uses_shared_bbox(self):
+        # Two segments placed far apart in pixel space — the combined bbox
+        # centre should anchor at the city centroid, not either segment's
+        # individual centroid.
+        pix = [
+            [(0, 0), (100, 0)],            # bbox centre (50, 0)
+            [(0, 1000), (100, 1000)],      # bbox centre (50, 1000)
+        ]
+        out = centroid_project_contour(pix, city_lat=52.5, city_lon=13.4)
+        all_lats = [p[0] for seg in out.polylines for p in seg]
+        all_lons = [p[1] for seg in out.polylines for p in seg]
+        centre_lat = (min(all_lats) + max(all_lats)) / 2
+        centre_lon = (min(all_lons) + max(all_lons)) / 2
+        assert abs(centre_lat - 52.5) < 1e-6
+        assert abs(centre_lon - 13.4) < 1e-6
+
+    def test_skips_empty_segments(self):
+        pix = [
+            [(0, 0), (100, 0)],
+            [],                            # empty — skip
+            [(0, 100), (100, 100)],
+        ]
+        out = centroid_project_contour(pix, city_lat=51.5, city_lon=-0.1)
+        assert len(out.polylines) == 2
+
+
 class TestLatitudeCorrection:
     def test_high_latitude_widens_dlon_per_metre(self):
         # At 60° N, 1 m east is twice as many degrees of longitude as at 0° N

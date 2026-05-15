@@ -69,6 +69,61 @@ def build_gpx(
     return gpx.to_xml()
 
 
+def build_gpx_multi_segment(
+    segments: list[list[tuple[float, float]]],
+    *,
+    metadata: GpxMetadata | None = None,
+) -> str:
+    """Build a GPX 1.1 string with one ``<trk>`` containing N ``<trkseg>``.
+
+    Use when the source geometry has multiple disjoint segments (Phase 4b's
+    city-scale fallback, where a cartoon dog yields 7+ polylines for legs/
+    ears/tail). GPX consumers render each ``<trkseg>`` as its own connected
+    line with breaks between — preserving the cartoon's branching shape.
+
+    NaN/inf and out-of-range points are skipped silently. Segments that
+    end up with <2 valid points are dropped.
+    """
+    gpx = gpxpy.gpx.GPX()
+    gpx.creator = "stravart-finder Phase 4b"
+    if metadata:
+        if metadata.name:
+            gpx.name = metadata.name
+        if metadata.description:
+            gpx.description = metadata.description
+        if metadata.keywords:
+            gpx.keywords = ", ".join(metadata.keywords)
+
+    track = gpxpy.gpx.GPXTrack()
+    if metadata and metadata.name:
+        track.name = metadata.name
+    if metadata and metadata.description:
+        track.description = metadata.description
+    if metadata and metadata.source:
+        track.source = metadata.source
+    gpx.tracks.append(track)
+
+    for seg in segments:
+        if not seg:
+            continue
+        track_seg = gpxpy.gpx.GPXTrackSegment()
+        for lat, lon in seg:
+            if not (
+                isinstance(lat, (int, float))
+                and isinstance(lon, (int, float))
+                and -90.0 <= lat <= 90.0
+                and -180.0 <= lon <= 180.0
+            ):
+                continue
+            track_seg.points.append(
+                gpxpy.gpx.GPXTrackPoint(latitude=float(lat), longitude=float(lon))
+            )
+        if len(track_seg.points) >= 2:
+            track.segments.append(track_seg)
+
+    return gpx.to_xml()
+
+
 def write_gpx(
     coords: list[tuple[float, float]],
     out_path: str | Path,
