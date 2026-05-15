@@ -27,9 +27,11 @@ h1 { margin: 0 0 6px 0; }
            border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 6px; }
 .runs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.runs.stack { grid-template-columns: 1fr; }
 .run { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px;
        background: #fdfdfd; }
-.run img { width: 100%; height: auto; display: block; border-radius: 4px; }
+.run img { width: 100%; height: auto; display: block; border-radius: 4px;
+           max-height: 70vh; object-fit: contain; }
 .run h3 { margin: 0 0 6px 0; font-size: 15px; }
 .run .meta { font-size: 12px; color: #555; margin-bottom: 8px;
              font-family: ui-monospace, Menlo, monospace; }
@@ -80,7 +82,9 @@ def render_dashboard():
     if locked_cfg:
         body.append('<div class="section locked-section">')
         body.append('<h2>🔒 Currently locked routes</h2>')
-        body.append('<div class="runs">')
+        # Use single-column stack for the locked section so each big landscape
+        # PNG gets full width instead of being squashed into a half-width cell.
+        body.append('<div class="runs stack">')
         for loc_key in ("st_albans", "milton_keynes", "maidenhead_windsor"):
             sub_key = f"elephant_{loc_key}"
             if sub_key not in locked_cfg:
