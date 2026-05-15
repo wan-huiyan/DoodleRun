@@ -88,6 +88,26 @@ class TestCleanMask:
         cleaned = clean_mask(m, min_area=10_000)
         assert not cleaned.any()
 
+    def test_keeps_all_components_above_min_area_phase4b(self):
+        """Phase 4b: multi-route cartoons (Rotterdam Turtles) need all
+        significant blobs preserved, not just the biggest. The previous
+        largest-only filter dropped 2 of 3 turtles each at ~65% the
+        biggest's area."""
+        m = np.zeros((300, 300), dtype=np.uint8)
+        # Three rectangles of similar size — all should survive
+        cv2.rectangle(m, (20,  20),  (80,  80),  255, -1)   # turtle 1
+        cv2.rectangle(m, (120, 20),  (180, 80),  255, -1)   # turtle 2
+        cv2.rectangle(m, (220, 20),  (280, 80),  255, -1)   # turtle 3
+        # And one tiny pin marker — should be dropped
+        cv2.circle(m, (250, 250), 4, 255, -1)
+        cleaned = clean_mask(m, min_area=200)
+        # All 3 turtle centres are still visible
+        assert cleaned[50,  50]  == 255
+        assert cleaned[50,  150] == 255
+        assert cleaned[50,  250] == 255
+        # The tiny pin is gone
+        assert cleaned[250, 250] == 0
+
 
 # --- Skeleton + trace --------------------------------------------------
 

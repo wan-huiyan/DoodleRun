@@ -81,19 +81,45 @@ def route_mask_colored(
     return (sat_val & hue_band).astype(np.uint8) * 255
 
 
-def _largest_component(mask: np.ndarray, *, min_area: int = 200) -> np.ndarray:
-    """Return ``mask`` reduced to its largest connected component.
+def _significant_components(mask: np.ndarray, *, min_area: int = 200) -> np.ndarray:
+    """Return ``mask`` reduced to ALL connected components with area ≥ ``min_area``.
 
-    Strava-style images have several saturated blobs (start pin, finish pin,
-    distance markers). Without this filter the skeletonise step builds a
-    forest instead of a path.
+    Strava-style images have several saturated blobs: the main route, but also
+    start/finish pins and per-mile distance markers (small — below ``min_area``,
+    correctly dropped). On multi-route cartoons (Rotterdam Turtles, multi-loop
+    designs) the secondary loops are themselves above ``min_area`` and must NOT
+    be dropped.
+
+    Phase 4b: was ``_largest_component`` which kept ONLY the biggest blob; on
+    #1135 Rotterdam Turtles that meant losing 2 of 3 turtles (each ~65% of the
+    biggest's area, well above min_area=200). The new semantics is
+    "everything ≥ min_area survives", which still drops marker pins (≈100 px
+    area) but preserves multi-component cartoons.
     """
     n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
         mask, connectivity=8,
     )
     if n_labels <= 1:
         return mask
-    # stats has [bg, comp_1, comp_2, ...]; bg is row 0.
+    out = np.zeros_like(mask)
+    # row 0 is background; skip it
+    for i in range(1, n_labels):
+        if int(stats[i, cv2.CC_STAT_AREA]) >= min_area:
+            out[labels == i] = 255
+    return out
+
+
+def _largest_component(mask: np.ndarray, *, min_area: int = 200) -> np.ndarray:
+    """Legacy: keep only the largest connected component.
+
+    Preserved for any caller that explicitly wants the biggest-only filter;
+    the default :func:`clean_mask` pipeline now uses :func:`_significant_components`.
+    """
+    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+        mask, connectivity=8,
+    )
+    if n_labels <= 1:
+        return mask
     areas = stats[1:, cv2.CC_STAT_AREA]
     if areas.size == 0:
         return mask
@@ -110,10 +136,15 @@ def clean_mask(
     close_kernel: int = 3,
     min_area: int = 200,
 ) -> np.ndarray:
-    """Morphological close + largest-component selection."""
+    """Morphological close + multi-component filter (Phase 4b).
+
+    All connected components above ``min_area`` survive — pin markers and
+    text artifacts are filtered by area, but secondary route loops are
+    preserved. Was largest-only in Phase 3.
+    """
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_kernel, close_kernel))
     closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, k)
-    return _largest_component(closed, min_area=min_area)
+    return _significant_components(closed, min_area=min_area)
 
 
 # ----------------------------------------------------------- skeletonise

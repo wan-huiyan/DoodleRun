@@ -37,10 +37,10 @@
     "title": "ROTTERDAM HAS ADDED TWO TURTLES \ud83d\udc22\ud83d\udc22 \ud83d\ude07",
     "city_lat": 51.9244424,
     "city_lon": 4.47775,
-    "n_polyline": 2248,
-    "bbox_width_m": 4000.0,
-    "bbox_height_m": 3926.7399267399264,
-    "scale_m_per_px": 3.663003663003663,
+    "n_polyline": 5339,
+    "bbox_width_m": 3999.9999999999995,
+    "bbox_height_m": 2851.0638297872338,
+    "scale_m_per_px": 2.3640661938534278,
     "out": "stravart/data/phase4b_diag/city_scale_01135.png"
   },
   {
