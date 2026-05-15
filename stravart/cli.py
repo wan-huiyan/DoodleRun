@@ -97,9 +97,21 @@ def _add_reconstruct(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--retry-attempted", action="store_true",
                    help="Re-run reconstruction on rows that previously failed")
-    p.add_argument("--min-confidence", type=float, default=0.6,
-                   help="Below this, no GPX is written (still recorded as "
-                        "attempted with the failure reason)")
+    p.add_argument("--min-confidence", type=float, default=0.4,
+                   help="Below this, no GPX is written. Default 0.4 puts the "
+                        "0.4-0.6 band into the review tier; raise to 0.6 to "
+                        "ship only strict-tier reconstructions.")
+    p.add_argument("--strict-threshold", type=float, default=0.6,
+                   help="Confidence ≥ this stamps review_status='shipped'; "
+                        "lower than this within [min-confidence, strict) "
+                        "stamps 'review'.")
+    p.add_argument("--min-gcps", type=int, default=5,
+                   help="Minimum unique GCPs to attempt an affine fit. "
+                        "Phase 4b raised this from 3 → 5 (3-GCP fits are "
+                        "exactly determined and produce no honest residual).")
+    p.add_argument("--no-city-scale-fallback", action="store_true",
+                   help="Disable the Phase 4b centroid-anchored fallback. "
+                        "Routes without OCR'd streets become failures.")
     p.add_argument("--waypoint-step-m", type=float, default=30.0,
                    help="Spacing between map-match waypoints (metres)")
 
@@ -191,7 +203,10 @@ def main(argv: list[str] | None = None) -> int:
             limit=args.limit,
             retry_attempted=args.retry_attempted,
             min_confidence=args.min_confidence,
+            strict_threshold=args.strict_threshold,
+            min_gcps=args.min_gcps,
             waypoint_step_m=args.waypoint_step_m,
+            enable_city_scale_fallback=not args.no_city_scale_fallback,
         )
         print(json.dumps(reconstruct_summary(outcomes), indent=2))
         return 0

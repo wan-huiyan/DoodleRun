@@ -32,10 +32,12 @@ circuit (e.g. the OSM graph download).
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
 
+from .centroid_project import centroid_project_contour
 from .contour import RouteContour, extract_route
 from .crossref import CrossRefResult, GeocodeCluster, find_geocode
 from .fidelity_score import FidelityScore, fidelity
@@ -56,7 +58,22 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Reconstruction:
-    """Bundle of every intermediate + the final GPX (when confidence ≥ threshold)."""
+    """Bundle of every intermediate + the final GPX (when confidence ≥ threshold).
+
+    ``kind`` distinguishes:
+      * ``"street"`` — full OCR-anchored affine reconstruction. Runnable GPX
+        whose coordinates are believed correct to street-scale.
+      * ``"city-scale"`` — Phase 4b centroid-anchored fallback for images with
+        no OCR'd streets. Coordinates are an approximate placement around the
+        title-derived city centroid; the *shape* is faithful but the actual
+        streets it lands on are decorative, not the route the artist ran.
+
+    ``review_status`` distinguishes:
+      * ``"shipped"`` — confidence ≥ ``strict_threshold`` (default 0.6).
+      * ``"review"`` — confidence in ``[min_confidence, strict_threshold)``;
+        gate the iOS client behind a manual-approval flag.
+      * ``None``     — below ``min_confidence``; no GPX written.
+    """
 
     image_url: str
     contour: RouteContour | None = None
@@ -68,8 +85,95 @@ class Reconstruction:
     fidelity: FidelityScore | None = None
     gpx_xml: str | None = None
     confidence: float = 0.0
+    kind: str = "street"
+    review_status: str | None = None
     failure: str | None = None     # short reason when confidence is below threshold
     diagnostics: dict = field(default_factory=dict)
+
+    @property
+    def is_runnable(self) -> bool:
+        """True when the GPX coordinates are believed accurate to street-scale.
+
+        City-scale fallbacks are decorative only — the iOS client should NOT
+        offer these as a navigable route.
+        """
+        return self.kind == "street" and self.gpx_xml is not None
+
+
+def _dedup_gcps_by_geo(
+    gcps: list[GroundControlPoint],
+    *,
+    min_separation_m: float = 5.0,
+) -> list[GroundControlPoint]:
+    """Drop GCPs that resolve to (effectively) the same geographic point.
+
+    Two OCR'd street labels that Nominatim's top-N hits both pin to the same
+    way node count as *one* anchor — the affine is under-constrained by the
+    duplicate. We keep the highest-weight (OCR confidence) hit from each
+    geographic cluster, where two anchors are considered duplicates when
+    their haversine separation is below ``min_separation_m``.
+
+    Why ``5 m``: a typical OSM way node spacing is 10-50 m; two distinct
+    streets meeting at one intersection have lat/lon offsets of at least one
+    block (~80 m). Anything closer is almost certainly the same node hit by
+    two slightly different OCR'd labels.
+    """
+    if len(gcps) < 2:
+        return list(gcps)
+    # Sort by weight desc so the best confidence wins each cluster.
+    ordered = sorted(gcps, key=lambda g: -g.weight)
+    kept: list[GroundControlPoint] = []
+    for g in ordered:
+        too_close = False
+        for k in kept:
+            # Approximate haversine with equirectangular at this latitude.
+            dlat = (g.lat - k.lat) * 111_000.0
+            cos_lat = max(math.cos(math.radians((g.lat + k.lat) / 2.0)), 1e-6)
+            dlon = (g.lon - k.lon) * 111_000.0 * cos_lat
+            if (dlat * dlat + dlon * dlon) ** 0.5 < min_separation_m:
+                too_close = True
+                break
+        if not too_close:
+            kept.append(g)
+    return kept
+
+
+def _gcp_pixel_hull_frac(
+    gcps: list[GroundControlPoint],
+    *,
+    image_height: int,
+    image_width: int,
+) -> float:
+    """Convex-hull area of the GCP pixel locations, as a fraction of image area.
+
+    Catches two degenerate cases that an over-determined affine fit cannot
+    detect from RMSE alone:
+
+      * **Cluster:** all GCPs sit within a small image region (e.g. five OCR'd
+        labels all on the same street block). The affine fit is well-determined
+        *locally*, but extrapolating to far image pixels — which the contour
+        spans — multiplies the geographic error by the inverse of the
+        coverage fraction.
+      * **Collinear:** all GCPs lie on (or near) a single line. The affine is
+        under-determined perpendicular to that line; convex-hull area collapses
+        to zero, exposing the degeneracy.
+
+    The single-block case is the dominant failure mode in PoC run #2
+    (e.g. London Bear: 5 GCPs, RMSE 0.0 m, but contour projection drifts
+    wildly off the cartoon).
+    """
+    if len(gcps) < 3 or image_height <= 0 or image_width <= 0:
+        return 0.0
+    try:
+        from shapely.geometry import MultiPoint
+    except ImportError:
+        # Fallback: bounding-box area (looser but still useful)
+        xs = [g.x_px for g in gcps]
+        ys = [g.y_px for g in gcps]
+        bbox_area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+        return bbox_area / (image_height * image_width)
+    hull = MultiPoint([(g.x_px, g.y_px) for g in gcps]).convex_hull
+    return float(hull.area) / float(image_height * image_width)
 
 
 def _gcps_from_ocr(
@@ -153,17 +257,65 @@ def _confidence(
     return geo_mean
 
 
+def _city_scale_fallback(
+    rec: Reconstruction,
+    *,
+    title_latlon: tuple[float, float],
+    title_confidence: float,
+    target_width_m: float,
+    gpx_metadata: GpxMetadata | None,
+) -> Reconstruction:
+    """Phase 4b: city-scale decorative reconstruction when no streets were OCR'd.
+
+    Mutates ``rec`` in place and returns it. Marks ``kind="city-scale"``,
+    sets confidence from the title geocoder (clamped to [0.1, 0.5]), and
+    always tags ``review_status="review"`` — city-scale outputs are never
+    runnable, so they never get the strict ``"shipped"`` tier.
+    """
+    assert rec.contour is not None    # caller already validated
+    city_lat, city_lon = title_latlon
+    try:
+        proj = centroid_project_contour(
+            rec.contour.polyline,
+            city_lat=city_lat,
+            city_lon=city_lon,
+            target_width_m=target_width_m,
+        )
+    except Exception as exc:                                     # noqa: BLE001
+        rec.failure = f"city-scale: {exc!r}"
+        return rec
+    rec.geo_polyline = proj.polyline
+    rec.kind = "city-scale"
+    # Confidence reflects how much we trust the title geocoding, capped low
+    # because the streets aren't really right — only the city is.
+    rec.confidence = max(0.1, min(0.5, title_confidence))
+    rec.review_status = "review"
+    rec.failure = None
+    rec.diagnostics["centroid_scale_m_per_px"] = proj.scale_m_per_pixel
+    rec.diagnostics["centroid_bbox_width_m"] = proj.bbox_width_m
+    rec.diagnostics["centroid_bbox_height_m"] = proj.bbox_height_m
+    rec.gpx_xml = build_gpx(proj.polyline, metadata=gpx_metadata)
+    return rec
+
+
 def reconstruct(
     image_url: str,
     *,
     crossref_client,
     download_graph: bool = True,
     min_streets: int = 3,
+    min_gcps: int = 5,
+    min_gcp_hull_frac: float = 0.05,
+    min_rmse_m: float = 0.5,
     cluster_radius_km: float = 3.0,
-    min_confidence: float = 0.6,
+    min_confidence: float = 0.4,
+    strict_threshold: float = 0.6,
     waypoint_step_m: float = 30.0,
     bbox_pad_m: float = 200.0,
     fidelity_buffer_m: float = 25.0,
+    title_latlon: tuple[float, float] | None = None,
+    title_confidence: float = 0.5,
+    centroid_target_width_m: float = 4_000.0,
     gpx_metadata: GpxMetadata | None = None,
 ) -> Reconstruction:
     """Run the full image → GPX pipeline on one strav.art image.
@@ -172,6 +324,29 @@ def reconstruct(
     short description of which stage gave up. Stages that succeed populate
     their respective fields, so the caller can introspect even partial runs
     for diagnostics.
+
+    Gating knobs (raised by Phase 4b after the PoC found that ``min_streets=3``
+    let degenerate fits through):
+
+    * ``min_gcps``: minimum GCPs to attempt an affine fit (default 5).
+      With 3 GCPs the affine is exactly determined → RMSE is trivially zero
+      and tells you nothing about correctness. ≥5 is the smallest count
+      where RMSE on real Nominatim-resolved anchors is a meaningful signal.
+    * ``min_gcp_hull_frac``: minimum convex-hull area of GCP pixel locations
+      as a fraction of image area (default 0.05). Rejects "5 anchors on one
+      city block" — the fit looks great locally but contour projection drifts
+      wildly when extrapolated to the rest of the image.
+    * ``min_rmse_m``: minimum residual to accept (default 0.5 m). With ≥4
+      over-determined anchors RMSE should always be > 0 on real data;
+      RMSE < 0.5 m indicates near-collinear or duplicate GCPs (a degenerate
+      fit that exactly matches its inputs but has unstable extrapolation).
+
+    Confidence tiers:
+
+    * ``confidence ≥ strict_threshold`` (default 0.6) → ``review_status="shipped"``
+    * ``min_confidence ≤ confidence < strict_threshold`` → ``"review"``
+      (GPX is still written; iOS client may filter)
+    * ``confidence < min_confidence`` (default 0.4) → no GPX, ``review_status=None``
 
     ``download_graph=False`` skips the OSMnx Overpass call — useful for
     tests that pre-supply a graph via the lower-level :mod:`mapmatch` API.
@@ -196,6 +371,18 @@ def reconstruct(
         rec.failure = f"ocr: {exc!r}"
         return rec
     if not rec.ocr.street_candidates:
+        # Phase 4b — if Phase 1's title geocoder placed this route in a city,
+        # produce a decorative city-scale projection instead of giving up.
+        # ``kind="city-scale"`` warns downstream consumers not to treat it as
+        # a navigable GPX. With no title_latlon, the original failure stands.
+        if title_latlon is not None:
+            return _city_scale_fallback(
+                rec,
+                title_latlon=title_latlon,
+                title_confidence=title_confidence,
+                target_width_m=centroid_target_width_m,
+                gpx_metadata=gpx_metadata,
+            )
         rec.failure = "ocr: no street candidates"
         return rec
 
@@ -215,15 +402,38 @@ def reconstruct(
         return rec
 
     # 4. GCPs + georectification --------------------------------------------
-    gcps = _gcps_from_ocr(rec.ocr, rec.crossref)
+    raw_gcps = _gcps_from_ocr(rec.ocr, rec.crossref)
+    gcps = _dedup_gcps_by_geo(raw_gcps)
+    rec.diagnostics["n_gcps_raw"] = len(raw_gcps)
     rec.diagnostics["n_gcps"] = len(gcps)
-    if len(gcps) < 3:
-        rec.failure = f"georef: only {len(gcps)} GCPs (need ≥3)"
+    if len(gcps) < min_gcps:
+        rec.failure = f"georef: only {len(gcps)} unique GCPs (need ≥{min_gcps})"
+        return rec
+    img_h, img_w = bgr.shape[:2]
+    hull_frac = _gcp_pixel_hull_frac(gcps, image_height=img_h, image_width=img_w)
+    rec.diagnostics["gcp_hull_frac"] = hull_frac
+    if hull_frac < min_gcp_hull_frac:
+        rec.failure = (
+            f"georef: GCPs cover only {hull_frac:.1%} of image "
+            f"(need ≥{min_gcp_hull_frac:.0%} — clustered/collinear anchors give degenerate fit)"
+        )
         return rec
     try:
         rec.georectification = fit_affine(gcps)
     except Exception as exc:                                     # noqa: BLE001
         rec.failure = f"georef: {exc!r}"
+        return rec
+    # Anti-degeneracy check on the post-RANSAC fit:
+    # 5 GCPs that all happen to fit one affine to <1m means either the OCR
+    # found duplicate hits or the RANSAC inlier set collapsed to a near-
+    # collinear cluster. Both produce extrapolation garbage.
+    if (rec.georectification.n_anchors >= 4
+            and rec.georectification.rmse_m < min_rmse_m):
+        rec.failure = (
+            f"georef: suspicious RMSE={rec.georectification.rmse_m:.2f} m "
+            f"with {rec.georectification.n_anchors} GCPs "
+            f"(< {min_rmse_m} m — degenerate fit)"
+        )
         return rec
 
     # 5. Project the contour into geographic space -------------------------
@@ -277,4 +487,5 @@ def reconstruct(
 
     # 8. GPX --------------------------------------------------------------
     rec.gpx_xml = build_gpx(rec.matched.coords, metadata=gpx_metadata)
+    rec.review_status = "shipped" if rec.confidence >= strict_threshold else "review"
     return rec

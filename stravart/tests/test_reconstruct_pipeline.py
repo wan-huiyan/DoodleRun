@@ -41,6 +41,13 @@ class TestSchemaMigration:
         assert "reconstruction_attempted_at" in cols
         assert "reconstruction_failure" in cols
 
+    def test_phase4b_columns_added_on_connect(self, tmp_path):
+        """Phase 4b adds reconstruction_kind + reconstruction_review_status."""
+        conn = connect(tmp_path / "test.sqlite")
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(routes)")}
+        assert "reconstruction_kind" in cols
+        assert "reconstruction_review_status" in cols
+
     def test_existing_phase2_db_migrates_in_place(self, tmp_path):
         # Build a Phase 2-shaped DB by hand (no Phase 3 columns).
         db = tmp_path / "phase2.sqlite"
@@ -167,6 +174,94 @@ class TestRunBatch:
         # No gpx file produced
         assert not list(tmp_path.glob("gpx/*.gpx"))
 
+    def test_records_kind_and_review_status_on_ship(self, tmp_path):
+        """Phase 4b: pipeline persists ``kind`` + ``review_status`` to the DB."""
+        db = tmp_path / "stravart.sqlite"
+        conn = connect(db)
+        rid = _seed_route(conn, title="DOG", image_url="https://x/img.jpg")
+        conn.commit()
+        conn.close()
+
+        success = Reconstruction(
+            image_url="https://x/img.jpg",
+            confidence=0.55, gpx_xml="<?xml ?><gpx></gpx>",
+            kind="street", review_status="review",
+        )
+        with patch("stravart.reconstruct_pipeline.reconstruct", return_value=success):
+            outcomes = run_batch(db, crossref_cache=tmp_path / "cache.json")
+        o = outcomes[0]
+        assert o.kind == "street"
+        assert o.review_status == "review"
+        conn = connect(db)
+        try:
+            row = conn.execute("SELECT * FROM routes WHERE id = ?", (rid,)).fetchone()
+        finally:
+            conn.close()
+        assert row["reconstruction_kind"] == "street"
+        assert row["reconstruction_review_status"] == "review"
+
+    def test_city_scale_kind_persists(self, tmp_path):
+        """City-scale outputs persist with kind='city-scale', review_status='review'."""
+        db = tmp_path / "stravart.sqlite"
+        conn = connect(db)
+        rid = _seed_route(conn, title="MUNICH LION", image_url="https://x/img.jpg")
+        conn.commit()
+        conn.close()
+
+        success = Reconstruction(
+            image_url="https://x/img.jpg",
+            confidence=0.35, gpx_xml="<?xml ?><gpx></gpx>",
+            kind="city-scale", review_status="review",
+        )
+        with patch("stravart.reconstruct_pipeline.reconstruct", return_value=success):
+            outcomes = run_batch(db, crossref_cache=tmp_path / "cache.json")
+        assert outcomes[0].kind == "city-scale"
+        conn = connect(db)
+        try:
+            row = conn.execute("SELECT * FROM routes WHERE id = ?", (rid,)).fetchone()
+        finally:
+            conn.close()
+        assert row["reconstruction_kind"] == "city-scale"
+
+    def test_passes_title_latlon_to_reconstruct(self, tmp_path):
+        """run_batch should forward the row's lat/lon into reconstruct()."""
+        db = tmp_path / "stravart.sqlite"
+        conn = connect(db)
+        _seed_route(conn, title="BERLIN MUTT", image_url="https://x/img.jpg",
+                    lat=52.52, lon=13.405, geocode_confidence=0.8)
+        conn.commit()
+        conn.close()
+
+        captured: dict = {}
+        def _spy(image_url, **kwargs):
+            captured.update(kwargs)
+            return Reconstruction(image_url=image_url, confidence=0.0,
+                                  failure="ocr: no street candidates")
+        with patch("stravart.reconstruct_pipeline.reconstruct", side_effect=_spy):
+            run_batch(db, crossref_cache=tmp_path / "cache.json")
+        assert captured["title_latlon"] == (52.52, 13.405)
+        assert captured["title_confidence"] == pytest.approx(0.8)
+        assert captured["min_gcps"] == 5   # Phase 4b default
+
+    def test_disable_city_scale_fallback_skips_title_latlon(self, tmp_path):
+        """``enable_city_scale_fallback=False`` clears title_latlon → legacy path."""
+        db = tmp_path / "stravart.sqlite"
+        conn = connect(db)
+        _seed_route(conn, title="BERLIN MUTT", image_url="https://x/img.jpg",
+                    lat=52.52, lon=13.405)
+        conn.commit()
+        conn.close()
+
+        captured: dict = {}
+        def _spy(image_url, **kwargs):
+            captured.update(kwargs)
+            return Reconstruction(image_url=image_url, confidence=0.0,
+                                  failure="ocr: no street candidates")
+        with patch("stravart.reconstruct_pipeline.reconstruct", side_effect=_spy):
+            run_batch(db, crossref_cache=tmp_path / "cache.json",
+                      enable_city_scale_fallback=False)
+        assert captured["title_latlon"] is None
+
     def test_orchestrator_exception_swallowed_into_outcome(self, tmp_path):
         db = tmp_path / "stravart.sqlite"
         conn = connect(db)
@@ -200,3 +295,19 @@ class TestSummary:
 
     def test_empty(self):
         assert summary([]) == {"attempted": 0, "shipped": 0}
+
+    def test_groups_by_kind_and_review_status(self):
+        """Phase 4b summary breaks shipped down by kind + review tier."""
+        outs = [
+            ReconstructionOutcome(1, "marathon", "u", 0.72, None, "gpx/1.gpx", 6, 0.45,
+                                  kind="street", review_status="shipped"),
+            ReconstructionOutcome(2, "review-tier", "u", 0.50, None, "gpx/2.gpx", 5, 0.30,
+                                  kind="street", review_status="review"),
+            ReconstructionOutcome(3, "berlin mutt", "u", 0.35, None, "gpx/3.gpx", 0, None,
+                                  kind="city-scale", review_status="review"),
+            ReconstructionOutcome(4, "failed", "u", 0.0, "ocr: no streets", None, 0, None),
+        ]
+        s = summary(outs)
+        assert s["shipped"] == 3
+        assert s["by_kind"] == {"street": 2, "city-scale": 1}
+        assert s["by_review_status"] == {"shipped": 1, "review": 2}

@@ -44,6 +44,8 @@ class ReconstructionOutcome:
     gpx_path: str | None
     n_gcps: int
     fidelity_score: float | None
+    kind: str = "street"
+    review_status: str | None = None
 
 
 def _now() -> str:
@@ -69,6 +71,8 @@ def _outcome_from(rec: Reconstruction, *, route_id: int, title: str,
         gpx_path=gpx_relpath,
         n_gcps=int(rec.diagnostics.get("n_gcps", 0)),
         fidelity_score=rec.fidelity.score if rec.fidelity is not None else None,
+        kind=rec.kind,
+        review_status=rec.review_status,
     )
 
 
@@ -80,8 +84,11 @@ def run_batch(
     only_categories: list[str] | None = None,
     limit: int | None = None,
     retry_attempted: bool = False,
-    min_confidence: float = 0.6,
+    min_confidence: float = 0.4,
+    strict_threshold: float = 0.6,
+    min_gcps: int = 5,
     waypoint_step_m: float = 30.0,
+    enable_city_scale_fallback: bool = True,
     progress_every: int = 5,
 ) -> list[ReconstructionOutcome]:
     """Drive Phase 3 reconstruction across the catalog. Returns per-row outcomes."""
@@ -111,17 +118,27 @@ def run_batch(
 
         outcomes: list[ReconstructionOutcome] = []
         for i, row in enumerate(rows, start=1):
+            # Pass title-derived lat/lon into the orchestrator so Phase 4b's
+            # centroid fallback fires when OCR finds no street labels.
+            title_latlon = None
+            if enable_city_scale_fallback and row["lat"] is not None and row["lon"] is not None:
+                title_latlon = (float(row["lat"]), float(row["lon"]))
+            title_conf = float(row["geocode_confidence"] or 0.5)
             try:
                 rec = reconstruct(
                     row["image_url"],
                     crossref_client=crossref_client,
                     download_graph=True,
                     min_confidence=min_confidence,
+                    strict_threshold=strict_threshold,
+                    min_gcps=min_gcps,
                     waypoint_step_m=waypoint_step_m,
+                    title_latlon=title_latlon,
+                    title_confidence=title_conf,
                     gpx_metadata=GpxMetadata(
                         name=row["title"],
                         description=f"strav.art reconstruction (route {row['id']})",
-                        source="stravart-finder Phase 3",
+                        source="stravart-finder Phase 4b",
                         keywords=("strav.art", row["category"]),
                     ),
                 )
@@ -136,7 +153,15 @@ def run_batch(
                 )
 
             gpx_relpath: str | None = None
-            if rec.gpx_xml is not None and rec.confidence >= min_confidence:
+            # Write GPX when reconstruct() emitted one. The orchestrator
+            # already applied min_confidence for street-scale outputs;
+            # city-scale fallbacks ship regardless of confidence because they
+            # are the *only* signal we have for OCR-zero images and their
+            # confidence is capped at 0.5 by design.
+            should_write = rec.gpx_xml is not None and (
+                rec.kind == "city-scale" or rec.confidence >= min_confidence
+            )
+            if should_write:
                 out_path = gpx_dir / _gpx_filename(row["id"])
                 out_path.write_text(rec.gpx_xml)
                 # Store the path relative to the DB's parent so the catalog
@@ -156,6 +181,8 @@ def run_batch(
                     confidence=rec.confidence,
                     attempted_at=_now(),
                     failure=rec.failure,
+                    kind=rec.kind if gpx_relpath else None,
+                    review_status=rec.review_status,
                 )
 
             if i % progress_every == 0 or i == len(rows):
@@ -172,10 +199,10 @@ def run_batch(
 
 
 def summary(outcomes: list[ReconstructionOutcome]) -> dict:
-    """Compact stats."""
+    """Compact stats with Phase 4b kind / review breakdown."""
     if not outcomes:
         return {"attempted": 0, "shipped": 0}
-    shipped = sum(1 for o in outcomes if o.gpx_path is not None)
+    with_gpx = [o for o in outcomes if o.gpx_path is not None]
     failures: dict[str, int] = {}
     for o in outcomes:
         if o.gpx_path is None:
@@ -183,8 +210,16 @@ def summary(outcomes: list[ReconstructionOutcome]) -> dict:
             failures[tag] = failures.get(tag, 0) + 1
     return {
         "attempted": len(outcomes),
-        "shipped":   shipped,
-        "ship_rate": round(shipped / len(outcomes), 3) if outcomes else 0.0,
+        "shipped":   len(with_gpx),
+        "ship_rate": round(len(with_gpx) / len(outcomes), 3) if outcomes else 0.0,
+        "by_kind": {
+            "street":     sum(1 for o in with_gpx if o.kind == "street"),
+            "city-scale": sum(1 for o in with_gpx if o.kind == "city-scale"),
+        },
+        "by_review_status": {
+            "shipped": sum(1 for o in with_gpx if o.review_status == "shipped"),
+            "review":  sum(1 for o in with_gpx if o.review_status == "review"),
+        },
         "failure_modes": dict(sorted(failures.items(), key=lambda kv: -kv[1])),
         "mean_confidence": round(
             sum(o.confidence for o in outcomes) / len(outcomes), 3,

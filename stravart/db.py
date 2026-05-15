@@ -100,6 +100,10 @@ _ADDITIVE_COLUMNS: tuple[tuple[str, str], ...] = (
     ("reconstruction_confidence",      "REAL"),
     ("reconstruction_attempted_at",    "TEXT"),
     ("reconstruction_failure",         "TEXT"),
+    # Phase 4b — distinguish street-scale (runnable) from city-scale
+    # (decorative) reconstructions, and tag the review tier.
+    ("reconstruction_kind",            "TEXT"),  # 'street' | 'city-scale' | NULL
+    ("reconstruction_review_status",   "TEXT"),  # 'shipped' | 'review' | NULL
 )
 
 
@@ -351,11 +355,16 @@ def update_reconstruction(
     confidence: float | None,
     attempted_at: str,
     failure: str | None = None,
+    kind: str | None = None,
+    review_status: str | None = None,
 ) -> None:
-    """Write Phase 3 reconstruction outcome back to the row.
+    """Write Phase 3/4b reconstruction outcome back to the row.
 
     All columns are nullable except ``reconstruction_attempted_at``, so
     failed runs can still be marked attempted (idempotent batches).
+    ``kind`` and ``review_status`` are Phase 4b additions — older callers
+    that omit them write NULL, which the consumer treats as legacy
+    (i.e. street-scale + shipped or NULL).
     """
     conn.execute(
         """
@@ -363,22 +372,33 @@ def update_reconstruction(
         SET gpx_path = ?,
             reconstruction_confidence = ?,
             reconstruction_attempted_at = ?,
-            reconstruction_failure = ?
+            reconstruction_failure = ?,
+            reconstruction_kind = ?,
+            reconstruction_review_status = ?
         WHERE id = ?
         """,
-        (gpx_path, confidence, attempted_at, failure, route_id),
+        (gpx_path, confidence, attempted_at, failure, kind, review_status, route_id),
     )
 
 
 def count_reconstructions(conn: sqlite3.Connection) -> dict[str, int]:
-    """Counts of attempted / shipped (gpx_path IS NOT NULL) reconstructions."""
-    attempted = conn.execute(
-        "SELECT COUNT(*) AS n FROM routes WHERE reconstruction_attempted_at IS NOT NULL"
-    ).fetchone()["n"]
-    shipped = conn.execute(
-        "SELECT COUNT(*) AS n FROM routes WHERE gpx_path IS NOT NULL"
-    ).fetchone()["n"]
-    return {"attempted": attempted, "shipped": shipped}
+    """Counts of attempted / GPX-written / per-tier / per-kind reconstructions.
+
+    Backwards compatible: ``attempted`` and ``shipped`` are the historical
+    Phase 3 fields. The Phase 4b additions break ``shipped`` down by
+    review tier and reconstruction kind so the catalog summary can show
+    "runnable shipped vs runnable review vs city-scale decorative".
+    """
+    def n(sql: str) -> int:
+        return conn.execute(sql).fetchone()["n"]
+    return {
+        "attempted":     n("SELECT COUNT(*) AS n FROM routes WHERE reconstruction_attempted_at IS NOT NULL"),
+        "shipped":       n("SELECT COUNT(*) AS n FROM routes WHERE gpx_path IS NOT NULL"),
+        "review_shipped":  n("SELECT COUNT(*) AS n FROM routes WHERE reconstruction_review_status = 'shipped'"),
+        "review_review":   n("SELECT COUNT(*) AS n FROM routes WHERE reconstruction_review_status = 'review'"),
+        "kind_street":     n("SELECT COUNT(*) AS n FROM routes WHERE reconstruction_kind = 'street' AND gpx_path IS NOT NULL"),
+        "kind_city_scale": n("SELECT COUNT(*) AS n FROM routes WHERE reconstruction_kind = 'city-scale' AND gpx_path IS NOT NULL"),
+    }
 
 
 def count_by_geocode_source(conn: sqlite3.Connection) -> dict[str, int]:
