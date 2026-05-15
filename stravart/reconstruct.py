@@ -320,7 +320,7 @@ def reconstruct(
     waypoint_step_m: float = 30.0,
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
-    mapmatch_use_via_nodes: bool = True,
+    mapmatch_use_via_nodes: bool = False,
     bbox_pad_m: float = 200.0,
     fidelity_buffer_m: float = 25.0,
     title_latlon: tuple[float, float] | None = None,

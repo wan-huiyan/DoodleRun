@@ -90,7 +90,7 @@ def run_batch(
     waypoint_step_m: float = 30.0,
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
-    mapmatch_use_via_nodes: bool = True,
+    mapmatch_use_via_nodes: bool = False,
     enable_city_scale_fallback: bool = True,
     progress_every: int = 5,
 ) -> list[ReconstructionOutcome]:
