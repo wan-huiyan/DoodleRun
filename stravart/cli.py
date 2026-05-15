@@ -133,6 +133,19 @@ def _add_reconstruct(sub: argparse._SubParsersAction) -> None:
                         "force detours away from the cartoon's actual "
                         "crossing point. Kept opt-in for future "
                         "per-street-node refinement.")
+    p.add_argument("--via-node-selection",
+                   choices=["nominatim-centroid", "per-street"],
+                   default="nominatim-centroid",
+                   help="Phase 4c B1 — how to choose the OSM node pinned for "
+                        "each OCR-anchored street when --via-nodes is set. "
+                        "'nominatim-centroid' (legacy): use the centroid hit "
+                        "Nominatim returned. 'per-street': enumerate every OSM "
+                        "node of the named way within the cluster bbox via "
+                        "Overpass, then pick the one closest to the projected "
+                        "cartoon polyline.")
+    p.add_argument("--per-street-node-cache", type=Path, default=None,
+                   help="On-disk cache for per-street Overpass enumeration "
+                        "(defaults to <db_dir>/per_street_node_cache.json).")
 
 
 def _add_reconstruct_stats(sub: argparse._SubParsersAction) -> None:
@@ -228,6 +241,8 @@ def main(argv: list[str] | None = None) -> int:
             mapmatch_k_paths=args.mapmatch_k_paths,
             mapmatch_rerank=args.mapmatch_rerank,
             mapmatch_use_via_nodes=args.via_nodes,
+            via_node_selection=args.via_node_selection,
+            per_street_node_cache=args.per_street_node_cache,
             enable_city_scale_fallback=not args.no_city_scale_fallback,
         )
         print(json.dumps(reconstruct_summary(outcomes), indent=2))

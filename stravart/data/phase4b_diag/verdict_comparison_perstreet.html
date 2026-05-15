@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>strav.art Phase 4c Stream B — per-street via-nodes verdict</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; color: #222; }
+  h1 { font-size: 1.4em; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.05em; margin-top: 1.6em; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.9em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: right; }
+  th { background: #f4f4f4; text-align: left; }
+  td.label { text-align: left; }
+  tr.baseline { background: #fffbe6; }
+  tr.nominatim { background: #fef0f0; }
+  tr.perstreet { background: #eaf6ea; }
+  tr.best { font-weight: 600; }
+  .verdict { background: #f7f7fa; border-left: 4px solid #c33; padding: 0.6em 1em; margin: 1em 0; }
+  .delta-pos { color: #1a7a1a; }
+  .delta-neg { color: #a02020; }
+  .footnote { font-size: 0.8em; color: #666; margin-top: 1.4em; }
+</style>
+</head>
+<body>
+<h1>Phase 4c Stream B — Option 4 refinement: per-street via-nodes (negative result)</h1>
+
+<div class="verdict">
+  <strong>Verdict:</strong> Per-street pinning is measurably better than Nominatim-centroid pinning
+  (+4–7%), confirming the geometric refinement is real. But neither route reaches the 1.2× threshold
+  over the no-via baseline. Kept opt-in behind <code>--via-node-selection=per-street</code> for future
+  hybrid with HMM (Stream A).
+</div>
+
+<h2>Route #584 — elephant (curated-20 review tier)</h2>
+<table>
+  <tr><th>Cell</th><th>fidelity</th><th>vs Nominatim cell-4</th></tr>
+  <tr class="baseline"><td class="label">0 — baseline (no via)</td><td>0.190</td><td>—</td></tr>
+  <tr class="nominatim"><td class="label">4 — Option 4 (Nominatim centroid)</td><td>0.162</td><td>—</td></tr>
+  <tr class="nominatim"><td class="label">5 — Options 1+2+4 (Nominatim)</td><td>0.167</td><td><span class="delta-pos">+3%</span></td></tr>
+  <tr class="perstreet"><td class="label">6 — Option 4 + per-street</td><td>0.172</td><td><span class="delta-pos">+6%</span></td></tr>
+  <tr class="perstreet best"><td class="label">7 — Options 1+2+4 + per-street (best)</td><td>0.173</td><td><span class="delta-pos">+7%</span></td></tr>
+  <tr><td class="label"><em>Target (≥1.2× Nominatim cell-4)</em></td><td><em>0.194</em></td><td>—</td></tr>
+</table>
+
+<h2>Route #53 — Regent's Park (curated-20 review tier)</h2>
+<table>
+  <tr><th>Cell</th><th>fidelity</th><th>vs Nominatim cell-4</th></tr>
+  <tr class="baseline"><td class="label">0 — baseline (no via)</td><td>0.359</td><td>—</td></tr>
+  <tr class="nominatim"><td class="label">4 — Option 4 (Nominatim centroid)</td><td>0.185</td><td>—</td></tr>
+  <tr class="nominatim"><td class="label">5 — Options 1+2+4 (Nominatim)</td><td>0.191</td><td><span class="delta-pos">+3%</span></td></tr>
+  <tr class="perstreet"><td class="label">6 — Option 4 + per-street</td><td>0.188</td><td><span class="delta-pos">+2%</span></td></tr>
+  <tr class="perstreet best"><td class="label">7 — Options 1+2+4 + per-street (best)</td><td>0.193</td><td><span class="delta-pos">+4%</span></td></tr>
+  <tr><td class="label"><em>Target (≥1.2× Nominatim cell-4)</em></td><td><em>0.222</em></td><td>—</td></tr>
+</table>
+
+<h2>Summary</h2>
+<table>
+  <tr><th>Route</th><th>baseline</th><th>Nominatim (Phase 4b)</th><th>per-street (Phase 4c best)</th><th>target (1.2× Nominatim)</th></tr>
+  <tr><td class="label">#584 elephant</td><td>0.190</td><td>0.162</td><td>0.173</td><td>0.194</td></tr>
+  <tr><td class="label">#53 Regent's</td><td>0.359</td><td>0.185</td><td>0.193</td><td>0.222</td></tr>
+</table>
+
+<p class="footnote">
+  Source: <code>sweep_perstreet_00584.json</code> and <code>sweep_perstreet_00053.json</code>.
+  Seed-pinned; both routes from the curated-20 review tier. Default
+  <code>via_node_selection</code> remains <code>"nominatim-centroid"</code> and
+  <code>--via-nodes</code> remains OFF by default. Companion: <code>verdict_comparison.html</code>
+  (Stream C, Phase 4b summary).
+</p>
+</body>
+</html>

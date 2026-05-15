@@ -39,7 +39,13 @@ import numpy as np
 
 from .centroid_project import centroid_project_contour
 from .contour import RouteContour, extract_route
-from .crossref import CrossRefResult, GeocodeCluster, find_geocode
+from .crossref import (
+    CrossRefResult,
+    GeocodeCluster,
+    PerStreetNodeClient,
+    find_geocode,
+    pick_via_node_for_street,
+)
 from .fidelity_score import FidelityScore, fidelity
 from .georef import (
     GroundControlPoint,
@@ -321,6 +327,8 @@ def reconstruct(
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
     mapmatch_use_via_nodes: bool = False,
+    via_node_selection: str = "nominatim-centroid",
+    per_street_node_client: PerStreetNodeClient | None = None,
     bbox_pad_m: float = 200.0,
     fidelity_buffer_m: float = 25.0,
     title_latlon: tuple[float, float] | None = None,
@@ -469,18 +477,77 @@ def reconstruct(
     # hard via-point. Dijkstra then routes THROUGH the OCR-identified
     # intersections in order — the cartoon's shape between them becomes a
     # tie-breaker, not the routing skeleton.
+    #
+    # Phase 4c B1 — ``via_node_selection`` dispatch:
+    #   * ``"nominatim-centroid"`` (legacy, default): pin to the OSM node
+    #     nearest each kept_gcp's (lat, lon) — i.e. the cluster-centroid hit
+    #     Nominatim returned for the street. Negative-result baseline.
+    #   * ``"per-street"`` (new): for each kept_gcp, query Overpass for every
+    #     OSM node belonging to that street within the cluster bbox, then
+    #     pick the one closest to the projected cartoon polyline. Falls
+    #     back to the centroid for any street whose Overpass query is
+    #     empty or fails, so this is a STRICT SUPERSET of the legacy mode.
     via_nodes_arg: list[tuple[float, float, int]] | None = None
+    rec.diagnostics["via_node_selection"] = via_node_selection
     if mapmatch_use_via_nodes and rec.georectification.kept_gcps:
         try:
             import osmnx as ox
-            inlier_lats = [g.lat for g in rec.georectification.kept_gcps]
-            inlier_lons = [g.lon for g in rec.georectification.kept_gcps]
-            inlier_node_ids = ox.distance.nearest_nodes(graph, X=inlier_lons, Y=inlier_lats)
-            via_nodes_arg = [
-                (float(g.lat), float(g.lon), int(nid))
-                for g, nid in zip(rec.georectification.kept_gcps, inlier_node_ids)
-            ]
+            kept = list(rec.georectification.kept_gcps)
+            inlier_lats = [g.lat for g in kept]
+            inlier_lons = [g.lon for g in kept]
+            centroid_node_ids = list(ox.distance.nearest_nodes(
+                graph, X=inlier_lons, Y=inlier_lats,
+            ))
+            built: list[tuple[float, float, int]] = []
+            per_street_hits = 0
+            per_street_misses = 0
+            cluster_bbox = rec.crossref.cluster.bbox if rec.crossref and rec.crossref.cluster else None
+            for g, fallback_node_id in zip(kept, centroid_node_ids):
+                use_per_street = (
+                    via_node_selection == "per-street"
+                    and per_street_node_client is not None
+                    and cluster_bbox is not None
+                    and bool(g.label)
+                )
+                node_lat: float = float(g.lat)
+                node_lon: float = float(g.lon)
+                node_id: int = int(fallback_node_id)
+                if use_per_street:
+                    try:
+                        nodes = per_street_node_client.nodes_for_street(
+                            g.label, cluster_bbox,
+                        )
+                    except Exception as exc:                       # noqa: BLE001
+                        logger.warning(
+                            "per-street enumeration failed for %r: %r — falling back to centroid",
+                            g.label, exc,
+                        )
+                        nodes = []
+                    pick = pick_via_node_for_street(nodes, rec.geo_polyline)
+                    if pick is not None:
+                        node_lat = float(pick.lat)
+                        node_lon = float(pick.lon)
+                        # The Overpass-returned node id may not exist in the
+                        # OSMnx-downloaded graph (different snapshots, network
+                        # type filter). Snap back to the nearest graph node by
+                        # its lat/lon — this preserves the per-street CROSSING
+                        # LOCATION even if the exact node id has been filtered
+                        # out of the graph.
+                        try:
+                            node_id = int(ox.distance.nearest_nodes(
+                                graph, X=[node_lon], Y=[node_lat],
+                            )[0])
+                        except Exception:                          # noqa: BLE001
+                            node_id = int(fallback_node_id)
+                        per_street_hits += 1
+                    else:
+                        per_street_misses += 1
+                built.append((node_lat, node_lon, node_id))
+            via_nodes_arg = built
             rec.diagnostics["via_nodes_count"] = len(via_nodes_arg)
+            if via_node_selection == "per-street":
+                rec.diagnostics["via_per_street_hits"] = per_street_hits
+                rec.diagnostics["via_per_street_misses"] = per_street_misses
         except Exception as exc:                                  # noqa: BLE001
             logger.warning("via_nodes build failed: %r — falling back to no-via map_match", exc)
             via_nodes_arg = None

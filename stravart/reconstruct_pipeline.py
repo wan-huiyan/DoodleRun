@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .crossref import NominatimStreetClient, OverpassClient
+from .crossref import NominatimStreetClient, OverpassClient, PerStreetNodeClient
 from .db import (
     connect, count_geocoded, count_reconstructions, count_routes,
     routes_needing_reconstruction, transaction, update_reconstruction,
@@ -91,6 +91,8 @@ def run_batch(
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
     mapmatch_use_via_nodes: bool = False,
+    via_node_selection: str = "nominatim-centroid",
+    per_street_node_cache: str | Path | None = None,
     enable_city_scale_fallback: bool = True,
     progress_every: int = 5,
 ) -> list[ReconstructionOutcome]:
@@ -102,6 +104,14 @@ def run_batch(
         crossref_client = OverpassClient(cache_path=cache)
     else:
         crossref_client = NominatimStreetClient(cache_path=cache)
+
+    per_street_client: PerStreetNodeClient | None = None
+    if via_node_selection == "per-street":
+        psn_cache = (
+            Path(per_street_node_cache) if per_street_node_cache
+            else db_path.parent / "per_street_node_cache.json"
+        )
+        per_street_client = PerStreetNodeClient(cache_path=psn_cache)
 
     gpx_dir = _gpx_dir(db_path)
     gpx_dir.mkdir(parents=True, exist_ok=True)
@@ -139,6 +149,8 @@ def run_batch(
                     mapmatch_k_paths=mapmatch_k_paths,
                     mapmatch_rerank=mapmatch_rerank,
                     mapmatch_use_via_nodes=mapmatch_use_via_nodes,
+                    via_node_selection=via_node_selection,
+                    per_street_node_client=per_street_client,
                     title_latlon=title_latlon,
                     title_confidence=title_conf,
                     gpx_metadata=GpxMetadata(

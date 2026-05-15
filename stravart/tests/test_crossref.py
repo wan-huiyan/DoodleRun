@@ -17,9 +17,12 @@ from stravart.crossref import (
     NominatimStreetClient,
     OverpassClient,
     OverpassWay,
+    PerStreetNodeClient,
+    StreetNode,
     _cluster_points,
     find_geocode,
     haversine_km,
+    pick_via_node_for_street,
 )
 from stravart.streets import StreetCandidate
 
@@ -342,3 +345,131 @@ class TestNominatimStreetClientCache:
         client2 = NominatimStreetClient(cache_path=cache, rate_limit_seconds=0.0)
         client2._url = "http://127.0.0.1:1/never-listening"
         assert client2.ways_named("Noplace Road") == []
+
+
+# -------------------------- Phase 4c B1 — per-street node enumeration -------
+
+class TestPerStreetNodeClient:
+    """Cache-format tests for ``PerStreetNodeClient``.
+
+    The network path is exercised indirectly via cache pre-population — same
+    pattern as ``TestOverpassClientCache`` / ``TestNominatimStreetClientCache``:
+    seed the on-disk cache, instantiate a fresh client, point ``_url`` at a
+    dead address, and confirm the call short-circuits to the cached payload.
+    """
+
+    def test_positive_cache_replay_with_node_ids(self, tmp_path: Path) -> None:
+        cache = tmp_path / "psn.json"
+        client = PerStreetNodeClient(cache_path=cache, rate_limit_seconds=0.0)
+        # Felix Road in some bbox — three OSM nodes
+        key = client._cache_key("Felix Road", (51.50, 51.51, -0.21, -0.20))
+        client._cache[key] = [
+            {"node_id": 1001, "lat": 51.504, "lon": -0.207},
+            {"node_id": 1002, "lat": 51.505, "lon": -0.206},
+            {"node_id": 1003, "lat": 51.506, "lon": -0.205},
+        ]
+        client._save_cache()
+
+        client2 = PerStreetNodeClient(cache_path=cache, rate_limit_seconds=0.0)
+        client2._url = "http://127.0.0.1:1/never-listening"
+        nodes = client2.nodes_for_street("Felix Road", (51.50, 51.51, -0.21, -0.20))
+        assert len(nodes) == 3
+        assert {n.node_id for n in nodes} == {1001, 1002, 1003}
+        assert nodes[0].lat == pytest.approx(51.504)
+
+    def test_negative_cache_replay_returns_empty_without_network(
+        self, tmp_path: Path,
+    ) -> None:
+        cache = tmp_path / "psn.json"
+        client = PerStreetNodeClient(cache_path=cache, rate_limit_seconds=0.0)
+        bbox = (51.50, 51.51, -0.21, -0.20)
+        client._negatives.add(client._cache_key("Noplace Road", bbox))
+        client._save_cache()
+
+        client2 = PerStreetNodeClient(cache_path=cache, rate_limit_seconds=0.0)
+        client2._url = "http://127.0.0.1:1/never-listening"
+        assert client2.nodes_for_street("Noplace Road", bbox) == []
+
+    def test_cache_key_quantises_micro_jitter_in_bbox(
+        self, tmp_path: Path,
+    ) -> None:
+        """Two bboxes that differ by 1e-5 (~1 m) should map to the same cache
+        key — otherwise tiny float jitter in the cluster centroid busts every
+        cache hit."""
+        cache = tmp_path / "psn.json"
+        client = PerStreetNodeClient(
+            cache_path=cache, rate_limit_seconds=0.0, bbox_quantise=1e-3,
+        )
+        k1 = client._cache_key("Felix Road", (51.50001, 51.51001, -0.21001, -0.20001))
+        k2 = client._cache_key("Felix Road", (51.50002, 51.51002, -0.21002, -0.20002))
+        assert k1 == k2
+
+    def test_bbox_in_key_isolates_caches_across_clusters(
+        self, tmp_path: Path,
+    ) -> None:
+        """'Felix Road in cluster A' empty must not mask 'Felix Road in cluster B'.
+        This is the bug the original Overpass cache schema would have had if we
+        reused it — Overpass-with-bbox makes empty results bbox-specific."""
+        cache = tmp_path / "psn.json"
+        client = PerStreetNodeClient(cache_path=cache, rate_limit_seconds=0.0)
+        bbox_a = (51.50, 51.51, -0.21, -0.20)
+        bbox_b = (40.70, 40.71, -74.02, -74.01)
+        # Felix Road in NYC bbox: cached with nodes
+        client._cache[client._cache_key("Felix Road", bbox_b)] = [
+            {"node_id": 2001, "lat": 40.705, "lon": -74.015},
+        ]
+        # Felix Road in London bbox: negative
+        client._negatives.add(client._cache_key("Felix Road", bbox_a))
+        client._save_cache()
+
+        client2 = PerStreetNodeClient(cache_path=cache, rate_limit_seconds=0.0)
+        client2._url = "http://127.0.0.1:1/never-listening"
+        assert client2.nodes_for_street("Felix Road", bbox_a) == []
+        nyc = client2.nodes_for_street("Felix Road", bbox_b)
+        assert len(nyc) == 1
+        assert nyc[0].node_id == 2001
+
+
+class TestPickViaNodeForStreet:
+    """The crossing-point selector that B1 uses to pin a via-node ON the
+    cartoon's actual crossing of a named street, not Nominatim's centroid."""
+
+    def test_picks_closest_node_to_polyline_vertex(self) -> None:
+        # Three nodes along Felix Road. The polyline (cartoon) crosses near
+        # node #2 (the middle one).
+        nodes = [
+            StreetNode(node_id=1, lat=51.500, lon=-0.210),
+            StreetNode(node_id=2, lat=51.505, lon=-0.205),
+            StreetNode(node_id=3, lat=51.510, lon=-0.200),
+        ]
+        polyline = [
+            (51.520, -0.220),    # far away
+            (51.505, -0.206),    # right next to node #2
+            (51.530, -0.180),    # far away
+        ]
+        pick = pick_via_node_for_street(nodes, polyline)
+        assert pick is not None
+        assert pick.node_id == 2
+
+    def test_empty_nodes_returns_none(self) -> None:
+        assert pick_via_node_for_street(
+            [], [(51.5, -0.2), (51.51, -0.21)],
+        ) is None
+
+    def test_empty_polyline_returns_none(self) -> None:
+        nodes = [StreetNode(node_id=1, lat=51.5, lon=-0.2)]
+        assert pick_via_node_for_street(nodes, []) is None
+
+    def test_far_apart_polyline_still_picks_an_argmin(self) -> None:
+        """Even when no node is anywhere near the polyline, the selector
+        still returns the relatively-closest one — the caller (B1) decides
+        whether the pick is good enough; this helper is just argmin."""
+        nodes = [
+            StreetNode(node_id=10, lat=51.500, lon=-0.210),
+            StreetNode(node_id=11, lat=51.510, lon=-0.220),
+        ]
+        # 10 km away → both nodes are far, but #11 is closer to the polyline.
+        polyline = [(51.600, -0.300)]
+        pick = pick_via_node_for_street(nodes, polyline)
+        assert pick is not None
+        assert pick.node_id == 11

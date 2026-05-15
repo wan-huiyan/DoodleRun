@@ -122,6 +122,22 @@ class OverpassWay:
     country: str | None = None
 
 
+@dataclass(frozen=True)
+class StreetNode:
+    """One OSM node belonging to a named way, within a bbox.
+
+    Phase 4c B1: per-street node enumeration. Unlike :class:`OverpassWay`
+    (Nominatim's one centroid-per-street point), each ``StreetNode`` is an
+    actual OSM node id with its (lat, lon) — there are typically dozens
+    along a single named way. Used to pick the via-pinning point closest
+    to where the projected cartoon actually crosses the street.
+    """
+
+    node_id: int
+    lat: float
+    lon: float
+
+
 @dataclass
 class GeocodeCluster:
     """Spatial cluster of ways that satisfies the multi-street constraint."""
@@ -414,6 +430,235 @@ class NominatimStreetClient:
         if country:
             params["country"] = country
         return self._query(params, cache_key=key)
+
+
+# ---------------- Per-street node enumeration (Phase 4c B1) ------------------
+
+class PerStreetNodeClient:
+    """Overpass client specialised for enumerating ALL nodes of a named way
+    within a bounding box. The cache schema differs from
+    :class:`OverpassClient` / :class:`NominatimStreetClient` — keys are
+    ``"<lower(name)>::<bbox-key>"`` — so this lives in its own file (default
+    ``per_street_node_cache.json`` alongside the regular cache).
+
+    Why a separate client? The existing clients return ONE centroid per
+    way (Nominatim's ``lat/lon`` or Overpass' ``out center``). Phase 4b's
+    "via_nodes" wiring pins each OCR'd street to that single centroid,
+    but streets are 1D objects — a 1 km road has many nodes — and the
+    centroid is rarely where the cartoon's contour actually crosses.
+    This client returns every member-node so the caller can pick the one
+    closest to the projected polyline.
+    """
+
+    def __init__(
+        self,
+        cache_path: str | Path,
+        *,
+        rate_limit_seconds: float = 3.0,    # gentle on the public Overpass
+        timeout: float = 90.0,
+        url: str = OVERPASS_URL,
+        bbox_quantise: float = 1e-3,        # ~110 m at the equator
+    ) -> None:
+        self.cache_path = Path(cache_path)
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+        self._rate = _RateLimiter(rate_limit_seconds)
+        self._timeout = timeout
+        self._verify = _make_ssl_context()
+        self._url = url
+        self._bbox_quantise = bbox_quantise
+        self._cache: dict[str, list[dict]] = {}
+        self._negatives: set[str] = set()
+        self._load_cache()
+
+    # ------------------------------------------------------------- cache
+    def _load_cache(self) -> None:
+        if not self.cache_path.exists():
+            return
+        try:
+            blob = json.loads(self.cache_path.read_text())
+            self._cache = blob.get("hits", {})
+            self._negatives = set(blob.get("negatives", []))
+        except (OSError, json.JSONDecodeError):
+            self._cache = {}
+            self._negatives = set()
+
+    def _save_cache(self) -> None:
+        tmp = self.cache_path.with_suffix(self.cache_path.suffix + ".tmp")
+        tmp.write_text(json.dumps(
+            {"hits": self._cache, "negatives": sorted(self._negatives)},
+            indent=2,
+        ))
+        tmp.replace(self.cache_path)
+
+    # ------------------------------------------------------------- keys
+    def _bbox_key(self, bbox: tuple[float, float, float, float]) -> str:
+        """Quantised bbox key (S, N, W, E) so micro-jitter in the cluster
+        centroid doesn't bust the cache. Default quantisation ~110 m."""
+        q = self._bbox_quantise
+        s, n, w, e = bbox
+        return (
+            f"{round(s / q) * q:.4f},"
+            f"{round(n / q) * q:.4f},"
+            f"{round(w / q) * q:.4f},"
+            f"{round(e / q) * q:.4f}"
+        )
+
+    def _cache_key(self, name: str, bbox: tuple[float, float, float, float]) -> str:
+        return f"{name.strip().lower()}::{self._bbox_key(bbox)}"
+
+    @staticmethod
+    def _build_query(name: str, bbox: tuple[float, float, float, float]) -> str:
+        """Overpass QL: enumerate every node of every ``highway`` way named
+        ``name`` (case-insensitive, exact match) inside ``bbox``.
+
+        ``(._;>;);`` recurses each way into its member nodes; ``out;`` emits
+        them inline with coords. One round-trip per (street, bbox) — typical
+        wall-clock ~2–4 s on the public instance.
+        """
+        safe = name.replace("\\", "").replace('"', "")
+        s, n, w, e = bbox
+        bbox_str = f"{s},{w},{n},{e}"
+        return (
+            "[out:json][timeout:60];"
+            "("
+            f'  way["highway"]["name"~"^{safe}$",i]({bbox_str});'
+            f'  way["highway"]["name:en"~"^{safe}$",i]({bbox_str});'
+            ");"
+            "(._;>;);"
+            "out;"
+        )
+
+    # ------------------------------------------------------- public API
+    def nodes_for_street(
+        self,
+        name: str,
+        bbox: tuple[float, float, float, float],
+    ) -> list[StreetNode]:
+        """Return every OSM node belonging to a way named ``name`` in ``bbox``.
+
+        ``bbox`` is ``(S, N, W, E)``. Cache-hit short-circuits the network;
+        cache-negative replays as ``[]``. Network failures degrade to ``[]``
+        — the caller (B1 via-node selection) falls back to the Nominatim
+        centroid in that case, so we never raise here.
+        """
+        key = self._cache_key(name, bbox)
+        if key in self._negatives:
+            return []
+        cached = self._cache.get(key)
+        if cached is not None:
+            return [StreetNode(**n) for n in cached]
+
+        query = self._build_query(name, bbox)
+        for attempt in (1, 2):
+            self._rate.wait()
+            try:
+                resp = httpx.post(
+                    self._url,
+                    data={"data": query},
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=self._timeout,
+                    verify=self._verify,
+                )
+            except httpx.HTTPError as exc:
+                if attempt == 1:
+                    logger.warning(
+                        "per-street overpass transport error %r for %r — backing off",
+                        exc, name,
+                    )
+                    time.sleep(15.0)
+                    continue
+                logger.warning(
+                    "per-street overpass giving up on %r — empty result", name,
+                )
+                return []
+            if resp.status_code in (429, 504):
+                wait = float(resp.headers.get("Retry-After", "30"))
+                logger.warning(
+                    "per-street overpass %s — sleeping %.0fs", resp.status_code, wait,
+                )
+                time.sleep(wait)
+                continue
+            try:
+                resp.raise_for_status()
+            except httpx.HTTPStatusError:
+                if attempt == 1:
+                    time.sleep(15.0)
+                    continue
+                return []
+            try:
+                data = resp.json()
+            except ValueError:
+                if attempt == 1:
+                    time.sleep(15.0)
+                    continue
+                return []
+            remark = data.get("remark", "")
+            if remark and any(
+                t in remark.lower() for t in ("timed out", "out of memory")
+            ):
+                if attempt == 1:
+                    logger.warning(
+                        "per-street overpass remark %r for %r — retrying",
+                        remark, name,
+                    )
+                    time.sleep(15.0)
+                    continue
+                return []
+            break
+        else:
+            return []
+
+        nodes: list[StreetNode] = []
+        for el in data.get("elements", []):
+            if el.get("type") != "node":
+                continue
+            nid = el.get("id")
+            lat = el.get("lat")
+            lon = el.get("lon")
+            if nid is None or lat is None or lon is None:
+                continue
+            nodes.append(StreetNode(node_id=int(nid), lat=float(lat), lon=float(lon)))
+
+        if nodes:
+            self._cache[key] = [n.__dict__ for n in nodes]
+        else:
+            self._negatives.add(key)
+        self._save_cache()
+        return nodes
+
+
+def pick_via_node_for_street(
+    nodes: list[StreetNode],
+    polyline: list[tuple[float, float]],
+) -> StreetNode | None:
+    """Return the ``StreetNode`` whose (lat, lon) lies closest to any vertex
+    of ``polyline``.
+
+    Argument shapes:
+      * ``nodes``: every OSM node of one street (from
+        :meth:`PerStreetNodeClient.nodes_for_street`).
+      * ``polyline``: the projected cartoon contour in (lat, lon).
+
+    The min is over the cross-product (node × polyline-vertex). The output
+    node is the via-pin candidate for THIS street — the OSM intersection
+    closest to where the cartoon's shape actually crosses the street, not
+    Nominatim's coarse street-centroid.
+
+    Returns ``None`` if either side is empty. Distance metric is haversine
+    via :func:`haversine_km` (degrades to a flat-Earth approximation at
+    city scale — fine for argmin).
+    """
+    if not nodes or not polyline:
+        return None
+    best: StreetNode | None = None
+    best_d = float("inf")
+    for node in nodes:
+        for (vlat, vlon) in polyline:
+            d = haversine_km(node.lat, node.lon, vlat, vlon)
+            if d < best_d:
+                best_d = d
+                best = node
+    return best
 
 
 # ---------------- Clustering --------------------------------------------------
