@@ -1,0 +1,164 @@
+{
+  "animal": "elephant",
+  "location_key": "st_albans",
+  "location_label": "St Albans, Hertfordshire",
+  "lat": 51.752,
+  "lon": -0.336,
+  "elapsed_s": 24.268460035324097,
+  "n_trials": 80,
+  "best": {
+    "vote_id": "ELE-S04",
+    "source": "stravart",
+    "center_lat": 51.75216873353805,
+    "center_lon": -0.3222502653322351,
+    "scale_m": 4978.849191994094,
+    "rotation_deg": -7.542110931177763,
+    "n_waypoints": 64,
+    "route_length_m": 60684.92654129531,
+    "objective": 0.5207945328365481,
+    "fidelity": {
+      "frechet": 0.10115948532067326,
+      "mhd": 0.028660804568001783,
+      "iou": 0.1893907095362521,
+      "ok": true
+    }
+  },
+  "top_candidates": [
+    {
+      "rank": 1,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.75216873353805,
+      "center_lon": -0.3222502653322351,
+      "scale_m": 4978.849191994094,
+      "rotation_deg": -7.542110931177763,
+      "route_length_m": 60684.92654129531,
+      "objective": 0.5207945328365481,
+      "fidelity": {
+        "frechet": 0.10115948532067326,
+        "mhd": 0.028660804568001783,
+        "iou": 0.1893907095362521,
+        "ok": true
+      }
+    },
+    {
+      "rank": 2,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.759477110022864,
+      "center_lon": -0.3303684061589918,
+      "scale_m": 4504.64403978349,
+      "rotation_deg": -7.950654445067391,
+      "route_length_m": 53908.42170293275,
+      "objective": 0.5378989475098908,
+      "fidelity": {
+        "frechet": 0.13388649147947732,
+        "mhd": 0.031284518541886644,
+        "iou": 0.22325960648105966,
+        "ok": true
+      }
+    },
+    {
+      "rank": 3,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.75575655835052,
+      "center_lon": -0.3029933044894877,
+      "scale_m": 5327.9382498833,
+      "rotation_deg": -6.028055880548477,
+      "route_length_m": 66794.47341173538,
+      "objective": 0.5511988888148592,
+      "fidelity": {
+        "frechet": 0.14468281846504566,
+        "mhd": 0.02619249349049497,
+        "iou": 0.21316035279086792,
+        "ok": true
+      }
+    },
+    {
+      "rank": 4,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.753630118438714,
+      "center_lon": -0.3250549300489112,
+      "scale_m": 3705.769233261737,
+      "rotation_deg": -11.0015137446852,
+      "route_length_m": 41246.78888262611,
+      "objective": 0.5519827852110564,
+      "fidelity": {
+        "frechet": 0.13069102789798398,
+        "mhd": 0.03628986537130075,
+        "iou": 0.1937063507451561,
+        "ok": true
+      }
+    },
+    {
+      "rank": 5,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.74833445225467,
+      "center_lon": -0.32424875586821617,
+      "scale_m": 4965.490735125466,
+      "rotation_deg": -4.897750633408051,
+      "route_length_m": 71502.14548621242,
+      "objective": 0.5533459522660986,
+      "fidelity": {
+        "frechet": 0.15258354107195227,
+        "mhd": 0.02889876527182851,
+        "iou": 0.22737394288353577,
+        "ok": true
+      }
+    },
+    {
+      "rank": 6,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.75591406841663,
+      "center_lon": -0.3025020819007526,
+      "scale_m": 5321.589678059694,
+      "rotation_deg": 4.6887525160161,
+      "route_length_m": 63553.629744176695,
+      "objective": 0.5533890098493272,
+      "fidelity": {
+        "frechet": 0.10011811805139717,
+        "mhd": 0.03329060628134642,
+        "iou": 0.12674882268548643,
+        "ok": true
+      }
+    },
+    {
+      "rank": 7,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.75192043057516,
+      "center_lon": -0.3042757877179914,
+      "scale_m": 4806.085519820334,
+      "rotation_deg": 11.946059219052248,
+      "route_length_m": 60395.36543524364,
+      "objective": 0.5539177826431493,
+      "fidelity": {
+        "frechet": 0.1131893485164394,
+        "mhd": 0.03864698155070744,
+        "iou": 0.1571901132972876,
+        "ok": true
+      }
+    },
+    {
+      "rank": 8,
+      "vote_id": "ELE-S04",
+      "source": "stravart",
+      "center_lat": 51.75580011755003,
+      "center_lon": -0.296603325434359,
+      "scale_m": 5339.251714807944,
+      "rotation_deg": 4.988338845833958,
+      "route_length_m": 64515.903869832146,
+      "objective": 0.5651529251070639,
+      "fidelity": {
+        "frechet": 0.11530944467402997,
+        "mhd": 0.03346514061290076,
+        "iou": 0.13377817974683273,
+        "ok": true
+      }
+    }
+  ]
+}

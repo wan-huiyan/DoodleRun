@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DoodleRun elephant — before/after smoothing</title>
+<style>
+  body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         margin: 24px; max-width: 1600px; background: #fafafa; color: #222; }
+  h1 { margin: 0 0 16px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+  .card { background: white; border-radius: 8px; padding: 14px;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .card h2 { margin: 0 0 6px 0; font-size: 16px; }
+  .card .meta { font-family: ui-monospace, Menlo, monospace;
+                font-size: 12px; color: #555; margin-bottom: 8px; }
+  .card img { width: 100%; height: auto; border-radius: 4px; display: block; }
+  .before h2 { color: #c62828; }
+  .after h2 { color: #2e7d32; }
+  .muted { color: #888; font-size: 12px; margin-top: 4px; }
+  .note { background: #fff8e1; padding: 12px 16px; border-radius: 6px;
+          margin: 16px 0; border-left: 4px solid #ffb300; }
+</style>
+</head>
+<body>
+<h1>Elephant — before vs after template smoothing (sigma=3)</h1>
+<div class="note">
+  <strong>What changed:</strong> applied a Gaussian smoothing pass to the ELE-S04 template polyline
+  (sigma=3 in outline-index units) to remove the small back-ear bump that was rendering as a
+  spurious upward spike around waypoint 43. The trunk, body, and 4 legs are preserved.
+</div>
+
+<h2 style="margin-top:32px;">St Albans</h2>
+<div class="grid">
+  <div class="card before">
+    <h2>BEFORE — s04_xs</h2>
+    <div class="meta">scale=3.76km · rot=-0° · 47.2 km · iou=0.321 · frechet=0.107</div>
+    <img src="big/BIG_elephant_st_albans_s04_xs.png" alt="St Albans before">
+    <div class="muted">Note the small spike on the top-back near waypoint 43 — that's the ear-bump.</div>
+  </div>
+  <div class="card after">
+    <h2>AFTER — s04_smooth3</h2>
+    <div class="meta">scale=3.87km · rot=-5° · 46.4 km · iou=0.308 · frechet=0.143</div>
+    <img src="big/BIG_elephant_st_albans_s04_smooth3.png" alt="St Albans after">
+    <div class="muted">Back is smooth; the ear-bump is folded into the head/back curve.</div>
+  </div>
+</div>
+
+<h2 style="margin-top:32px;">Maidenhead / Windsor area</h2>
+<div class="grid">
+  <div class="card before">
+    <h2>BEFORE — s04_xs</h2>
+    <div class="meta">scale=3.08km · rot=+2° · 41.3 km · iou=0.317 · frechet=0.129</div>
+    <img src="big/BIG_elephant_maidenhead_windsor_s04_xs.png" alt="Maidenhead before">
+  </div>
+  <div class="card after">
+    <h2>AFTER — s04_smooth3</h2>
+    <div class="meta">scale=3.67km · rot=-6° · 40.4 km · iou=0.333 · frechet=0.084</div>
+    <img src="big/BIG_elephant_maidenhead_windsor_s04_smooth3.png" alt="Maidenhead after">
+  </div>
+</div>
+
+<h2 style="margin-top:32px;">Template outline at different smoothing levels</h2>
+<p class="muted">Shows what the smoothing actually does to the template before routing.</p>
+<img src="_smooth_sweep.png" alt="smoothing sweep" style="max-width:100%; height:auto;">
+
+<p style="margin-top:24px; color:#666; font-size:13px;">
+  Full dashboard: <a href="dashboard.html">dashboard.html</a>
+</p>
+</body>
+</html>

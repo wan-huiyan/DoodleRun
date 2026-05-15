@@ -1,0 +1,34 @@
+{
+  "pig": {
+    "input": 12,
+    "kept": 12,
+    "reject_reasons": {}
+  },
+  "cat": {
+    "input": 34,
+    "kept": 34,
+    "reject_reasons": {}
+  },
+  "dog": {
+    "input": 80,
+    "kept": 80,
+    "reject_reasons": {}
+  },
+  "dragon": {
+    "input": 73,
+    "kept": 73,
+    "reject_reasons": {}
+  },
+  "duck": {
+    "input": 80,
+    "kept": 79,
+    "reject_reasons": {
+      "bad_aspect": 1
+    }
+  },
+  "elephant": {
+    "input": 80,
+    "kept": 80,
+    "reject_reasons": {}
+  }
+}

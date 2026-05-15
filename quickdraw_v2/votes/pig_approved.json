@@ -1,0 +1,224 @@
+{
+  "animal": "pig",
+  "vote_range": 30,
+  "n_quickdraw_voted": 30,
+  "n_stravart_voted": 12,
+  "approved_quickdraw": [
+    {
+      "vote_id": "PIG-Q01",
+      "rank_when_voted": 0,
+      "key_id": "4574179284221952"
+    },
+    {
+      "vote_id": "PIG-Q02",
+      "rank_when_voted": 1,
+      "key_id": "4946102077882368"
+    },
+    {
+      "vote_id": "PIG-Q03",
+      "rank_when_voted": 2,
+      "key_id": "6419248664543232"
+    },
+    {
+      "vote_id": "PIG-Q06",
+      "rank_when_voted": 5,
+      "key_id": "5307832842846208"
+    },
+    {
+      "vote_id": "PIG-Q11",
+      "rank_when_voted": 10,
+      "key_id": "6268867611459584"
+    },
+    {
+      "vote_id": "PIG-Q12",
+      "rank_when_voted": 11,
+      "key_id": "4659532661784576"
+    },
+    {
+      "vote_id": "PIG-Q15",
+      "rank_when_voted": 14,
+      "key_id": "4935503738568704"
+    },
+    {
+      "vote_id": "PIG-Q18",
+      "rank_when_voted": 17,
+      "key_id": "5440768053346304"
+    },
+    {
+      "vote_id": "PIG-Q19",
+      "rank_when_voted": 18,
+      "key_id": "4769945890062336"
+    },
+    {
+      "vote_id": "PIG-Q20",
+      "rank_when_voted": 19,
+      "key_id": "5290338623160320"
+    },
+    {
+      "vote_id": "PIG-Q22",
+      "rank_when_voted": 21,
+      "key_id": "5666653171875840"
+    },
+    {
+      "vote_id": "PIG-Q23",
+      "rank_when_voted": 22,
+      "key_id": "5578581814018048"
+    },
+    {
+      "vote_id": "PIG-Q27",
+      "rank_when_voted": 26,
+      "key_id": "6377331646005248"
+    },
+    {
+      "vote_id": "PIG-Q28",
+      "rank_when_voted": 27,
+      "key_id": "5271271732412416"
+    },
+    {
+      "vote_id": "PIG-Q29",
+      "rank_when_voted": 28,
+      "key_id": "5823165861199872"
+    }
+  ],
+  "rejected_quickdraw": [
+    {
+      "vote_id": "PIG-Q04",
+      "rank_when_voted": 3,
+      "key_id": "6693898506207232"
+    },
+    {
+      "vote_id": "PIG-Q05",
+      "rank_when_voted": 4,
+      "key_id": "5576690371657728"
+    },
+    {
+      "vote_id": "PIG-Q07",
+      "rank_when_voted": 6,
+      "key_id": "6549545628467200"
+    },
+    {
+      "vote_id": "PIG-Q08",
+      "rank_when_voted": 7,
+      "key_id": "6011062925131776"
+    },
+    {
+      "vote_id": "PIG-Q09",
+      "rank_when_voted": 8,
+      "key_id": "6015197380608000"
+    },
+    {
+      "vote_id": "PIG-Q10",
+      "rank_when_voted": 9,
+      "key_id": "4615508936622080"
+    },
+    {
+      "vote_id": "PIG-Q13",
+      "rank_when_voted": 12,
+      "key_id": "4810536418017280"
+    },
+    {
+      "vote_id": "PIG-Q14",
+      "rank_when_voted": 13,
+      "key_id": "4627742882529280"
+    },
+    {
+      "vote_id": "PIG-Q16",
+      "rank_when_voted": 15,
+      "key_id": "6299347387940864"
+    },
+    {
+      "vote_id": "PIG-Q17",
+      "rank_when_voted": 16,
+      "key_id": "4928895155437568"
+    },
+    {
+      "vote_id": "PIG-Q21",
+      "rank_when_voted": 20,
+      "key_id": "5210063843098624"
+    },
+    {
+      "vote_id": "PIG-Q24",
+      "rank_when_voted": 23,
+      "key_id": "5854262540107776"
+    },
+    {
+      "vote_id": "PIG-Q25",
+      "rank_when_voted": 24,
+      "key_id": "4987500453953536"
+    },
+    {
+      "vote_id": "PIG-Q26",
+      "rank_when_voted": 25,
+      "key_id": "6543118587396096"
+    },
+    {
+      "vote_id": "PIG-Q30",
+      "rank_when_voted": 29,
+      "key_id": "5833569190543360"
+    }
+  ],
+  "approved_stravart": [
+    {
+      "vote_id": "PIG-S01",
+      "rank_when_voted": 0,
+      "source": "003_1612015236696-DUJ02FDY57Q5U62QVD04.jpg"
+    },
+    {
+      "vote_id": "PIG-S02",
+      "rank_when_voted": 1,
+      "source": "010_1589812581736-FK00A0FEWTZQ3XN0Z84I.jpg"
+    },
+    {
+      "vote_id": "PIG-S03",
+      "rank_when_voted": 2,
+      "source": "011_1589812449252-W14IFKY75DX92OA635Z1.jpg"
+    },
+    {
+      "vote_id": "PIG-S04",
+      "rank_when_voted": 3,
+      "source": "006_1597667631505-NSALGDOWNGQU87YRPMC1.jpg"
+    },
+    {
+      "vote_id": "PIG-S05",
+      "rank_when_voted": 4,
+      "source": "000_1665147952480-8ZMK2Y98QC2NDD8LHFZF.jpg"
+    },
+    {
+      "vote_id": "PIG-S06",
+      "rank_when_voted": 5,
+      "source": "005_1608126411027-1XKMV40OXK586EFIPVNN.jpg"
+    },
+    {
+      "vote_id": "PIG-S07",
+      "rank_when_voted": 6,
+      "source": "008_1580981878906-E2K0HHMM71WTTLDP0FUL.jpg"
+    },
+    {
+      "vote_id": "PIG-S08",
+      "rank_when_voted": 7,
+      "source": "002_1632302488598-JDFZQTA7EMWVS1C4ORLS.jpg"
+    },
+    {
+      "vote_id": "PIG-S11",
+      "rank_when_voted": 10,
+      "source": "004_1608644208730-ENMEHKKOMYRAOHY338CT.jpg"
+    },
+    {
+      "vote_id": "PIG-S12",
+      "rank_when_voted": 11,
+      "source": "001_1640618458634-6MQT1SDYV03LDIY4VQ4E.jpg"
+    }
+  ],
+  "rejected_stravart": [
+    {
+      "vote_id": "PIG-S09",
+      "rank_when_voted": 8,
+      "source": "009_1589812513052-DC5DHB7J7LTEY6SPJ1K8.jpg"
+    },
+    {
+      "vote_id": "PIG-S10",
+      "rank_when_voted": 9,
+      "source": "007_1589209039258-78S89TEAHMDGMRGRVC5G.jpg"
+    }
+  ]
+}

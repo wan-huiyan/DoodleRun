@@ -1,0 +1,173 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DoodleRun elephant progress</title><style>
+body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       margin: 24px; max-width: 1400px; background: #fafafa; color: #222; }
+h1 { margin: 0 0 6px 0; }
+.muted { color: #666; font-size: 12px; }
+.section { margin: 32px 0; padding: 18px; background: white;
+           border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+.runs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.runs.stack { grid-template-columns: 1fr; }
+.run { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px;
+       background: #fdfdfd; }
+.run img { width: 100%; height: auto; display: block; border-radius: 4px;
+           max-height: 70vh; object-fit: contain; }
+.run h3 { margin: 0 0 6px 0; font-size: 15px; }
+.run .meta { font-size: 12px; color: #555; margin-bottom: 8px;
+             font-family: ui-monospace, Menlo, monospace; }
+.locked { border: 2px solid #4caf50; }
+.locked h3::before { content: "🔒 LOCKED — "; color: #4caf50; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #eee; }
+th { background: #f5f5f5; }
+.best { background: #e8f5e9; }
+.suspect { background: #ffebee; }
+a { color: #1565c0; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.thumb-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.thumb-row img { max-width: 280px; height: auto; border: 1px solid #ddd;
+                 border-radius: 4px; }
+</style></head><body><h1>DoodleRun elephant — progress dashboard</h1>
+<div class="muted">Generated 2026-05-15 19:07:04 · file: multi_template/previews/dashboard.html</div>
+<div class="section locked-section">
+<h2>🔒 Currently locked routes</h2>
+<div class="runs stack">
+<div class="run locked">
+<h3>st_albans</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.76km · rot=-0.4° · 47.2 km · iou=0.321</div>
+<img src="locked/LOCKED_elephant_st_albans.png" alt="st_albans">
+</div>
+<div class="run locked">
+<h3>maidenhead_windsor</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.08km · rot=+2.3° · 41.3 km · iou=0.317</div>
+<img src="locked/LOCKED_elephant_maidenhead_windsor.png" alt="maidenhead_windsor">
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>s04_smooth3</code></h2>
+<div class="runs">
+<div class="run">
+<h3>maidenhead_windsor — iou 0.333</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.67km · rot=-6.2° · 40.4 km · frechet=0.084</div>
+<img src="big/BIG_elephant_maidenhead_windsor_s04_smooth3.png" alt="maidenhead_windsor s04_smooth3">
+<div class="meta"><a href="elephant_maidenhead_windsor_s04_smooth3_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="big/BIG_elephant_maidenhead_windsor_s04_smooth3.png" target="_blank">big</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.308</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.87km · rot=-5.3° · 46.4 km · frechet=0.143</div>
+<img src="big/BIG_elephant_st_albans_s04_smooth3.png" alt="st_albans s04_smooth3">
+<div class="meta"><a href="elephant_st_albans_s04_smooth3_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="big/BIG_elephant_st_albans_s04_smooth3.png" target="_blank">big</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>s04_b12</code></h2>
+<div class="runs">
+<div class="run">
+<h3>maidenhead_windsor — iou 0.367</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.41km · rot=-2.4° · 39.4 km · frechet=0.081</div>
+<img src="big/BIG_elephant_maidenhead_windsor_s04_b12.png" alt="maidenhead_windsor s04_b12">
+<div class="meta"><a href="elephant_maidenhead_windsor_s04_b12_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="big/BIG_elephant_maidenhead_windsor_s04_b12.png" target="_blank">big</a> · <a href="diagnostic/DIAG_elephant_maidenhead_windsor_s04_b12.png" target="_blank">diagnostic</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.260</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.60km · rot=-3.9° · 46.7 km · frechet=0.152</div>
+<img src="big/BIG_elephant_st_albans_s04_b12.png" alt="st_albans s04_b12">
+<div class="meta"><a href="elephant_st_albans_s04_b12_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="big/BIG_elephant_st_albans_s04_b12.png" target="_blank">big</a> · <a href="diagnostic/DIAG_elephant_st_albans_s04_b12.png" target="_blank">diagnostic</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>s04_xs</code></h2>
+<div class="runs">
+<div class="run">
+<h3>maidenhead_windsor — iou 0.317</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.08km · rot=+2.3° · 41.3 km · frechet=0.129</div>
+<img src="big/BIG_elephant_maidenhead_windsor_s04_xs.png" alt="maidenhead_windsor s04_xs">
+<div class="meta"><a href="elephant_maidenhead_windsor_s04_xs_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="big/BIG_elephant_maidenhead_windsor_s04_xs.png" target="_blank">big</a> · <a href="diagnostic/DIAG_elephant_maidenhead_windsor_s04_xs.png" target="_blank">diagnostic</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.321</h3>
+<div class="meta">ELE-S04 (stravart) · scale=3.76km · rot=-0.4° · 47.2 km · frechet=0.107</div>
+<img src="big/BIG_elephant_st_albans_s04_xs.png" alt="st_albans s04_xs">
+<div class="meta"><a href="elephant_st_albans_s04_xs_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="big/BIG_elephant_st_albans_s04_xs.png" target="_blank">big</a> · <a href="diagnostic/DIAG_elephant_st_albans_s04_xs.png" target="_blank">diagnostic</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>s04_small</code></h2>
+<div class="runs">
+<div class="run">
+<h3>maidenhead_windsor — iou 0.287</h3>
+<div class="meta">ELE-S04 (stravart) · scale=4.96km · rot=-4.3° · 63.1 km · frechet=0.090</div>
+<img src="elephant_maidenhead_windsor_s04_small_top01_ELE-S04.png" alt="maidenhead_windsor s04_small">
+<div class="meta"><a href="elephant_maidenhead_windsor_s04_small_top01_ELE-S04.png" target="_blank">top-01</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.189</h3>
+<div class="meta">ELE-S04 (stravart) · scale=4.98km · rot=-7.5° · 60.7 km · frechet=0.101</div>
+<img src="elephant_st_albans_s04_small_top01_ELE-S04.png" alt="st_albans s04_small">
+<div class="meta"><a href="elephant_st_albans_s04_small_top01_ELE-S04.png" target="_blank">top-01</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>s04_wp64</code></h2>
+<div class="runs">
+<div class="run">
+<h3>maidenhead_windsor — iou 0.212</h3>
+<div class="meta">ELE-S04 (stravart) · scale=7.31km · rot=+2.7° · 85.2 km · frechet=0.068</div>
+<img src="elephant_maidenhead_windsor_s04_wp64_top01_ELE-S04.png" alt="maidenhead_windsor s04_wp64">
+<div class="meta"><a href="elephant_maidenhead_windsor_s04_wp64_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="_PICK_elephant_maidenhead_windsor_s04_wp64.png" target="_blank">pick-sheet</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.207</h3>
+<div class="meta">ELE-S04 (stravart) · scale=7.57km · rot=-3.4° · 87.1 km · frechet=0.091</div>
+<img src="elephant_st_albans_s04_wp64_top01_ELE-S04.png" alt="st_albans s04_wp64">
+<div class="meta"><a href="elephant_st_albans_s04_wp64_top01_ELE-S04.png" target="_blank">top-01</a> · <a href="_PICK_elephant_st_albans_s04_wp64.png" target="_blank">pick-sheet</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>q07_wp64</code></h2>
+<div class="runs">
+<div class="run">
+<h3>milton_keynes — iou 0.188</h3>
+<div class="meta">ELE-Q07 (quickdraw) · scale=4.47km · rot=+4.0° · 59.9 km · frechet=0.117</div>
+<img src="elephant_milton_keynes_q07_wp64_top01_ELE-Q07.png" alt="milton_keynes q07_wp64">
+<div class="meta"><a href="elephant_milton_keynes_q07_wp64_top01_ELE-Q07.png" target="_blank">top-01</a> · <a href="_PICK_elephant_milton_keynes_q07_wp64.png" target="_blank">pick-sheet</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.193</h3>
+<div class="meta">ELE-Q07 (quickdraw) · scale=6.65km · rot=+1.8° · 63.2 km · frechet=0.110</div>
+<img src="elephant_st_albans_q07_wp64_top01_ELE-Q07.png" alt="st_albans q07_wp64">
+<div class="meta"><a href="elephant_st_albans_q07_wp64_top01_ELE-Q07.png" target="_blank">top-01</a> · <a href="_PICK_elephant_st_albans_q07_wp64.png" target="_blank">pick-sheet</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>v2</code></h2>
+<div class="runs">
+<div class="run">
+<h3>milton_keynes — iou 0.169</h3>
+<div class="meta">ELE-Q07 (quickdraw) · scale=5.15km · rot=-3.8° · 40.6 km · frechet=0.157</div>
+<img src="elephant_milton_keynes_v2_top01_ELE-Q07.png" alt="milton_keynes v2">
+<div class="meta"><a href="elephant_milton_keynes_v2_top01_ELE-Q07.png" target="_blank">top-01</a></div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.132</h3>
+<div class="meta">ELE-Q07 (quickdraw) · scale=7.35km · rot=+1.7° · 66.0 km · frechet=0.152</div>
+<img src="elephant_st_albans_v2_top01_ELE-Q07.png" alt="st_albans v2">
+<div class="meta"><a href="elephant_st_albans_v2_top01_ELE-Q07.png" target="_blank">top-01</a></div>
+</div>
+</div></div>
+<div class="section">
+<h2>Run: <code>(default)</code></h2>
+<div class="runs">
+<div class="run">
+<h3>milton_keynes — iou 0.117</h3>
+<div class="meta">ELE-S18 (stravart) · scale=4.50km · rot=-18.6° · 38.1 km · frechet=0.311</div>
+</div>
+<div class="run">
+<h3>st_albans — iou 0.075</h3>
+<div class="meta">ELE-Q01 (quickdraw) · scale=4.24km · rot=+20.0° · 32.5 km · frechet=0.549</div>
+</div>
+</div></div>
+<div class="section">
+<h2>Approved template gallery</h2>
+<img src="_GALLERY_elephant.png" alt="gallery">
+</div></body></html>

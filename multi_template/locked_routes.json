@@ -1,0 +1,43 @@
+{
+  "_schema": "Locked-in animal routes per location. Full-precision floats from the v2 / v3 summary JSONs — do not round, the route is sensitive to lat/lon snap-to-nearest-node. v3 (S163 follow-up) switched template to ELE-S04 at user pick, bumped n_waypoints 32 → 64, fixed the waypoint-snap-to-distinct-node dedup bug in router.py, dropped scale to 3-4km for ~45km routes. User accepted v3 s04_xs despite a known artifact (small back-ear spike around waypoint 43); see compare.html for the smoothed alternative that was rejected.",
+  "animal": "elephant",
+  "router": {
+    "alpha": 3.0,
+    "beta": 6.0,
+    "revisit_penalty_m": 0.0,
+    "n_waypoints": 64,
+    "_notes": "revisit_penalty_m=0 lets each leg/trunk splice loop trace as a clean out-and-back. n_waypoints=64 plus snap-to-distinct-node (KDTree, k=50) gives each leg multiple distinct OSM-node targets so Dijkstra has to dive in. See lessons_elephant_lockin_config.md for the override-Optuna pattern and the sister skill `gps-art-splice-loop-template-routing`."
+  },
+  "search": {
+    "rotation_min_deg": -30.0,
+    "rotation_max_deg": 30.0,
+    "length_penalty_per_km": 0.0,
+    "scale_min_m": 3000.0,
+    "scale_max_m": 4000.0,
+    "smooth_sigma": 0.0,
+    "_notes": "Length penalty off; rotation clipped near canonical orientation; scale 3-4 km for ~40-47 km routes. Template smoothing OFF in the locked version — user prefers the higher iou (0.32) over the smoother cleaner outline (0.31)."
+  },
+  "elephant_st_albans": {
+    "vote_id": "ELE-S04",
+    "source": "stravart",
+    "center_lat": 51.75380568802976,
+    "center_lon": -0.32247404869733287,
+    "scale_m": 3764.1824824319397,
+    "rotation_deg": -0.4412662655360319,
+    "route_length_m": 47249.89474074657,
+    "fidelity": {"frechet": 0.107, "mhd": 0.025, "iou": 0.321},
+    "ranked_at_position": 1,
+    "_known_artifacts": "Small upward spike around waypoint 43 on the back; that's the elephant's ear in the template, faithfully traced. User accepted; see compare.html."
+  },
+  "elephant_maidenhead_windsor": {
+    "vote_id": "ELE-S04",
+    "source": "stravart",
+    "center_lat": 51.523713917827855,
+    "center_lon": -0.621124038907176,
+    "scale_m": 3082.2790273330897,
+    "rotation_deg": 2.2799940339142686,
+    "route_length_m": 41330.18851166602,
+    "fidelity": {"frechet": 0.129, "mhd": 0.028, "iou": 0.317},
+    "ranked_at_position": 1
+  }
+}
