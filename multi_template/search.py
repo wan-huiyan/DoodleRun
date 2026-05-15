@@ -47,15 +47,22 @@ class SearchResult:
     elapsed_s: float
 
 
-def _objective_value(fid: dict, route_len_m: float, target_min_m: float, target_max_m: float) -> float:
+def _objective_value(
+    fid: dict,
+    route_len_m: float,
+    target_min_m: float,
+    target_max_m: float,
+    *,
+    length_penalty_per_km: float = 1.0,
+) -> float:
     if not fid["ok"]:
         return 1e6
     base = fid["frechet"] + 0.5 * fid["mhd"] + 0.5 * (1.0 - fid["iou"])
-    # soft penalty if route length leaves [target_min, target_max]
-    if route_len_m < target_min_m:
-        base += (target_min_m - route_len_m) / 1000.0
-    elif route_len_m > target_max_m:
-        base += (route_len_m - target_max_m) / 1000.0
+    if length_penalty_per_km > 0:
+        if route_len_m < target_min_m:
+            base += length_penalty_per_km * (target_min_m - route_len_m) / 1000.0
+        elif route_len_m > target_max_m:
+            base += length_penalty_per_km * (route_len_m - target_max_m) / 1000.0
     return base
 
 
@@ -72,6 +79,12 @@ def search_animal_at_location(
     n_trials: int = 60,
     seed: int = 17,
     keep_top: int = 8,
+    router_alpha: float = 3.0,
+    router_beta: float = 2.5,
+    router_revisit_penalty_m: float = 4000.0,
+    rotation_min_deg: float = -90.0,
+    rotation_max_deg: float = 90.0,
+    length_penalty_per_km: float = 1.0,
 ) -> SearchResult:
     """Joint Optuna search.
 
@@ -97,7 +110,7 @@ def search_animal_at_location(
         dx = trial.suggest_float("offset_x_m", -placement_radius_m, placement_radius_m)
         dy = trial.suggest_float("offset_y_m", -placement_radius_m, placement_radius_m)
         scale_m = trial.suggest_float("scale_m", scale_min_m, scale_max_m)
-        rot = trial.suggest_float("rotation_deg", -90.0, 90.0)
+        rot = trial.suggest_float("rotation_deg", rotation_min_deg, rotation_max_deg)
 
         clat = sg.center_lat + dy * deg_per_m_lat
         clon = sg.center_lon + dx * deg_per_m_lon
@@ -110,14 +123,22 @@ def search_animal_at_location(
                 scale_m=scale_m, rotation_deg=rot,
                 n_waypoints=n_waypoints,
             )
-            routed = route_through_waypoints(G, waypoints)
+            routed = route_through_waypoints(
+                G, waypoints,
+                alpha=router_alpha,
+                beta=router_beta,
+                revisit_penalty_m=router_revisit_penalty_m,
+            )
         except Exception as e:
             return 1e6
         if routed is None:
             return 1e6
 
         fid = score_route(tpl.points, routed.polyline, n_samples=120)
-        obj = _objective_value(fid, routed.total_length_m, target_min, target_max)
+        obj = _objective_value(
+            fid, routed.total_length_m, target_min, target_max,
+            length_penalty_per_km=length_penalty_per_km,
+        )
         candidates.append(Candidate(
             template_idx=idx, template_vote_id=tpl.vote_id, template_source=tpl.source_kind,
             center_lat=clat, center_lon=clon, scale_m=scale_m, rotation_deg=rot,

@@ -192,16 +192,23 @@ def load_animal_templates(
     source_kind: Optional[str] = None,
     resample_n: int = 400,
     max_templates: Optional[int] = None,
+    vote_ids: Optional[List[str]] = None,
 ) -> List[Template]:
     """Load every approved template for an animal.
 
     `source_kind` filters to "quickdraw" or "stravart" if provided.
+    `vote_ids`   restricts to exactly the listed IDs (e.g. ["ELE-Q01", "ELE-Q07"]);
+                 takes precedence over `source_kind`.
     """
     adir = TEMPLATE_ROOT / animal
     if not adir.is_dir():
         raise FileNotFoundError(f"no templates dir for animal '{animal}'")
     files = sorted(adir.glob("*.json"))
-    if source_kind == "quickdraw":
+    if vote_ids is not None:
+        wanted = set(vote_ids)
+        # Files are named e.g. QD_ELE-Q01.json or SA_ELE-S18.json
+        files = [p for p in files if p.stem.split("_", 1)[1] in wanted]
+    elif source_kind == "quickdraw":
         files = [p for p in files if p.name.startswith("QD_")]
     elif source_kind == "stravart":
         files = [p for p in files if p.name.startswith("SA_")]

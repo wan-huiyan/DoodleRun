@@ -41,6 +41,16 @@ def run_one(
     out_dir: Path,
     source_filter: str | None,
     max_templates: int | None,
+    router_alpha: float = 3.0,
+    router_beta: float = 2.5,
+    router_revisit_penalty_m: float = 4000.0,
+    out_suffix: str = "",
+    vote_ids: list | None = None,
+    rotation_min_deg: float = -90.0,
+    rotation_max_deg: float = 90.0,
+    length_penalty_per_km: float = 1.0,
+    keep_top: int = 8,
+    render_top: int = 3,
 ):
     if location_key not in ENGLAND_SITES:
         raise SystemExit(f"unknown location {location_key}; must be one of {list(ENGLAND_SITES)}")
@@ -48,8 +58,10 @@ def run_one(
     print(f"\n=== {animal} @ {label} ({lat:.4f},{lon:.4f}) ===")
 
     print("[load] templates")
-    templates = load_animal_templates(animal, source_kind=source_filter, max_templates=max_templates)
-    print(f"  {len(templates)} templates ({source_filter or 'all kinds'})")
+    templates = load_animal_templates(animal, source_kind=source_filter,
+                                      max_templates=max_templates, vote_ids=vote_ids)
+    label_src = ",".join(vote_ids) if vote_ids else (source_filter or "all kinds")
+    print(f"  {len(templates)} templates ({label_src})")
 
     print("[load] OSM graph")
     sg = load_graph(lat, lon, radius_m=radius_m)
@@ -61,6 +73,13 @@ def run_one(
         templates, sg,
         target_distance_m=target_distance_m,
         n_trials=n_trials,
+        router_alpha=router_alpha,
+        router_beta=router_beta,
+        router_revisit_penalty_m=router_revisit_penalty_m,
+        rotation_min_deg=rotation_min_deg,
+        rotation_max_deg=rotation_max_deg,
+        length_penalty_per_km=length_penalty_per_km,
+        keep_top=keep_top,
     )
     elapsed = time.time() - t0
     best = res.best
@@ -73,9 +92,9 @@ def run_one(
 
     # render top-3
     out_dir.mkdir(parents=True, exist_ok=True)
-    for i, c in enumerate(res.all_candidates[:3]):
+    for i, c in enumerate(res.all_candidates[:render_top]):
         tpl = templates[c.template_idx]
-        out = out_dir / f"{animal}_{location_key}_top{i+1}_{tpl.vote_id}.png"
+        out = out_dir / f"{animal}_{location_key}{out_suffix}_top{i+1:02d}_{tpl.vote_id}.png"
         render_candidate(c, tpl, out_path=out, title=f"{animal} @ {label}  (rank {i+1})")
         print(f"  rendered {out}")
 
@@ -113,12 +132,12 @@ def run_one(
             for i, c in enumerate(res.all_candidates)
         ],
     }
-    meta_path = out_dir / f"{animal}_{location_key}_summary.json"
+    meta_path = out_dir / f"{animal}_{location_key}{out_suffix}_summary.json"
     meta_path.write_text(json.dumps(meta, indent=2))
     print(f"  wrote {meta_path}")
 
     # also dump the routed polyline for the best
-    poly_path = out_dir / f"{animal}_{location_key}_best_polyline.json"
+    poly_path = out_dir / f"{animal}_{location_key}{out_suffix}_best_polyline.json"
     poly_path.write_text(json.dumps({
         "lat_lon": best.routed.polyline,
         "waypoints": best.routed.waypoints,
@@ -139,11 +158,25 @@ def main():
     ap.add_argument("--source", default=None, choices=[None, "quickdraw", "stravart"])
     ap.add_argument("--max-templates", type=int, default=None)
     ap.add_argument("--out-dir", default="multi_template/previews")
+    ap.add_argument("--router-alpha", type=float, default=3.0)
+    ap.add_argument("--router-beta", type=float, default=2.5)
+    ap.add_argument("--router-revisit-penalty-m", type=float, default=4000.0)
+    ap.add_argument("--out-suffix", default="",
+                    help="Suffix appended to output filenames (e.g. '_norevisit') to keep multiple runs side-by-side")
+    ap.add_argument("--template-ids", default=None,
+                    help="Comma-separated vote-IDs to restrict the search to (e.g. 'ELE-Q01,ELE-Q07')")
+    ap.add_argument("--rotation-min-deg", type=float, default=-90.0)
+    ap.add_argument("--rotation-max-deg", type=float, default=90.0)
+    ap.add_argument("--length-penalty-per-km", type=float, default=1.0,
+                    help="Coefficient of the soft route-length penalty; 0 disables length matching")
+    ap.add_argument("--keep-top", type=int, default=8)
+    ap.add_argument("--render-top", type=int, default=3)
     args = ap.parse_args()
 
     locs = args.location or ["st_albans", "milton_keynes"]
     out_dir = Path(args.out_dir)
     summary = []
+    vote_ids = [v.strip() for v in args.template_ids.split(",")] if args.template_ids else None
     for loc in locs:
         meta = run_one(
             args.animal, loc,
@@ -153,11 +186,21 @@ def main():
             out_dir=out_dir,
             source_filter=args.source,
             max_templates=args.max_templates,
+            router_alpha=args.router_alpha,
+            router_beta=args.router_beta,
+            router_revisit_penalty_m=args.router_revisit_penalty_m,
+            out_suffix=args.out_suffix,
+            vote_ids=vote_ids,
+            rotation_min_deg=args.rotation_min_deg,
+            rotation_max_deg=args.rotation_max_deg,
+            length_penalty_per_km=args.length_penalty_per_km,
+            keep_top=args.keep_top,
+            render_top=args.render_top,
         )
         summary.append(meta)
 
     # write overall index
-    idx = out_dir / f"{args.animal}_runs_index.json"
+    idx = out_dir / f"{args.animal}{args.out_suffix}_runs_index.json"
     idx.write_text(json.dumps(summary, indent=2))
     print(f"\nwrote index {idx}")
 
