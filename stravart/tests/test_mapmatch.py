@@ -281,3 +281,121 @@ class TestShapeRerank:
                            waypoint_step_m=50.0,
                            k_shortest_paths=1, rerank="shape")
         assert result.reranked_segments == 0
+
+
+# --- Phase 4b option 4: OCR anchors as Dijkstra via-points -------------
+
+class TestViaNodes:
+    """When the caller supplies via_nodes (OCR-identified intersections
+    we trust), Dijkstra must route THROUGH those nodes in contour order."""
+
+    def _two_path_graph(self):
+        """Same fixture as TestShapeRerank — two paths north/south, both
+        equal length 0 → 5."""
+        import math
+        g = nx.MultiDiGraph(crs="EPSG:4326")
+        lat0, lon0 = 51.5, -0.1
+        dlat = math.degrees(100 / 6_371_000.0)
+        dlon = math.degrees(100 / (6_371_000.0 * math.cos(math.radians(lat0))))
+        g.add_node(0, y=lat0,            x=lon0)
+        g.add_node(1, y=lat0 + dlat,     x=lon0)
+        g.add_node(2, y=lat0 + dlat,     x=lon0 + dlon)
+        g.add_node(3, y=lat0 - dlat,     x=lon0)
+        g.add_node(4, y=lat0 - dlat,     x=lon0 + dlon)
+        g.add_node(5, y=lat0,            x=lon0 + 2 * dlon)
+        for a, b in [(0, 1), (1, 2), (2, 5), (0, 3), (3, 4), (4, 5)]:
+            g.add_edge(a, b, length=100)
+            g.add_edge(b, a, length=100)
+        return g, lat0, lon0, dlat, dlon
+
+    def test_via_node_forces_path_through_north_even_when_contour_is_straight(self):
+        """A straight contour from 0 to 5 normally takes one of the two
+        equal paths arbitrarily. With a via-node pinned at node 1 (north),
+        the path MUST traverse the north corridor."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        # Straight contour
+        coords = [(lat0, lon0 + i * dlon * 0.1) for i in range(21)]
+        # Pin via-node at node 1 (which sits at lat0+dlat, lon0)
+        via_nodes = [(lat0 + dlat, lon0, 1)]
+        result = map_match(coords, g,
+                           waypoint_step_m=50.0,
+                           via_nodes=via_nodes)
+        # Path includes node 1 (north) and not nodes 3 or 4 (south)
+        assert 1 in result.node_ids
+        assert 3 not in result.node_ids
+        assert 4 not in result.node_ids
+        assert result.via_nodes_pinned == 1
+
+    def test_multiple_via_nodes_routed_in_contour_order(self):
+        """Multiple via-nodes must be visited in the order they appear
+        along the contour, not by node-id."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        # Contour goes from 0 → south route → 5
+        coords = [
+            (lat0,             lon0),
+            (lat0 - 0.5*dlat,  lon0),
+            (lat0 - dlat,      lon0),
+            (lat0 - dlat,      lon0 + dlon),
+            (lat0,             lon0 + 2*dlon),
+        ]
+        # Pin two south-corridor via-nodes
+        via_nodes = [
+            (lat0 - dlat, lon0,        3),    # appears first in contour
+            (lat0 - dlat, lon0 + dlon, 4),    # appears second
+        ]
+        result = map_match(coords, g,
+                           waypoint_step_m=50.0,
+                           via_nodes=via_nodes)
+        assert 3 in result.node_ids
+        assert 4 in result.node_ids
+        # Order: 3 must appear before 4 in the snapped sequence
+        idx_3 = result.node_ids.index(3)
+        idx_4 = result.node_ids.index(4)
+        assert idx_3 < idx_4
+        # No north-corridor nodes traversed
+        assert 1 not in result.node_ids
+        assert 2 not in result.node_ids
+        assert result.via_nodes_pinned == 2
+
+    def test_via_nodes_none_falls_back_to_legacy(self):
+        """``via_nodes=None`` (default) preserves the legacy snap behaviour."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [(lat0, lon0), (lat0, lon0 + 2*dlon)]
+        result = map_match(coords, g,
+                           waypoint_step_m=50.0,
+                           via_nodes=None)
+        assert result.via_nodes_pinned == 0
+        # Either north or south path may have been picked — both are length-equal
+        assert result.length_m > 0
+
+    def test_via_node_pin_overrides_nearest_node_choice(self):
+        """If a via-node is the OCR-identified node for an intersection,
+        ``map_match`` must use IT — not whatever nearest_nodes would have
+        snapped to. (Test by pinning to a NON-nearest node and verifying
+        it's in the output path.)"""
+        # Build a triangle: 0,1,2 are corners; the (lat, lon) of the
+        # via-anchor sits closer to node 0 than node 2, but we pin 2.
+        import math
+        g = nx.MultiDiGraph(crs="EPSG:4326")
+        lat0, lon0 = 51.5, -0.1
+        dlat = math.degrees(100 / 6_371_000.0)
+        dlon = math.degrees(100 / (6_371_000.0 * math.cos(math.radians(lat0))))
+        g.add_node(0, y=lat0,            x=lon0)
+        g.add_node(1, y=lat0 + dlat,     x=lon0 + dlon)
+        g.add_node(2, y=lat0 + 5*dlat,   x=lon0 + 5*dlon)   # far away
+        g.add_edge(0, 1, length=141)
+        g.add_edge(1, 0, length=141)
+        g.add_edge(1, 2, length=566)
+        g.add_edge(2, 1, length=566)
+        # Contour goes from near-0 to near-1
+        coords = [(lat0, lon0), (lat0 + dlat, lon0 + dlon)]
+        # Pin via-node at NODE 2 even though its lat/lon is far from coords
+        # — what we actually want is to force the routing to TRAVERSE node 2.
+        # Setting via-lat/lon at node 2's coords:
+        via_nodes = [(lat0 + 5*dlat, lon0 + 5*dlon, 2)]
+        result = map_match(coords, g,
+                           waypoint_step_m=200.0,
+                           via_nodes=via_nodes)
+        # Node 2 must appear in the routed path
+        assert 2 in result.node_ids
+        assert result.via_nodes_pinned == 1

@@ -32,12 +32,13 @@ random.seed(42)
 
 
 SWEEPS = [
-    # (waypoint_step_m, k_shortest_paths, rerank, label)
-    (30.0, 1, "shape", "baseline (Phase 4a defaults)"),
-    (15.0, 1, "shape", "Option 1 only (denser waypoints)"),
-    (30.0, 3, "shape", "Option 2 only (k=3 shape rerank)"),
-    (15.0, 3, "shape", "Options 1+2 (current Phase 4b default)"),
-    (50.0, 5, "shape", "sparser + larger K (rerank-heavy)"),
+    # (waypoint_step_m, k_shortest_paths, rerank, use_via_nodes, label)
+    (30.0, 1, "shape", False, "baseline (Phase 4a defaults, no via)"),
+    (15.0, 1, "shape", False, "Option 1 only (denser waypoints, no via)"),
+    (30.0, 3, "shape", False, "Option 2 only (k=3 shape rerank, no via)"),
+    (15.0, 3, "shape", False, "Options 1+2 (no via)"),
+    (30.0, 1, "shape", True,  "Option 4 only (OCR via-nodes, baseline mapmatch)"),
+    (15.0, 3, "shape", True,  "Options 1+2+4 (everything on)"),
 ]
 
 
@@ -58,9 +59,8 @@ def main():
     )
 
     results = []
-    for step, k, rerank, label in SWEEPS:
-        print(f"\n=== {label} (step={step}, k={k}, rerank={rerank}) ===")
-        # Re-seed per cell so each run uses the same RANSAC sample order
+    for step, k, rerank, use_via, label in SWEEPS:
+        print(f"\n=== {label} (step={step}, k={k}, rerank={rerank}, via={use_via}) ===")
         np.random.seed(42)
         random.seed(42)
         t0 = time.time()
@@ -71,7 +71,8 @@ def main():
             waypoint_step_m=step,
             mapmatch_k_paths=k,
             mapmatch_rerank=rerank,
-            min_confidence=0.0,    # we want every result, even low-conf
+            mapmatch_use_via_nodes=use_via,
+            min_confidence=0.0,
             title_latlon=(row["lat"], row["lon"]),
             title_confidence=row["geocode_confidence"] or 0.5,
         )
@@ -83,9 +84,11 @@ def main():
             "step_m": step,
             "k": k,
             "rerank": rerank,
+            "use_via_nodes": use_via,
             "elapsed_s": round(elapsed, 1),
             "waypoints": m.waypoints_used if m else 0,
             "reranked": m.reranked_segments if m else 0,
+            "via_pinned": m.via_nodes_pinned if m else 0,
             "snap_points": len(m.coords) if m else 0,
             "snap_length_m": round(m.length_m, 0) if m else 0,
             "fidelity": round(f.score, 3) if f else None,
@@ -100,12 +103,16 @@ def main():
     out_path.write_text(json.dumps(results, indent=2))
     print(f"\nWrote {out_path.relative_to(ROOT)}")
 
-    # Compact comparison table
     print("\n--- comparison ---")
-    print(f"{'label':<42} {'step':>4} {'k':>2} {'wp':>4} {'rerank':>6} {'frechet':>8} {'fidelity':>8} {'iou':>5}")
+    print(f"{'label':<50} {'step':>4} {'k':>2} {'via':>3} {'wp':>4} "
+          f"{'rrnk':>4} {'pin':>3} {'frechet':>7} {'fidelity':>8} {'iou':>5}")
     for r in results:
-        print(f"{r['label']:<42} {r['step_m']:>4.0f} {r['k']:>2} {r['waypoints']:>4} "
-              f"{r['reranked']:>6} {r['frechet_m'] or 0:>8.0f} {r['fidelity']:>8} {r['buffered_iou']:>5}")
+        fid = f"{r['fidelity']:.3f}" if r['fidelity'] is not None else "  —  "
+        iou = f"{r['buffered_iou']:.3f}" if r['buffered_iou'] is not None else "  —  "
+        print(f"{r['label']:<50} {r['step_m']:>4.0f} {r['k']:>2} "
+              f"{'Y' if r['use_via_nodes'] else 'n':>3} "
+              f"{r['waypoints']:>4} {r['reranked']:>4} {r['via_pinned']:>3} "
+              f"{r['frechet_m'] or 0:>7.0f} {fid:>8} {iou:>5}")
 
 
 if __name__ == "__main__":

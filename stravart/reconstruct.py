@@ -320,6 +320,7 @@ def reconstruct(
     waypoint_step_m: float = 30.0,
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
+    mapmatch_use_via_nodes: bool = True,
     bbox_pad_m: float = 200.0,
     fidelity_buffer_m: float = 25.0,
     title_latlon: tuple[float, float] | None = None,
@@ -462,12 +463,35 @@ def reconstruct(
     except Exception as exc:                                     # noqa: BLE001
         rec.failure = f"mapmatch: graph load: {exc!r}"
         return rec
+    # Option 4: build via-node list from the GCPs that survived RANSAC.
+    # Each inlier GCP is an OCR'd street whose Nominatim hit lat/lon we trust;
+    # snap each to its nearest OSM graph node and pass into map_match as a
+    # hard via-point. Dijkstra then routes THROUGH the OCR-identified
+    # intersections in order — the cartoon's shape between them becomes a
+    # tie-breaker, not the routing skeleton.
+    via_nodes_arg: list[tuple[float, float, int]] | None = None
+    if mapmatch_use_via_nodes and rec.georectification.kept_gcps:
+        try:
+            import osmnx as ox
+            inlier_lats = [g.lat for g in rec.georectification.kept_gcps]
+            inlier_lons = [g.lon for g in rec.georectification.kept_gcps]
+            inlier_node_ids = ox.distance.nearest_nodes(graph, X=inlier_lons, Y=inlier_lats)
+            via_nodes_arg = [
+                (float(g.lat), float(g.lon), int(nid))
+                for g, nid in zip(rec.georectification.kept_gcps, inlier_node_ids)
+            ]
+            rec.diagnostics["via_nodes_count"] = len(via_nodes_arg)
+        except Exception as exc:                                  # noqa: BLE001
+            logger.warning("via_nodes build failed: %r — falling back to no-via map_match", exc)
+            via_nodes_arg = None
+
     try:
         rec.matched = map_match(
             rec.geo_polyline, graph,
             waypoint_step_m=waypoint_step_m,
             k_shortest_paths=mapmatch_k_paths,
             rerank=mapmatch_rerank,
+            via_nodes=via_nodes_arg,
         )
     except Exception as exc:                                     # noqa: BLE001
         rec.failure = f"mapmatch: {exc!r}"

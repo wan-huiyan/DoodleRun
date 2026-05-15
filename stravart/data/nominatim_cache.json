@@ -11663,9 +11663,91 @@
         "city": "Nottingham",
         "country": "United Kingdom"
       }
+    ],
+    "king henrys road": [
+      {
+        "name": "Maple Valley Black Diamond Road Southeast",
+        "lat": 47.350249,
+        "lon": -122.0191937,
+        "city": "Maple Valley",
+        "country": "United States"
+      },
+      {
+        "name": "Maple Valley Black Diamond Road Southeast",
+        "lat": 47.3422892,
+        "lon": -122.018605,
+        "city": "Maple Valley",
+        "country": "United States"
+      },
+      {
+        "name": "Maple Valley Black Diamond Road Southeast",
+        "lat": 47.3450959,
+        "lon": -122.018783,
+        "city": "Maple Valley",
+        "country": "United States"
+      },
+      {
+        "name": "Maple Valley Black Diamond Road Southeast",
+        "lat": 47.3468079,
+        "lon": -122.018906,
+        "city": "Maple Valley",
+        "country": "United States"
+      },
+      {
+        "name": "Maple Valley Black Diamond Road Southeast",
+        "lat": 47.3355653,
+        "lon": -122.0133164,
+        "city": null,
+        "country": "United States"
+      },
+      {
+        "name": "Maple Valley Black Diamond Road Southeast",
+        "lat": 47.3392531,
+        "lon": -122.0170709,
+        "city": null,
+        "country": "United States"
+      },
+      {
+        "name": "Yellow Brick Road",
+        "lat": 47.3493425,
+        "lon": -122.0147817,
+        "city": null,
+        "country": "United States"
+      },
+      {
+        "name": "Yellow Brick Road",
+        "lat": 47.3473549,
+        "lon": -122.0143656,
+        "city": null,
+        "country": "United States"
+      },
+      {
+        "name": "Rocky Road",
+        "lat": 47.3368246,
+        "lon": -122.0199461,
+        "city": null,
+        "country": "United States"
+      },
+      {
+        "name": "Maple Vally - Black Diamond Road Southeast & Southeast 280th Street",
+        "lat": 47.3503595,
+        "lon": -122.01932,
+        "city": "Maple Valley",
+        "country": "United States"
+      },
+      {
+        "name": "Maple Vally - Black Diamond Road Southeast & Southeast 280th Street",
+        "lat": 47.351701,
+        "lon": -122.019097,
+        "city": "Maple Valley",
+        "country": "United States"
+      }
     ]
   },
   "negatives": [
+    "biana ard street",
+    "blana aird street",
+    "blana ard street",
     "cairter-bridge argyle street",
     "carter-brdge argyle street",
     "carter-bridge argyie street",
@@ -11674,6 +11756,7 @@
     "che wynd f rd churchili road",
     "che wynd f rd churchill road",
     "che wynd f rd churchll road",
+    "iblana ard street",
     "in::augusta::united states::chiswell green",
     "in::augusta::united states::n orbital road",
     "in::augusta::united states::victoria street",

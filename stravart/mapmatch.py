@@ -169,6 +169,7 @@ class MatchedRoute:
     snapped_pairs: int                  # consecutive (u, v) pairs Dijkstra ran on
     unreachable_segments: int           # segments where networkx couldn't connect
     reranked_segments: int = 0          # segments where shape-rerank chose a non-shortest path
+    via_nodes_pinned: int = 0           # Phase 4b option 4: OCR-anchor nodes forced into the path
 
 
 def _node_xy(graph, node_id) -> tuple[float, float]:
@@ -245,6 +246,7 @@ def map_match(
     waypoint_step_m: float = 30.0,
     k_shortest_paths: int = 1,
     rerank: str = "shape",
+    via_nodes: list[tuple[float, float, int]] | None = None,
 ) -> MatchedRoute:
     """Snap ``coords`` to streets in ``graph`` and return the routed polyline.
 
@@ -271,6 +273,21 @@ def map_match(
         * ``rerank="length"`` ignores the contour shape and picks
           shortest-by-length even when K>1 (useful for ablation).
 
+    Phase 4b option 4 — ``via_nodes``:
+        ``via_nodes`` is a list of ``(lat, lon, osm_node_id)`` tuples
+        representing hard via-points: streets the OCR has identified
+        with high confidence (the inlier GCPs that survived RANSAC).
+        Each via-node is inserted into the waypoint sequence at the
+        contour position closest to its (lat, lon), and its snapped
+        OSM node is **forced** to be the supplied ``osm_node_id``
+        (overriding what ``ox.nearest_nodes`` would have chosen).
+        Dijkstra is then routed THROUGH these pinned nodes in order
+        — the OCR-identified intersections become a hard skeleton
+        the cartoon must follow. This addresses the wrong-turn snap
+        problem (#584 elephant's trunk pointing the wrong way) by
+        using the pipeline's strongest signal (OCR street IDs) as
+        routing constraints, not just affine-projection anchors.
+
     Returns the snapped coordinate list, OSM node ids, total length, and
     diagnostics. Raises nothing on graph-misses; everything is reported.
     """
@@ -293,9 +310,66 @@ def map_match(
             unreachable_segments=0,
         )
 
+    # Option 4: inject via_nodes at their natural positions along the contour.
+    # For each via (lat, lon, node_id), find the coords-index nearest to it,
+    # then insert into ``waypoints`` so that consecutive Dijkstra runs route
+    # THROUGH the via-node. ``via_overrides`` maps the waypoint index of each
+    # injected via-node to its forced node_id (skips nearest_nodes for that
+    # waypoint). Injection preserves the existing waypoint order — we never
+    # reorder the cartoon's natural sequence.
+    via_overrides: dict[int, int] = {}    # waypoint_index → node_id
+    if via_nodes:
+        # Build (coords-index, via_entry) for each via, sorted by coords order.
+        via_positions: list[tuple[int, tuple[float, float, int]]] = []
+        for via_lat, via_lon, via_node_id in via_nodes:
+            # Nearest contour point in coords (linear scan; coords are typically
+            # few thousand points → microseconds)
+            best_idx = 0
+            best_d = float("inf")
+            for i, (clat, clon) in enumerate(coords):
+                d = _haversine_m(clat, clon, via_lat, via_lon)
+                if d < best_d:
+                    best_d = d
+                    best_idx = i
+            via_positions.append((best_idx, (via_lat, via_lon, via_node_id)))
+        via_positions.sort(key=lambda p: p[0])
+
+        # Merge into waypoints sequence. For each via, find the insertion
+        # point in wp_indices such that the via's contour-index sits between
+        # consecutive waypoint indices. Insert + record override.
+        new_waypoints: list[tuple[float, float]] = []
+        new_wp_indices: list[int] = []
+        via_cursor = 0
+        for i, wp_idx in enumerate(wp_indices):
+            # Drain any vias whose contour-index is ≤ this waypoint's
+            while via_cursor < len(via_positions) and via_positions[via_cursor][0] <= wp_idx:
+                v_idx, (vlat, vlon, vnode) = via_positions[via_cursor]
+                # Don't double-insert if a previously-inserted via had the same idx
+                if not new_wp_indices or new_wp_indices[-1] < v_idx:
+                    new_waypoints.append((vlat, vlon))
+                    new_wp_indices.append(v_idx)
+                    via_overrides[len(new_waypoints) - 1] = vnode
+                via_cursor += 1
+            new_waypoints.append(waypoints[i])
+            new_wp_indices.append(wp_idx)
+        # Drain any remaining vias past the last waypoint
+        while via_cursor < len(via_positions):
+            v_idx, (vlat, vlon, vnode) = via_positions[via_cursor]
+            new_waypoints.append((vlat, vlon))
+            new_wp_indices.append(v_idx)
+            via_overrides[len(new_waypoints) - 1] = vnode
+            via_cursor += 1
+
+        waypoints = new_waypoints
+        wp_indices = new_wp_indices
+
     lats = [c[0] for c in waypoints]
     lons = [c[1] for c in waypoints]
-    snapped = ox.distance.nearest_nodes(graph, X=lons, Y=lats)
+    snapped = list(ox.distance.nearest_nodes(graph, X=lons, Y=lats))
+    # Force via positions to their OCR-identified node ids.
+    for idx, node_id in via_overrides.items():
+        if 0 <= idx < len(snapped):
+            snapped[idx] = node_id
 
     node_path: list[int] = []
     unreachable = 0
@@ -353,4 +427,5 @@ def map_match(
         snapped_pairs=pairs_run,
         unreachable_segments=unreachable,
         reranked_segments=reranked,
+        via_nodes_pinned=len(via_overrides),
     )

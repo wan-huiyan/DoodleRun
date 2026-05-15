@@ -108,6 +108,7 @@ class Georectification:
     rmse_m: float                     # root-mean-square residual, metres
     max_residual_m: float             # worst-case anchor residual, metres
     dropped_labels: tuple[str, ...]   # GCPs removed as outliers (if any)
+    kept_gcps: tuple = ()             # GCPs that survived RANSAC (Phase 4b)
 
     # Convenience methods --------------------------------------------------
     def forward(self, x_px: float, y_px: float) -> tuple[float, float]:
@@ -252,6 +253,7 @@ def fit_affine(
         rmse_m=rmse,
         max_residual_m=max_r,
         dropped_labels=tuple(dropped),
+        kept_gcps=tuple(gcps),
     )
 
 

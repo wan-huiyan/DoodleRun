@@ -90,6 +90,7 @@ def run_batch(
     waypoint_step_m: float = 30.0,
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
+    mapmatch_use_via_nodes: bool = True,
     enable_city_scale_fallback: bool = True,
     progress_every: int = 5,
 ) -> list[ReconstructionOutcome]:
@@ -137,6 +138,7 @@ def run_batch(
                     waypoint_step_m=waypoint_step_m,
                     mapmatch_k_paths=mapmatch_k_paths,
                     mapmatch_rerank=mapmatch_rerank,
+                    mapmatch_use_via_nodes=mapmatch_use_via_nodes,
                     title_latlon=title_latlon,
                     title_confidence=title_conf,
                     gpx_metadata=GpxMetadata(

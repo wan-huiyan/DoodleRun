@@ -125,6 +125,11 @@ def _add_reconstruct(sub: argparse._SubParsersAction) -> None:
                    default="shape",
                    help="Pick best of K paths by 'shape' (Fréchet vs cartoon) "
                         "or 'length' (legacy — shortest by edge length).")
+    p.add_argument("--no-via-nodes", action="store_true",
+                   help="Disable Phase 4b option 4 (OCR anchors as Dijkstra "
+                        "via-points). Default ON: each RANSAC-inlier GCP is "
+                        "pinned as a hard via-node in the snap, forcing the "
+                        "path through OCR-identified intersections in order.")
 
 
 def _add_reconstruct_stats(sub: argparse._SubParsersAction) -> None:
@@ -219,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
             waypoint_step_m=args.waypoint_step_m,
             mapmatch_k_paths=args.mapmatch_k_paths,
             mapmatch_rerank=args.mapmatch_rerank,
+            mapmatch_use_via_nodes=not args.no_via_nodes,
             enable_city_scale_fallback=not args.no_city_scale_fallback,
         )
         print(json.dumps(reconstruct_summary(outcomes), indent=2))

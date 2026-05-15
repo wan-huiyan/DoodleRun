@@ -476,6 +476,56 @@
   <code>min_area</code> (pin markers stay filtered at ~100px area).
 </p>
 
+<h2>Option 4 — OCR anchors as Dijkstra via-points (negative result)</h2>
+<p>
+  Idea: the OCR anchors land precisely on real streets — use them as <em>hard
+  via-points</em> in the snap, forcing Dijkstra to route THROUGH the OCR-
+  identified intersections in order. Implementation: after the affine fit, for
+  each RANSAC-inlier GCP, snap its Nominatim coordinate to the nearest OSM
+  graph node and inject as a via-anchor at the natural contour position.
+</p>
+<p>
+  Result on the same two routes, with RANSAC seeded for reproducibility:
+</p>
+<pre>
+#584 Travelling Elephant:
+  baseline (no via)                          fréchet 685m   fidelity 0.190   length 18760m
+  Option 4 (4 via-nodes pinned)              fréchet 685m   fidelity 0.162   length 22950m  ← WORSE
+
+#53 Regent's Park, Great Day For Doggin:
+  Options 1+2 (no via)                       fréchet 134m   fidelity 0.365   length 16953m
+  Option 4 (4 via-nodes pinned)              fréchet 1383m  fidelity 0.185   length 18984m  ← much WORSE
+</pre>
+<p>
+  <strong>Diagnosis.</strong> Nominatim returns ONE specific point per street
+  — typically the node closest to the cluster centroid. But streets are 1D
+  objects: Felix Road is 800m long, and the cartoon crosses Felix Road at one
+  specific point along its length that is NOT Nominatim's centroid. Pinning
+  the snap to Nominatim's choice forces Dijkstra to detour to a different
+  intersection on Felix Road than the one the cartoon actually crosses. The
+  longer path + bigger Fréchet are exactly that detour cost.
+</p>
+<p>
+  This is structurally the same family of negative result as options 1+2:
+  the OCR signal is correct, but the geographic anchor we derive from it is
+  too coarse to constrain individual Dijkstra hops. The infrastructure
+  (k-paths, shape rerank, via-node pinning) is sound and tested; what's
+  missing is a better mechanism for picking the right OSM node per OCR'd
+  street.
+</p>
+<p>
+  <strong>Two refinements that might unlock option 4</strong> (not yet built):
+</p>
+<ol>
+  <li><strong>Per-street node enumeration.</strong> Overpass query <code>way[name="Felix Road"]</code>
+    returns every node on Felix Road. Pick the one nearest the projected
+    polyline's nearest pass to Felix Road's bbox. ~half-day work + extra
+    API budget.</li>
+  <li><strong>Soft via constraint.</strong> Instead of pinning to one node,
+    treat the via as "Dijkstra must pass within R metres of (lat, lon)".
+    That's HMM territory — leads naturally to option 3.</li>
+</ol>
+
 <h2>Map-match wrong-turn problem (options 1+2: negative result)</h2>
 <p>
   The user noted that even successful reconstructions can show visibly-wrong
