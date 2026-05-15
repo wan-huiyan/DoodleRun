@@ -104,6 +104,9 @@ _ADDITIVE_COLUMNS: tuple[tuple[str, str], ...] = (
     # (decorative) reconstructions, and tag the review tier.
     ("reconstruction_kind",            "TEXT"),  # 'street' | 'city-scale' | NULL
     ("reconstruction_review_status",   "TEXT"),  # 'shipped' | 'review' | NULL
+    # Phase 4c — arc length of the shipped polyline in metres
+    # (snapped length for street-scale; haversine-summed for city-scale).
+    ("reconstruction_distance_m",      "REAL"),
 )
 
 
@@ -357,14 +360,14 @@ def update_reconstruction(
     failure: str | None = None,
     kind: str | None = None,
     review_status: str | None = None,
+    distance_m: float | None = None,
 ) -> None:
-    """Write Phase 3/4b reconstruction outcome back to the row.
+    """Write Phase 3/4b/4c reconstruction outcome back to the row.
 
     All columns are nullable except ``reconstruction_attempted_at``, so
     failed runs can still be marked attempted (idempotent batches).
-    ``kind`` and ``review_status`` are Phase 4b additions — older callers
-    that omit them write NULL, which the consumer treats as legacy
-    (i.e. street-scale + shipped or NULL).
+    ``kind`` and ``review_status`` are Phase 4b additions; ``distance_m`` is
+    a Phase 4c addition — older callers that omit any of them write NULL.
     """
     conn.execute(
         """
@@ -374,10 +377,12 @@ def update_reconstruction(
             reconstruction_attempted_at = ?,
             reconstruction_failure = ?,
             reconstruction_kind = ?,
-            reconstruction_review_status = ?
+            reconstruction_review_status = ?,
+            reconstruction_distance_m = ?
         WHERE id = ?
         """,
-        (gpx_path, confidence, attempted_at, failure, kind, review_status, route_id),
+        (gpx_path, confidence, attempted_at, failure, kind, review_status,
+         distance_m, route_id),
     )
 
 

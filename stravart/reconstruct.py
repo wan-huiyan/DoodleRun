@@ -87,6 +87,18 @@ class Reconstruction:
     confidence: float = 0.0
     kind: str = "street"
     review_status: str | None = None
+    total_distance_m: float | None = None
+    """Arc length of the shipped route in metres.
+
+    Phase 4c: populated for any reconstruction that produced a GPX.
+
+    * For ``kind="street"``: the snapped polyline's length
+      (``matched.length_m`` — what the runner would actually run).
+    * For ``kind="city-scale"``: the haversine-summed length of the
+      multi-segment projected polyline (summed *per-segment*, never
+      including phantom jumps between disjoint segments).
+    * ``None`` for failures or when the run stopped before GPX assembly.
+    """
     failure: str | None = None     # short reason when confidence is below threshold
     diagnostics: dict = field(default_factory=dict)
 
@@ -257,6 +269,43 @@ def _confidence(
     return geo_mean
 
 
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance between two (lat, lon) points, in metres.
+
+    Mean-Earth radius (6_371_000 m); sufficient for route-length sums where
+    a few-metre WGS84/spherical bias is dwarfed by the underlying projection
+    error.
+    """
+    r_lat1 = math.radians(lat1)
+    r_lat2 = math.radians(lat2)
+    dlat = r_lat2 - r_lat1
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2.0) ** 2
+        + math.cos(r_lat1) * math.cos(r_lat2) * math.sin(dlon / 2.0) ** 2
+    )
+    return 2.0 * 6_371_000.0 * math.asin(min(1.0, math.sqrt(a)))
+
+
+def _polylines_total_distance_m(
+    polylines: list[list[tuple[float, float]]],
+) -> float:
+    """Sum of per-segment haversine arc lengths across a list of polylines.
+
+    Critical for the city-scale fallback: the flat ``CentroidProjection.polyline``
+    is the *concatenation* of every per-segment polyline, so iterating it as
+    a single line would include phantom connector jumps between disjoint
+    segments (Rotterdam Turtles → 3 disconnected animals; Munich Lion → 140
+    skeleton edges). Summing each segment independently is the correct arc
+    length the runner would actually trace.
+    """
+    total = 0.0
+    for poly in polylines:
+        for (lat1, lon1), (lat2, lon2) in zip(poly, poly[1:]):
+            total += _haversine_m(lat1, lon1, lat2, lon2)
+    return total
+
+
 def _city_scale_fallback(
     rec: Reconstruction,
     *,
@@ -299,6 +348,10 @@ def _city_scale_fallback(
     rec.diagnostics["centroid_bbox_width_m"] = proj.bbox_width_m
     rec.diagnostics["centroid_bbox_height_m"] = proj.bbox_height_m
     rec.diagnostics["centroid_n_segments"] = len(proj.polylines)
+    # Phase 4c: per-segment haversine sum. Iterating the flat ``proj.polyline``
+    # would include phantom jumps between disjoint segments (Munich Lion
+    # has 140 segments — the bias is enormous, not negligible).
+    rec.total_distance_m = _polylines_total_distance_m(proj.polylines)
     # Multi-segment GPX track preserves branching shape; renderers break
     # between segments instead of drawing impossible connector lines.
     rec.gpx_xml = build_gpx_multi_segment(proj.polylines, metadata=gpx_metadata)
@@ -417,6 +470,21 @@ def reconstruct(
     rec.diagnostics["n_gcps_raw"] = len(raw_gcps)
     rec.diagnostics["n_gcps"] = len(gcps)
     if len(gcps) < min_gcps:
+        # Phase 4c: if we have a title-derived centroid, fall through to the
+        # city-scale fallback rather than hard-failing. The cartoon shape was
+        # captured; we just don't have enough street anchors to nail it down
+        # geographically. Output is decorative (review-tier, non-runnable).
+        if title_latlon is not None:
+            rec.diagnostics["city_scale_reason"] = (
+                f"min_gcps ({len(gcps)} < {min_gcps})"
+            )
+            return _city_scale_fallback(
+                rec,
+                title_latlon=title_latlon,
+                title_confidence=title_confidence,
+                target_width_m=centroid_target_width_m,
+                gpx_metadata=gpx_metadata,
+            )
         rec.failure = f"georef: only {len(gcps)} unique GCPs (need ≥{min_gcps})"
         return rec
     img_h, img_w = bgr.shape[:2]
@@ -439,6 +507,23 @@ def reconstruct(
     # collinear cluster. Both produce extrapolation garbage.
     if (rec.georectification.n_anchors >= 4
             and rec.georectification.rmse_m < min_rmse_m):
+        # Phase 4c: same fall-through — the affine looked exact but is
+        # degenerate, so we don't trust the street-scale projection. With a
+        # title centroid we still produce a decorative output.
+        if title_latlon is not None:
+            rec.diagnostics["city_scale_reason"] = (
+                f"min_rmse ({rec.georectification.rmse_m:.2f} m < {min_rmse_m} m)"
+            )
+            # Drop the suspect georectification — it'd mislead downstream
+            # consumers if persisted alongside a city-scale output.
+            rec.georectification = None
+            return _city_scale_fallback(
+                rec,
+                title_latlon=title_latlon,
+                title_confidence=title_confidence,
+                target_width_m=centroid_target_width_m,
+                gpx_metadata=gpx_metadata,
+            )
         rec.failure = (
             f"georef: suspicious RMSE={rec.georectification.rmse_m:.2f} m "
             f"with {rec.georectification.n_anchors} GCPs "
@@ -525,5 +610,8 @@ def reconstruct(
 
     # 8. GPX --------------------------------------------------------------
     rec.gpx_xml = build_gpx(rec.matched.coords, metadata=gpx_metadata)
+    # Phase 4c: the snapped polyline's arc length is the route distance the
+    # iOS client would surface. ``matched.length_m`` is already in metres.
+    rec.total_distance_m = float(rec.matched.length_m)
     rec.review_status = "shipped" if rec.confidence >= strict_threshold else "review"
     return rec

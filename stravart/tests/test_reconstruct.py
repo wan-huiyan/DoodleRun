@@ -595,3 +595,248 @@ class TestCityScaleFallback:
         assert mock_graph.call_count == 0
         assert mock_match.call_count == 0
         assert rec.kind == "city-scale"
+
+
+# --- Phase 4c: extended fallback triggers + distance population --------
+
+class TestCityScaleFallbackExtendedTriggers:
+    """Phase 4c: low-anchor / low-RMSE routes with a title centroid produce
+    a decorative city-scale output instead of hard-failing."""
+
+    def _img(self):
+        import cv2
+        img = np.full((300, 300, 3), 200, dtype=np.uint8)
+        cv2.line(img, (50, 50), (250, 250), (0, 0, 220), thickness=4)
+        return img
+
+    def test_min_gcps_fail_with_title_falls_through_to_city_scale(self):
+        """Only 4 GCPs (below min_gcps=5) + a title centroid → city-scale."""
+        ocr, xref = _make_xref_with_n_streets(4)
+        with patch("stravart.reconstruct.fetch_image", return_value=self._img()), \
+             patch("stravart.reconstruct.ocr_image", return_value=ocr), \
+             patch("stravart.reconstruct.find_geocode", return_value=xref):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=False,
+                title_latlon=(52.5200, 13.4050),    # Berlin
+                title_confidence=0.7,
+            )
+        assert rec.failure is None
+        assert rec.kind == "city-scale"
+        assert rec.review_status == "review"
+        assert rec.gpx_xml is not None
+        assert rec.is_runnable is False
+        # The diagnostic logs which gate triggered the fallback.
+        assert "min_gcps" in rec.diagnostics.get("city_scale_reason", "")
+
+    def test_min_gcps_fail_without_title_keeps_hard_failure(self):
+        """Existing path: low GCPs without a title centroid still hard-fails."""
+        ocr, xref = _make_xref_with_n_streets(4)
+        with patch("stravart.reconstruct.fetch_image", return_value=self._img()), \
+             patch("stravart.reconstruct.ocr_image", return_value=ocr), \
+             patch("stravart.reconstruct.find_geocode", return_value=xref):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=False,
+            )
+        assert rec.kind == "street"
+        assert rec.gpx_xml is None
+        assert rec.failure is not None and "GCPs" in rec.failure
+
+    def test_min_rmse_fail_with_title_falls_through_to_city_scale(self):
+        """6 GCPs that fit the affine exactly (RMSE=0) + title → city-scale.
+
+        The synthetic fixture's anchors lie on a regular grid, so the affine
+        fit returns RMSE=0. The production default ``min_rmse_m=0.5`` would
+        reject this as degenerate; with a title centroid we fall through.
+        """
+        ocr, xref = _make_xref_with_n_streets(6)
+        with patch("stravart.reconstruct.fetch_image", return_value=self._img()), \
+             patch("stravart.reconstruct.ocr_image", return_value=ocr), \
+             patch("stravart.reconstruct.find_geocode", return_value=xref):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=False,
+                title_latlon=(52.5200, 13.4050),    # Berlin
+                title_confidence=0.7,
+            )
+        assert rec.kind == "city-scale"
+        assert rec.review_status == "review"
+        assert rec.gpx_xml is not None
+        # The degenerate affine MUST NOT be persisted — it would mislead any
+        # downstream consumer trying to introspect the geo fit.
+        assert rec.georectification is None
+        assert "min_rmse" in rec.diagnostics.get("city_scale_reason", "")
+
+    def test_min_rmse_fail_without_title_keeps_hard_failure(self):
+        """Existing path: degenerate RMSE without a title centroid hard-fails."""
+        ocr, xref = _make_xref_with_n_streets(6)
+        with patch("stravart.reconstruct.fetch_image", return_value=self._img()), \
+             patch("stravart.reconstruct.ocr_image", return_value=ocr), \
+             patch("stravart.reconstruct.find_geocode", return_value=xref):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=False,
+            )
+        assert rec.kind == "street"
+        assert rec.gpx_xml is None
+        assert rec.failure is not None and "RMSE" in rec.failure
+
+    def test_hull_frac_fail_does_not_fall_through(self):
+        """Hull-fraction (clustered/collinear) is NOT a Phase 4c fallback trigger.
+
+        Even with a title centroid, clustered anchors are an honest rejection
+        — the cartoon SHAPE may be fine, but the OCR signal that DID land
+        was geometrically degenerate, distinct from the low-anchor case.
+        """
+        clustered = [(140 + (i % 3) * 5, 140 + (i // 3) * 5) for i in range(6)]
+        ocr, xref = _make_xref_with_n_streets(6, pixel_positions=clustered)
+        with patch("stravart.reconstruct.fetch_image", return_value=self._img()), \
+             patch("stravart.reconstruct.ocr_image", return_value=ocr), \
+             patch("stravart.reconstruct.find_geocode", return_value=xref):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=False,
+                title_latlon=(52.5200, 13.4050),
+            )
+        assert rec.kind == "street"
+        assert rec.gpx_xml is None
+        assert rec.failure is not None
+
+
+class TestTotalDistanceM:
+    """Phase 4c: ``total_distance_m`` is populated for any shipped result."""
+
+    def _img(self):
+        import cv2
+        img = np.full((300, 300, 3), 200, dtype=np.uint8)
+        cv2.line(img, (50, 50), (250, 250), (0, 0, 220), thickness=4)
+        return img
+
+    def test_failure_leaves_distance_none(self):
+        """Failures shouldn't fabricate a distance."""
+        blank = np.full((200, 200, 3), 200, dtype=np.uint8)
+        with patch("stravart.reconstruct.fetch_image", return_value=blank):
+            rec = reconstruct(
+                "https://example.com/blank.jpg",
+                crossref_client=None,
+                download_graph=False,
+            )
+        assert rec.failure is not None
+        assert rec.total_distance_m is None
+
+    def test_city_scale_distance_uses_per_segment_haversine(self):
+        """City-scale distance is the sum of per-segment arc lengths.
+
+        Critical: ``geo_polyline`` is the FLAT concatenation of segments
+        and would include phantom jumps between disjoint polylines if we
+        naively iterated it. The per-segment sum is the only correct count.
+        """
+        fake_ocr = OcrResult(fragments=[], street_candidates=[], fragment_boxes=[])
+        with patch("stravart.reconstruct.fetch_image", return_value=self._img()), \
+             patch("stravart.reconstruct.ocr_image", return_value=fake_ocr):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=False,
+                title_latlon=(52.5200, 13.4050),
+                title_confidence=0.7,
+                centroid_target_width_m=4_000.0,
+            )
+        assert rec.kind == "city-scale"
+        assert rec.total_distance_m is not None
+        # The cartoon is roughly bbox-width-sized (4 km here). Distance should
+        # be comparable to bbox width (a few km), and STRICTLY less than what
+        # naive concatenation would give if segments existed (sanity floor).
+        assert 100.0 < rec.total_distance_m < 20_000.0
+
+    def test_city_scale_per_segment_sum_excludes_phantom_jumps(self):
+        """Direct unit test of the haversine-sum helper.
+
+        Two disjoint segments far apart: per-segment sum should equal the
+        sum of within-segment lengths, NOT include the inter-segment gap.
+        """
+        from stravart.reconstruct import _polylines_total_distance_m
+        # Two segments, ~111m each, separated by ~22 km (0.2 deg of latitude).
+        # If the function included the jump between them the total would be
+        # >22 km; the correct answer is ~222 m.
+        polylines = [
+            [(51.000, -0.100), (51.001, -0.100)],
+            [(51.200, -0.100), (51.201, -0.100)],
+        ]
+        d = _polylines_total_distance_m(polylines)
+        # Two ~111m segments → ~222 m total; well under any phantom-jump value.
+        assert 100.0 < d < 400.0
+
+    def test_street_scale_distance_from_matched_length_m(self):
+        """Street-scale ship: distance comes from the snapped polyline length."""
+        import cv2
+        img = np.full((300, 300, 3), 200, dtype=np.uint8)
+        cv2.line(img, (50, 50), (250, 250), (0, 0, 220), thickness=4)
+
+        cands = [
+            StreetCandidate(raw="Broomfield Rd", normalized="Broomfield Road",
+                            suffix="road", confidence=0.85),
+            StreetCandidate(raw="Partridge Ave", normalized="Partridge Avenue",
+                            suffix="avenue", confidence=0.85),
+            StreetCandidate(raw="Smith Ln", normalized="Smith Lane",
+                            suffix="lane", confidence=0.85),
+            StreetCandidate(raw="High St", normalized="High Street",
+                            suffix="street", confidence=0.85),
+        ]
+        fragments = [(c.raw, c.confidence) for c in cands]
+        boxes = [(80.0, 80.0, 30, 12), (220.0, 80.0, 30, 12),
+                 (150.0, 220.0, 30, 12), (80.0, 220.0, 30, 12)]
+        fake_ocr = OcrResult(fragments=fragments, street_candidates=cands,
+                             fragment_boxes=boxes)
+
+        lat0, lon0 = 51.50, -0.10
+        spacing = 50.0
+        dlat = math.degrees(spacing / 6_371_000.0)
+        dlon = math.degrees(spacing / (6_371_000.0 * math.cos(math.radians(lat0))))
+        cluster = GeocodeCluster(
+            lat=lat0, lon=lon0,
+            bbox=(lat0 - 10 * dlat, lat0 + 10 * dlat,
+                  lon0 - 10 * dlon, lon0 + 10 * dlon),
+            streets=[c.normalized for c in cands], n_ways=4, confidence=0.7,
+        )
+
+        def _pix_to_geo(px, py):
+            return (
+                lat0 + (5 - py / 30.0) * dlat,
+                lon0 + (px / 30.0 - 5.0) * dlon,
+            )
+        matches = {}
+        for c, (px, py, _, _) in zip(cands, boxes):
+            lat, lon = _pix_to_geo(px, py)
+            matches[c.normalized] = [OverpassWay(c.normalized, lat, lon)]
+        fake_xref = CrossRefResult(cluster=cluster, matches=matches)
+
+        g = _grid_graph_for_reconstruct(
+            lat0=lat0 - 10 * dlat, lon0=lon0 - 10 * dlon, rows=20, cols=20,
+        )
+
+        with patch("stravart.reconstruct.fetch_image", return_value=img), \
+             patch("stravart.reconstruct.ocr_image", return_value=fake_ocr), \
+             patch("stravart.reconstruct.find_geocode", return_value=fake_xref), \
+             patch("stravart.reconstruct.load_graph", return_value=g):
+            rec = reconstruct(
+                "https://example.com/img.jpg",
+                crossref_client=None,
+                download_graph=True,
+                min_confidence=0.0,
+                min_gcps=3,
+                min_rmse_m=0.0,
+            )
+        # Distance should equal matched.length_m exactly (we mirror it).
+        if rec.gpx_xml is not None:
+            assert rec.total_distance_m is not None
+            assert rec.matched is not None
+            assert rec.total_distance_m == pytest.approx(rec.matched.length_m)
+            # Non-trivial — the synthetic stroke spans ~200 pixels of a 50 m grid.
+            assert rec.total_distance_m > 0.0

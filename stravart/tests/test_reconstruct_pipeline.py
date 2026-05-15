@@ -48,6 +48,12 @@ class TestSchemaMigration:
         assert "reconstruction_kind" in cols
         assert "reconstruction_review_status" in cols
 
+    def test_phase4c_distance_column_added_on_connect(self, tmp_path):
+        """Phase 4c adds reconstruction_distance_m (additive migration)."""
+        conn = connect(tmp_path / "test.sqlite")
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(routes)")}
+        assert "reconstruction_distance_m" in cols
+
     def test_existing_phase2_db_migrates_in_place(self, tmp_path):
         # Build a Phase 2-shaped DB by hand (no Phase 3 columns).
         db = tmp_path / "phase2.sqlite"
@@ -222,6 +228,51 @@ class TestRunBatch:
         finally:
             conn.close()
         assert row["reconstruction_kind"] == "city-scale"
+
+    def test_distance_m_persists_round_trip(self, tmp_path):
+        """Phase 4c: ``total_distance_m`` round-trips through the DB."""
+        db = tmp_path / "stravart.sqlite"
+        conn = connect(db)
+        rid = _seed_route(conn, title="DOG", image_url="https://x/img.jpg")
+        conn.commit()
+        conn.close()
+
+        success = Reconstruction(
+            image_url="https://x/img.jpg",
+            confidence=0.72, gpx_xml="<?xml ?><gpx></gpx>",
+            kind="street", review_status="shipped",
+            total_distance_m=12_345.6,
+        )
+        with patch("stravart.reconstruct_pipeline.reconstruct", return_value=success):
+            outcomes = run_batch(db, crossref_cache=tmp_path / "cache.json")
+        assert outcomes[0].total_distance_m == pytest.approx(12_345.6)
+        conn = connect(db)
+        try:
+            row = conn.execute("SELECT * FROM routes WHERE id = ?", (rid,)).fetchone()
+        finally:
+            conn.close()
+        assert row["reconstruction_distance_m"] == pytest.approx(12_345.6)
+
+    def test_distance_m_null_on_failure(self, tmp_path):
+        """Failures must leave ``reconstruction_distance_m`` NULL — no fabrication."""
+        db = tmp_path / "stravart.sqlite"
+        conn = connect(db)
+        rid = _seed_route(conn, title="DOG", image_url="https://x/img.jpg")
+        conn.commit()
+        conn.close()
+
+        failure = Reconstruction(
+            image_url="https://x/img.jpg",
+            failure="contour: empty", confidence=0.0,
+        )
+        with patch("stravart.reconstruct_pipeline.reconstruct", return_value=failure):
+            run_batch(db, crossref_cache=tmp_path / "cache.json")
+        conn = connect(db)
+        try:
+            row = conn.execute("SELECT * FROM routes WHERE id = ?", (rid,)).fetchone()
+        finally:
+            conn.close()
+        assert row["reconstruction_distance_m"] is None
 
     def test_passes_title_latlon_to_reconstruct(self, tmp_path):
         """run_batch should forward the row's lat/lon into reconstruct()."""

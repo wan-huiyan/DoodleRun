@@ -46,6 +46,7 @@ class ReconstructionOutcome:
     fidelity_score: float | None
     kind: str = "street"
     review_status: str | None = None
+    total_distance_m: float | None = None
 
 
 def _now() -> str:
@@ -73,6 +74,7 @@ def _outcome_from(rec: Reconstruction, *, route_id: int, title: str,
         fidelity_score=rec.fidelity.score if rec.fidelity is not None else None,
         kind=rec.kind,
         review_status=rec.review_status,
+        total_distance_m=rec.total_distance_m,
     )
 
 
@@ -189,6 +191,7 @@ def run_batch(
                     failure=rec.failure,
                     kind=rec.kind if gpx_relpath else None,
                     review_status=rec.review_status,
+                    distance_m=rec.total_distance_m if gpx_relpath else None,
                 )
 
             if i % progress_every == 0 or i == len(rows):
