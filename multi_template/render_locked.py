@@ -37,7 +37,7 @@ def regenerate(location_key: str, cfg: dict, router_cfg: dict, radius_m: int = 1
         tpl.points,
         center_lat=cfg["center_lat"], center_lon=cfg["center_lon"],
         scale_m=cfg["scale_m"], rotation_deg=cfg["rotation_deg"],
-        n_waypoints=32,
+        n_waypoints=router_cfg.get("n_waypoints", 32),
     )
     routed = route_through_waypoints(
         sg.G, waypoints,

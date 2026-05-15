@@ -51,6 +51,7 @@ def run_one(
     length_penalty_per_km: float = 1.0,
     keep_top: int = 8,
     render_top: int = 3,
+    n_waypoints: int = 32,
 ):
     if location_key not in ENGLAND_SITES:
         raise SystemExit(f"unknown location {location_key}; must be one of {list(ENGLAND_SITES)}")
@@ -80,6 +81,7 @@ def run_one(
         rotation_max_deg=rotation_max_deg,
         length_penalty_per_km=length_penalty_per_km,
         keep_top=keep_top,
+        n_waypoints=n_waypoints,
     )
     elapsed = time.time() - t0
     best = res.best
@@ -171,6 +173,7 @@ def main():
                     help="Coefficient of the soft route-length penalty; 0 disables length matching")
     ap.add_argument("--keep-top", type=int, default=8)
     ap.add_argument("--render-top", type=int, default=3)
+    ap.add_argument("--n-waypoints", type=int, default=32)
     args = ap.parse_args()
 
     locs = args.location or ["st_albans", "milton_keynes"]
@@ -196,6 +199,7 @@ def main():
             length_penalty_per_km=args.length_penalty_per_km,
             keep_top=args.keep_top,
             render_top=args.render_top,
+            n_waypoints=args.n_waypoints,
         )
         summary.append(meta)
 

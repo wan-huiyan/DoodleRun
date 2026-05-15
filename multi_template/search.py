@@ -75,7 +75,6 @@ def search_animal_at_location(
     placement_radius_m: float = 4_000,
     scale_min_m: float = 4_000,
     scale_max_m: float = 9_000,
-    n_waypoints: int = 32,
     n_trials: int = 60,
     seed: int = 17,
     keep_top: int = 8,
@@ -85,6 +84,7 @@ def search_animal_at_location(
     rotation_min_deg: float = -90.0,
     rotation_max_deg: float = 90.0,
     length_penalty_per_km: float = 1.0,
+    n_waypoints: int = 32,
 ) -> SearchResult:
     """Joint Optuna search.
 
