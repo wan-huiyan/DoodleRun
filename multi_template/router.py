@@ -133,8 +133,34 @@ def route_through_waypoints(
 
     lats = [w[0] for w in waypoints]
     lons = [w[1] for w in waypoints]
-    snapped = ox.distance.nearest_nodes(G, lons, lats)
-    snapped = list(dict.fromkeys(snapped))   # dedupe keeping order
+    # Snap each waypoint to the nearest DISTINCT graph node. The naive
+    # ox.distance.nearest_nodes + dict.fromkeys dedupe collapsed adjacent
+    # waypoints onto the same node, which silently lost ~9 of 64 leg-tip
+    # waypoints in DoodleRun S163. Use a KDTree to grab the K nearest
+    # candidates per waypoint and pick the first that hasn't already been
+    # claimed; that preserves all 64 distinct targets so each leg gets its
+    # own Dijkstra dive.
+    import numpy as np
+    from scipy.spatial import cKDTree
+    node_ids = list(G.nodes)
+    node_xy = np.array([(G.nodes[n]["x"], G.nodes[n]["y"]) for n in node_ids])
+    tree = cKDTree(node_xy)
+    K = min(50, len(node_ids))
+    used: Set[int] = set()
+    snapped: List[int] = []
+    for lat, lon in zip(lats, lons):
+        _, idxs = tree.query([lon, lat], k=K)
+        if np.ndim(idxs) == 0:
+            idxs = [int(idxs)]
+        for idx in idxs:
+            nid = node_ids[int(idx)]
+            if nid not in used:
+                used.add(nid)
+                snapped.append(nid)
+                break
+        else:
+            # All K nearest are used — fall back to nearest even if dup
+            snapped.append(node_ids[int(idxs[0])])
     if len(snapped) < 2:
         return None
 

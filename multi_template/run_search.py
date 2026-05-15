@@ -28,6 +28,7 @@ ENGLAND_SITES = {
     "hertford":      (51.7950, -0.0780, "Hertford, Hertfordshire"),
     "outer_london":  (51.5500, -0.1000, "Outer London (Hackney/Islington edge)"),
     "cambridge":     (52.2050, 0.1190,  "Cambridge, Cambridgeshire"),
+    "maidenhead_windsor": (51.5030, -0.6620, "Maidenhead / Windsor area, Berkshire"),
 }
 
 
@@ -52,6 +53,9 @@ def run_one(
     keep_top: int = 8,
     render_top: int = 3,
     n_waypoints: int = 32,
+    scale_min_m: float = 4_000,
+    scale_max_m: float = 9_000,
+    smooth_sigma: float = 0.0,
 ):
     if location_key not in ENGLAND_SITES:
         raise SystemExit(f"unknown location {location_key}; must be one of {list(ENGLAND_SITES)}")
@@ -60,7 +64,8 @@ def run_one(
 
     print("[load] templates")
     templates = load_animal_templates(animal, source_kind=source_filter,
-                                      max_templates=max_templates, vote_ids=vote_ids)
+                                      max_templates=max_templates, vote_ids=vote_ids,
+                                      smooth_sigma=smooth_sigma)
     label_src = ",".join(vote_ids) if vote_ids else (source_filter or "all kinds")
     print(f"  {len(templates)} templates ({label_src})")
 
@@ -82,6 +87,8 @@ def run_one(
         length_penalty_per_km=length_penalty_per_km,
         keep_top=keep_top,
         n_waypoints=n_waypoints,
+        scale_min_m=scale_min_m,
+        scale_max_m=scale_max_m,
     )
     elapsed = time.time() - t0
     best = res.best
@@ -174,6 +181,10 @@ def main():
     ap.add_argument("--keep-top", type=int, default=8)
     ap.add_argument("--render-top", type=int, default=3)
     ap.add_argument("--n-waypoints", type=int, default=32)
+    ap.add_argument("--scale-min-m", type=float, default=4_000)
+    ap.add_argument("--scale-max-m", type=float, default=9_000)
+    ap.add_argument("--smooth-sigma", type=float, default=0.0,
+                    help="Gaussian sigma (in outline-index units) for template smoothing; 2-3 removes ear/back bumps without losing appendage tips")
     args = ap.parse_args()
 
     locs = args.location or ["st_albans", "milton_keynes"]
@@ -200,6 +211,9 @@ def main():
             keep_top=args.keep_top,
             render_top=args.render_top,
             n_waypoints=args.n_waypoints,
+            scale_min_m=args.scale_min_m,
+            scale_max_m=args.scale_max_m,
+            smooth_sigma=args.smooth_sigma,
         )
         summary.append(meta)
 

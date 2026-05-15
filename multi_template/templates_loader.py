@@ -168,7 +168,32 @@ def _resample_polyline(pts: np.ndarray, target: int) -> np.ndarray:
     return np.column_stack([out_x, out_y])
 
 
-def load_template(path: Path, resample_n: int = 400) -> Template:
+def _smooth_outline(pts: np.ndarray, sigma: float) -> np.ndarray:
+    """Gaussian-smooth a closed outline polyline along the arc.
+
+    sigma is in outline-index units (e.g. sigma=2 on a 400-pt outline smooths
+    features narrower than ~8 points while preserving features wider than ~20).
+    Uses wrap-around boundary so the closure point isn't a discontinuity.
+    Large sigma will swallow appendage tips — keep ≤ 3 for cosmetic smoothing.
+    """
+    from scipy.ndimage import gaussian_filter1d
+    if sigma <= 0:
+        return pts
+    if len(pts) > 1 and np.allclose(pts[0], pts[-1]):
+        body = pts[:-1]
+        closed = True
+    else:
+        body = pts
+        closed = False
+    out_x = gaussian_filter1d(body[:, 0], sigma, mode="wrap")
+    out_y = gaussian_filter1d(body[:, 1], sigma, mode="wrap")
+    out = np.column_stack([out_x, out_y])
+    if closed:
+        out = np.vstack([out, out[:1]])
+    return out
+
+
+def load_template(path: Path, resample_n: int = 400, smooth_sigma: float = 0.0) -> Template:
     raw = json.loads(path.read_text())
     pts = _normalize_points(raw["points"])
     # The raw points are an unordered skeleton point cloud. Convert to an
@@ -177,6 +202,8 @@ def load_template(path: Path, resample_n: int = 400) -> Template:
     pts = _silhouette_outline(pts)
     if resample_n and len(pts) != resample_n:
         pts = _resample_polyline(pts, resample_n)
+    if smooth_sigma > 0:
+        pts = _smooth_outline(pts, smooth_sigma)
     return Template(
         vote_id=raw["_vote_id"],
         animal=raw["_animal"],
@@ -193,6 +220,7 @@ def load_animal_templates(
     resample_n: int = 400,
     max_templates: Optional[int] = None,
     vote_ids: Optional[List[str]] = None,
+    smooth_sigma: float = 0.0,
 ) -> List[Template]:
     """Load every approved template for an animal.
 
@@ -215,7 +243,7 @@ def load_animal_templates(
     out = []
     for p in files:
         try:
-            out.append(load_template(p, resample_n=resample_n))
+            out.append(load_template(p, resample_n=resample_n, smooth_sigma=smooth_sigma))
         except (ValueError, KeyError) as e:
             print(f"  skip {p.name}: {e}")
     if max_templates is not None:

@@ -22,6 +22,10 @@ from .templates_loader import load_animal_templates
 LOCATION_LABELS = {
     "st_albans": "St Albans, Hertfordshire",
     "milton_keynes": "Milton Keynes, Buckinghamshire",
+    "maidenhead_windsor": "Maidenhead / Windsor area, Berkshire",
+    "hertford": "Hertford, Hertfordshire",
+    "outer_london": "Outer London",
+    "cambridge": "Cambridge, Cambridgeshire",
 }
 
 
@@ -33,7 +37,7 @@ def regenerate(location_key: str, cfg: dict, router_cfg: dict, radius_m: int = 1
     tpl = tpls[0]
     sg = load_graph(cfg["center_lat"], cfg["center_lon"], radius_m=radius_m)
 
-    waypoints, _ = project_template(
+    waypoints, full_polyline = project_template(
         tpl.points,
         center_lat=cfg["center_lat"], center_lon=cfg["center_lon"],
         scale_m=cfg["scale_m"], rotation_deg=cfg["rotation_deg"],
@@ -47,7 +51,7 @@ def regenerate(location_key: str, cfg: dict, router_cfg: dict, radius_m: int = 1
     )
     if routed is None:
         raise SystemExit("routing failed")
-    return tpl, waypoints, routed, label
+    return tpl, waypoints, full_polyline, routed, label
 
 
 def render_locked(out_dir: Path):
@@ -56,10 +60,16 @@ def render_locked(out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
     length_tolerance_m = 100.0  # 100 m drift means the route has shifted to a different graph node sequence
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
-    for row, loc in enumerate(["st_albans", "milton_keynes"]):
+    # Discover which locations are present in the locked config.
+    locs = [k.replace("elephant_", "") for k in cfg
+            if k.startswith("elephant_") and isinstance(cfg[k], dict)]
+    if not locs:
+        raise SystemExit("No elephant_<location> entries found in locked_routes.json")
+    fig, axes = plt.subplots(len(locs), 2, figsize=(14, 6 * len(locs)),
+                             squeeze=False)
+    for row, loc in enumerate(locs):
         sub = cfg[f"elephant_{loc}"]
-        tpl, waypoints, routed, label = regenerate(loc, sub, router_cfg)
+        tpl, waypoints, full_polyline, routed, label = regenerate(loc, sub, router_cfg)
         expected_len = sub["route_length_m"]
         drift = routed.total_length_m - expected_len
         if abs(drift) > length_tolerance_m:
@@ -69,11 +79,17 @@ def render_locked(out_dir: Path):
                 f"{length_tolerance_m:.0f} m tolerance). The router or graph changed; the locked "
                 f"elephant no longer matches. Re-run multi_template.run_search and update locked_routes.json."
             )
-        # Left: locked elephant route
+        # Sanity check: every requested waypoint produced a Dijkstra leg.
+        if len(routed.legs) != len(waypoints) - 1:
+            print(f"  WARNING {loc}: expected {len(waypoints)-1} legs, got {len(routed.legs)} — route may be incomplete.")
+        # Left: locked elephant route. Grey reference is the FULL template polyline
+        # (400 pts after silhouette outline) — NOT the sparse waypoints, which
+        # would draw chord-across-appendage straight lines and falsely look
+        # incomplete. The route is the actual road graph trace.
         ax = axes[row, 0]
-        ideal = np.array([w for w in waypoints])
+        ideal = np.array(full_polyline)
         rt = np.array(routed.polyline)
-        ax.plot(ideal[:, 1], ideal[:, 0], "-", color="lightgrey", lw=2.5, label="ideal")
+        ax.plot(ideal[:, 1], ideal[:, 0], "-", color="lightgrey", lw=2.5, label="template")
         ax.plot(rt[:, 1], rt[:, 0], "-", color="crimson", lw=1.5, label="routed")
         ax.set_aspect("equal")
         ax.set_title(
@@ -90,8 +106,7 @@ def render_locked(out_dir: Path):
             base_poly = json.loads(base_path.read_text())["lat_lon"]
             base_arr = np.array(base_poly)
             ax = axes[row, 1]
-            # use ideal from same template if available (close enough)
-            ax.plot(ideal[:, 1], ideal[:, 0], "-", color="lightgrey", lw=2.5, label="ideal (new tmpl)")
+            ax.plot(ideal[:, 1], ideal[:, 0], "-", color="lightgrey", lw=2.5, label="template (new)")
             ax.plot(base_arr[:, 1], base_arr[:, 0], "-", color="steelblue", lw=1.5, label="routed (PRE-fix top-1)")
             ax.set_aspect("equal")
             ax.set_title(f"PRE-FIX top-1  @ {label}\n(template+placement chosen by old Optuna run)", fontsize=10)
