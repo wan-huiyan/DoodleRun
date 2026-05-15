@@ -170,6 +170,9 @@ class MatchedRoute:
     unreachable_segments: int           # segments where networkx couldn't connect
     reranked_segments: int = 0          # segments where shape-rerank chose a non-shortest path
     via_nodes_pinned: int = 0           # Phase 4b option 4: OCR-anchor nodes forced into the path
+    mode: str = "dijkstra"              # Phase 4c: which matcher produced this — "dijkstra" or "hmm"
+    hmm_states_emitted: int = 0         # Phase 4c (hmm mode): # distinct edges in Viterbi trace
+    hmm_unreachable_stitches: int = 0   # Phase 4c (hmm mode): # gaps where Dijkstra couldn't connect adjacent matched nodes
 
 
 def _node_xy(graph, node_id) -> tuple[float, float]:
@@ -428,4 +431,257 @@ def map_match(
         unreachable_segments=unreachable,
         reranked_segments=reranked,
         via_nodes_pinned=len(via_overrides),
+        mode="dijkstra",
+    )
+
+
+# ---------------------------------------------------- Phase 4c: HMM matcher
+#
+# Streams A-of-3 in Phase 4c: a Hidden Markov Model (Newson-Krumm style) map
+# matcher. The Dijkstra-per-segment matcher above operates LOCALLY — it makes
+# one snap decision per waypoint pair, and a single mis-snap (the cartoon
+# trunk pointing the wrong way) propagates downstream. The HMM scores
+# *entire path likelihoods* against the observed shape, so an early
+# ambiguous observation is re-resolved by later observations that are
+# unambiguous.
+#
+# Implementation: ``leuvenmapmatching`` (pure-Python; standard Newson-Krumm
+# matcher on PyPI; takes a graph + observations, runs Viterbi over edge
+# states, returns the most-likely edge sequence). We adapt our OSMnx
+# MultiDiGraph into the library's ``InMemMap`` and post-process the matched
+# edges back into the same ``MatchedRoute`` shape as the Dijkstra path.
+#
+# Why a library rather than rolling Viterbi by hand: per the predecessor
+# handoff and project axiom "use libraries over re-implementation" —
+# leuvenmapmatching is well-tested, handles non-emitting states, and gives
+# us a documented algorithm we can compare against rather than introducing
+# our own Viterbi bugs.
+
+
+def _build_inmem_map(graph):
+    """Convert an OSMnx-style ``MultiDiGraph`` into a ``leuvenmapmatching``
+    ``InMemMap`` for HMM matching.
+
+    Each OSMnx node becomes an InMemMap node carrying (lat, lon). Each
+    directed edge becomes an InMemMap directed edge. Parallel edges (the
+    MultiDiGraph case) collapse to one InMemMap edge — the HMM doesn't
+    care about parallel-edge geometry because the observations bracket
+    *which* edge was used by their proximity to it.
+    """
+    from leuvenmapmatching.map.inmem import InMemMap
+
+    imap = InMemMap("osmnx", use_latlon=True)
+    for node_id, data in graph.nodes(data=True):
+        lat = float(data["y"])
+        lon = float(data["x"])
+        imap.add_node(node_id, (lat, lon))
+    seen_edges: set[tuple[int, int]] = set()
+    for u, v in graph.edges():
+        if (u, v) in seen_edges:
+            continue
+        imap.add_edge(u, v)
+        seen_edges.add((u, v))
+    return imap
+
+
+def _stitch_node_path(
+    graph,
+    matched_node_seq: list[int],
+) -> tuple[list[int], int]:
+    """Turn the HMM's matched-node sequence into a contiguous graph walk.
+
+    The HMM returns a list of nodes implied by its matched edge sequence
+    (``[u_0, v_0, v_1, ...]``). Two consecutive entries may not be directly
+    connected in the OSMnx graph if the HMM emitted a non-emitting node
+    between them (e.g. when the matcher steps across a long edge). We call
+    ``nx.shortest_path`` to stitch each non-adjacent pair into a walk. The
+    returned sequence has consecutive duplicates removed.
+
+    Returns ``(node_path, unreachable_count)`` — ``unreachable_count``
+    increments whenever ``shortest_path`` raised ``NetworkXNoPath`` (rare;
+    indicates the HMM produced a node pair that's actually disconnected
+    in the graph subset).
+    """
+    if not matched_node_seq:
+        return [], 0
+    out: list[int] = [matched_node_seq[0]]
+    unreachable = 0
+    for u, v in zip(matched_node_seq, matched_node_seq[1:]):
+        if u == v:
+            continue
+        # Direct edge in either direction is cheapest — skip Dijkstra.
+        if graph.has_edge(u, v) or graph.has_edge(v, u):
+            if out[-1] != u:
+                out.append(u)
+            out.append(v)
+            continue
+        try:
+            sub = nx.shortest_path(graph, u, v, weight="length")
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            unreachable += 1
+            # Best-effort: still emit v so the trace doesn't lose this anchor.
+            if out[-1] != v:
+                out.append(v)
+            continue
+        # sub starts at u; skip if already there
+        if out[-1] == u:
+            out.extend(sub[1:])
+        else:
+            out.extend(sub)
+    # Final dedup pass for consecutive duplicates
+    deduped: list[int] = []
+    for n in out:
+        if not deduped or deduped[-1] != n:
+            deduped.append(n)
+    return deduped, unreachable
+
+
+def map_match_hmm(
+    coords: list[tuple[float, float]],
+    graph,
+    *,
+    waypoint_step_m: float = 30.0,
+    obs_noise_m: float = 50.0,
+    max_dist_m: float = 200.0,
+    min_prob_norm: float = 0.0001,
+    non_emitting_states: bool = True,
+    avoid_goingback: bool = True,
+) -> MatchedRoute:
+    """Hidden Markov Model map-match (Newson-Krumm via ``leuvenmapmatching``).
+
+    Algorithm — given an observation sequence (the projected cartoon polyline)
+    and a road graph:
+
+      * **States** are directed graph edges. ``leuvenmapmatching`` enumerates
+        edges within ``max_dist_m`` of each observation as candidate states.
+      * **Emission probability** ``∝ exp(-d² / 2σ²)`` where ``d`` is the
+        observation's distance to the edge centreline and ``σ = obs_noise_m``.
+        On cartoon projections the per-point error is well above standard
+        GPS noise (20m) — we default to **50m**, with the sweep harness
+        exercising {20, 50, 100, 150}.
+      * **Transition probability** penalises the mismatch between the
+        great-circle distance ``|obs_{i+1} - obs_i|`` and the network
+        distance along edges. The library handles this internally; we
+        only tune ``avoid_goingback`` (turns off back-tracking that
+        artificially fits the noise).
+      * **Viterbi decode** returns the globally most-likely edge sequence
+        — re-deciding ambiguous early observations once later ones
+        disambiguate them. This is the fix the Phase 4b handoff asked
+        for: an early waypoint near a forked junction no longer locks
+        the entire trace into the wrong corridor.
+
+    We feed downsampled waypoints (same step as Dijkstra path) so the
+    Viterbi runtime stays bounded. After the match, we stitch the matched
+    node sequence into a graph walk via ``nx.shortest_path`` between any
+    non-adjacent neighbours — the same trick the Dijkstra path uses to
+    produce a continuous output polyline.
+
+    Defaults are tuned for the cartoon-projection use case, not raw GPS.
+    Callers can override via kwargs.
+
+    Returns a :class:`MatchedRoute` with ``mode="hmm"`` and
+    ``hmm_states_emitted`` / ``hmm_unreachable_stitches`` populated.
+    Raises nothing — failure modes are reported in the returned struct.
+    """
+    if len(coords) < 2:
+        return MatchedRoute(
+            coords=list(coords), node_ids=[], length_m=0.0,
+            waypoints_used=len(coords), snapped_pairs=0,
+            unreachable_segments=0, mode="hmm",
+        )
+
+    waypoints = downsample_by_distance(coords, step_m=waypoint_step_m)
+    if len(waypoints) < 2:
+        return MatchedRoute(
+            coords=list(waypoints), node_ids=[], length_m=0.0,
+            waypoints_used=len(waypoints), snapped_pairs=0,
+            unreachable_segments=0, mode="hmm",
+        )
+
+    from leuvenmapmatching.matcher.distance import DistanceMatcher
+
+    imap = _build_inmem_map(graph)
+    matcher = DistanceMatcher(
+        imap,
+        max_dist=max_dist_m,
+        max_dist_init=max_dist_m,
+        obs_noise=obs_noise_m,
+        min_prob_norm=min_prob_norm,
+        non_emitting_states=non_emitting_states,
+        avoid_goingback=avoid_goingback,
+    )
+    try:
+        states, last_idx = matcher.match(waypoints)
+    except Exception as exc:                                       # noqa: BLE001
+        logger.warning("hmm matcher failed: %r — returning empty match", exc)
+        return MatchedRoute(
+            coords=[], node_ids=[], length_m=0.0,
+            waypoints_used=len(waypoints), snapped_pairs=0,
+            unreachable_segments=1, mode="hmm",
+        )
+
+    # Distinct matched edges (preserving order) for diagnostics
+    distinct_edges: list[tuple[int, int]] = []
+    for s in states:
+        if not distinct_edges or distinct_edges[-1] != s:
+            distinct_edges.append(s)
+
+    node_seq = list(matcher.path_pred_onlynodes)
+    node_path, stitch_unreachable = _stitch_node_path(graph, node_seq)
+    snapped_coords = [_node_xy(graph, n) for n in node_path]
+    length = _path_length_m(graph, node_path)
+    return MatchedRoute(
+        coords=snapped_coords,
+        node_ids=node_path,
+        length_m=length,
+        waypoints_used=len(waypoints),
+        snapped_pairs=max(0, last_idx),
+        unreachable_segments=stitch_unreachable,
+        mode="hmm",
+        hmm_states_emitted=len(distinct_edges),
+        hmm_unreachable_stitches=stitch_unreachable,
+    )
+
+
+def map_match_dispatch(
+    coords: list[tuple[float, float]],
+    graph,
+    *,
+    mode: str = "dijkstra",
+    waypoint_step_m: float = 30.0,
+    # Dijkstra-mode knobs
+    k_shortest_paths: int = 1,
+    rerank: str = "shape",
+    via_nodes: list[tuple[float, float, int]] | None = None,
+    # HMM-mode knobs
+    hmm_obs_noise_m: float = 50.0,
+    hmm_max_dist_m: float = 200.0,
+    hmm_min_prob_norm: float = 0.0001,
+    hmm_non_emitting_states: bool = True,
+    hmm_avoid_goingback: bool = True,
+) -> MatchedRoute:
+    """Thin dispatch wrapper: pick the matcher by ``mode`` and forward.
+
+    Default ``mode="dijkstra"`` reproduces the legacy ``map_match`` call
+    exactly — every existing test/caller is unaffected. ``mode="hmm"``
+    routes to the Newson-Krumm matcher above.
+    """
+    if mode == "hmm":
+        return map_match_hmm(
+            coords, graph,
+            waypoint_step_m=waypoint_step_m,
+            obs_noise_m=hmm_obs_noise_m,
+            max_dist_m=hmm_max_dist_m,
+            min_prob_norm=hmm_min_prob_norm,
+            non_emitting_states=hmm_non_emitting_states,
+            avoid_goingback=hmm_avoid_goingback,
+        )
+    if mode != "dijkstra":
+        raise ValueError(f"unknown mapmatch mode: {mode!r}")
+    return map_match(
+        coords, graph,
+        waypoint_step_m=waypoint_step_m,
+        k_shortest_paths=k_shortest_paths,
+        rerank=rerank,
+        via_nodes=via_nodes,
     )

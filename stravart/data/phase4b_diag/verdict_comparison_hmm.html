@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>strav.art Phase 4c Stream A — HMM Viterbi verdict</title>
+<style>
+  html { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fafafa; color: #1a1a1a; }
+  body { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; line-height: 1.5; }
+  h1 { font-size: 1.55rem; font-weight: 600; margin-bottom: 0.3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; font-weight: 600; font-size: 1.15rem; }
+  .meta { color: #666; font-size: 0.92rem; margin-bottom: 1.2rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 0.6rem 0 1rem; }
+  th, td { border: 1px solid #ddd; padding: 0.35rem 0.6rem; text-align: right; font-variant-numeric: tabular-nums; }
+  th { background: #f0f0f0; font-weight: 600; text-align: left; }
+  td.label { text-align: left; }
+  tr.baseline td { background: #fff7e6; }
+  tr.win td { background: #e9f5ec; }
+  tr.loss td { background: #fbeaea; }
+  tr.fail td { background: #eee; color: #888; }
+  .delta-pos { color: #1f8a3a; font-weight: 600; }
+  .delta-neg { color: #c1432d; font-weight: 600; }
+  .verdict { background: white; border: 1px solid #ddd; border-left: 4px solid #b07c1a; padding: 0.8rem 1rem; border-radius: 3px; margin: 1rem 0; }
+  figure { margin: 1rem 0; }
+  figure img { max-width: 100%; border: 1px solid #ccc; border-radius: 3px; display: block; }
+  figcaption { font-size: 0.82rem; color: #666; margin-top: 0.3rem; }
+  code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.88em; background: #eaeaea; padding: 0.05em 0.3em; border-radius: 2px; }
+</style>
+</head>
+<body>
+<h1>Phase 4c Stream A — HMM Viterbi map-matcher</h1>
+<div class="meta">Negative-result-aware sweep: baseline Dijkstra vs HMM σ ∈ {20, 50, 100, 150}m, seed-pinned (axiom #7). Sister to Phase 4b options 1+2+4.</div>
+
+<div class="verdict">
+<strong>Verdict: partial improvement, not a default-flip win.</strong>
+HMM lifts the elephant trunk (#584) by +23% fidelity but degrades a route Dijkstra was already
+fitting well (#53, −34%). Default remains <code>mapmatch_mode="dijkstra"</code>; HMM is gated
+behind <code>--mapmatch-mode hmm</code> for case-by-case refinement and future hybrid with
+Stream B's per-street vias.
+</div>
+
+<h2>Fidelity table (seed-pinned)</h2>
+<table>
+  <thead>
+    <tr><th>Route</th><th>Mode</th><th>σ (m)</th><th>Fidelity</th><th>Δ vs baseline</th><th>Fréchet (m)</th><th>Buffered IoU</th><th>Confidence</th><th>Elapsed (s)</th></tr>
+  </thead>
+  <tbody>
+    <tr class="baseline"><td class="label">#584 Travelling Elephant</td><td>Dijkstra</td><td>—</td><td>0.190</td><td>—</td><td>685</td><td>0.316</td><td>0.501</td><td>45</td></tr>
+    <tr class="win"><td class="label">#584 Travelling Elephant</td><td>HMM</td><td>20</td><td>0.234</td><td class="delta-pos">+23%</td><td>629</td><td>0.390</td><td>0.528</td><td>135</td></tr>
+    <tr><td class="label">#584 Travelling Elephant</td><td>HMM</td><td>50</td><td>0.234</td><td class="delta-pos">+23%</td><td>629</td><td>0.390</td><td>0.528</td><td>90</td></tr>
+    <tr><td class="label">#584 Travelling Elephant</td><td>HMM</td><td>100</td><td>0.225</td><td class="delta-pos">+18%</td><td>629</td><td>0.376</td><td>0.523</td><td>84</td></tr>
+    <tr><td class="label">#584 Travelling Elephant</td><td>HMM</td><td>150</td><td>0.225</td><td class="delta-pos">+18%</td><td>629</td><td>0.376</td><td>0.523</td><td>84</td></tr>
+    <tr class="baseline"><td class="label">#53 Regent's Park</td><td>Dijkstra</td><td>—</td><td>0.359</td><td>—</td><td>134</td><td>0.379</td><td>0.578</td><td>43</td></tr>
+    <tr class="loss"><td class="label">#53 Regent's Park</td><td>HMM</td><td>20</td><td>0.238</td><td class="delta-neg">−34%</td><td>196</td><td>0.385</td><td>0.522</td><td>358</td></tr>
+    <tr class="loss"><td class="label">#53 Regent's Park</td><td>HMM</td><td>50</td><td>0.230</td><td class="delta-neg">−36%</td><td>196</td><td>0.372</td><td>0.517</td><td>615</td></tr>
+    <tr class="fail"><td class="label">#53 Regent's Park</td><td>HMM</td><td>100</td><td colspan="6">georef failed: only 4 unique GCPs (need ≥5) — sweep artefact, not HMM-specific</td></tr>
+    <tr class="fail"><td class="label">#53 Regent's Park</td><td>HMM</td><td>150</td><td colspan="6">georef failed: only 4 unique GCPs (need ≥5) — sweep artefact, not HMM-specific</td></tr>
+  </tbody>
+</table>
+
+<h2>Diagnostic: #584 trunk routing</h2>
+<figure>
+  <img src="diagnose_hmm_00584.png" alt="Projected polyline vs Dijkstra snap vs HMM σ=50m snap over OSM streets, route #584">
+  <figcaption>Blue: projected cartoon polyline (input to the matcher). Red: Phase 4a Dijkstra snap. Cyan: HMM σ=50m snap. Where the blue polyline already wanders off the grey street grid, the error is in the AFFINE PROJECTION, not the map-matcher. HMM produces a smoother global trajectory; Dijkstra makes locally-greedy wrong turns that accumulate.</figcaption>
+</figure>
+
+<h2>Honest framing</h2>
+<p>HMM helps where Dijkstra's per-segment greediness is the dominant error mode (long, organic shapes like the elephant trunk). It hurts where Dijkstra's locally-greedy choices happen to coincide with the cartoon's grid-aligned intent (Regent's Park). The infrastructure is in tree behind <code>--mapmatch-mode hmm</code>; future work is a hybrid that also consumes Stream B's per-street via-node refinement, not a blanket switch.</p>
+</body>
+</html>

@@ -19,6 +19,8 @@ from stravart.mapmatch import (
     _path_length_m,
     downsample_by_distance,
     map_match,
+    map_match_dispatch,
+    map_match_hmm,
 )
 
 
@@ -399,3 +401,137 @@ class TestViaNodes:
         # Node 2 must appear in the routed path
         assert 2 in result.node_ids
         assert result.via_nodes_pinned == 1
+
+
+# --- Phase 4c: HMM matcher --------------------------------------------------
+
+class TestHmmMatcher:
+    """Phase 4c Stream A: Hidden Markov Model map-matcher via
+    ``leuvenmapmatching``. Uses the same two-path graph fixture as
+    ``TestShapeRerank``/``TestViaNodes`` to verify the HMM picks the right
+    corridor end-to-end (it scores entire path likelihoods, not per-segment)
+    plus boundary / contract tests."""
+
+    def _two_path_graph(self):
+        """Two corridors u=0 → v=5: north (0-1-2-5) and south (0-3-4-5).
+        Identical to the Phase 4b shape-rerank fixture so the comparison
+        is apples-to-apples."""
+        import math
+        g = nx.MultiDiGraph(crs="EPSG:4326")
+        lat0, lon0 = 51.5, -0.1
+        dlat = math.degrees(100 / 6_371_000.0)
+        dlon = math.degrees(100 / (6_371_000.0 * math.cos(math.radians(lat0))))
+        g.add_node(0, y=lat0,            x=lon0)
+        g.add_node(1, y=lat0 + dlat,     x=lon0)
+        g.add_node(2, y=lat0 + dlat,     x=lon0 + dlon)
+        g.add_node(3, y=lat0 - dlat,     x=lon0)
+        g.add_node(4, y=lat0 - dlat,     x=lon0 + dlon)
+        g.add_node(5, y=lat0,            x=lon0 + 2 * dlon)
+        for a, b in [(0, 1), (1, 2), (2, 5), (0, 3), (3, 4), (4, 5)]:
+            g.add_edge(a, b, length=100)
+            g.add_edge(b, a, length=100)
+        return g, lat0, lon0, dlat, dlon
+
+    def test_hmm_picks_north_when_contour_bends_north(self):
+        """HMM Viterbi over the full observation sequence should prefer the
+        north corridor when the observations bend north — even though the
+        per-segment Dijkstra alone might have flipped on an ambiguous first
+        step."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [
+            (lat0,             lon0),
+            (lat0 + 0.5*dlat,  lon0),
+            (lat0 + dlat,      lon0),
+            (lat0 + dlat,      lon0 + 0.5*dlon),
+            (lat0 + dlat,      lon0 + dlon),
+            (lat0 + 0.5*dlat,  lon0 + 1.5*dlon),
+            (lat0,             lon0 + 2*dlon),
+        ]
+        result = map_match_hmm(coords, g, waypoint_step_m=50.0,
+                                obs_noise_m=20.0)
+        assert result.mode == "hmm"
+        # The interior of the matched path traverses 1 and 2 (north corridor).
+        # End points may include corridor extensions due to the library's
+        # endpoint-edge representation; the key contract is "more north than
+        # south internal nodes".
+        north_count = sum(1 for n in result.node_ids if n in (1, 2))
+        south_count = sum(1 for n in result.node_ids if n in (3, 4))
+        assert north_count >= 1
+        assert north_count >= south_count
+
+    def test_hmm_picks_south_when_contour_bends_south(self):
+        """Symmetric counterpart: a south-bending contour matches the
+        south corridor."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [
+            (lat0,             lon0),
+            (lat0 - 0.5*dlat,  lon0),
+            (lat0 - dlat,      lon0),
+            (lat0 - dlat,      lon0 + 0.5*dlon),
+            (lat0 - dlat,      lon0 + dlon),
+            (lat0 - 0.5*dlat,  lon0 + 1.5*dlon),
+            (lat0,             lon0 + 2*dlon),
+        ]
+        result = map_match_hmm(coords, g, waypoint_step_m=50.0,
+                                obs_noise_m=20.0)
+        assert result.mode == "hmm"
+        south_count = sum(1 for n in result.node_ids if n in (3, 4))
+        north_count = sum(1 for n in result.node_ids if n in (1, 2))
+        assert south_count >= 1
+        assert south_count >= north_count
+
+    def test_hmm_short_polyline_returns_input(self):
+        """A polyline with <2 points must not crash the HMM — return-empty
+        is the contract, same as legacy ``map_match``."""
+        g, *_ = self._two_path_graph()
+        result = map_match_hmm([(51.5, -0.1)], g)
+        assert result.mode == "hmm"
+        assert result.length_m == 0.0
+        assert result.coords == [(51.5, -0.1)]
+
+    def test_hmm_returns_matched_route_shape(self):
+        """Wire-format contract: the HMM output is a ``MatchedRoute`` with
+        the same fields downstream code expects, plus the new HMM
+        diagnostic counters."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [
+            (lat0, lon0),
+            (lat0 + dlat, lon0),
+            (lat0 + dlat, lon0 + dlon),
+            (lat0, lon0 + 2*dlon),
+        ]
+        result = map_match_hmm(coords, g, waypoint_step_m=50.0,
+                                obs_noise_m=20.0)
+        assert isinstance(result, MatchedRoute)
+        assert result.mode == "hmm"
+        assert len(result.coords) >= 2
+        assert result.length_m > 0
+        assert result.hmm_states_emitted > 0
+
+    def test_hmm_unknown_mode_raises(self):
+        """The dispatch wrapper must reject typos — silent fallback to
+        legacy Dijkstra would mask config errors."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [(lat0, lon0), (lat0, lon0 + 2*dlon)]
+        with pytest.raises(ValueError, match="unknown mapmatch mode"):
+            map_match_dispatch(coords, g, mode="bogus")
+
+    def test_dispatch_default_is_legacy_dijkstra(self):
+        """Default ``mode='dijkstra'`` reproduces the legacy behaviour
+        exactly — no surprise regressions for existing callers."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [(lat0, lon0), (lat0 + dlat, lon0), (lat0, lon0 + 2*dlon)]
+        result = map_match_dispatch(coords, g, waypoint_step_m=50.0)
+        assert result.mode == "dijkstra"
+        assert result.hmm_states_emitted == 0
+
+    def test_dispatch_hmm_routes_to_hmm(self):
+        """``mode='hmm'`` flips to the HMM matcher and tags the result."""
+        g, lat0, lon0, dlat, dlon = self._two_path_graph()
+        coords = [(lat0, lon0), (lat0 + dlat, lon0),
+                  (lat0 + dlat, lon0 + dlon), (lat0, lon0 + 2*dlon)]
+        result = map_match_dispatch(coords, g, mode="hmm",
+                                     waypoint_step_m=50.0,
+                                     hmm_obs_noise_m=20.0)
+        assert result.mode == "hmm"
+        assert result.length_m > 0

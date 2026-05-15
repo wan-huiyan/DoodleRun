@@ -133,6 +133,22 @@ def _add_reconstruct(sub: argparse._SubParsersAction) -> None:
                         "force detours away from the cartoon's actual "
                         "crossing point. Kept opt-in for future "
                         "per-street-node refinement.")
+    p.add_argument("--mapmatch-mode", choices=["dijkstra", "hmm"],
+                   default="dijkstra",
+                   help="Phase 4c: pick the map-matcher. 'dijkstra' is the "
+                        "legacy Phase 3 per-segment shortest-path snap. 'hmm' "
+                        "is a Hidden Markov Model (Newson-Krumm via "
+                        "leuvenmapmatching) that scores entire path "
+                        "likelihoods against the observed shape — fixes "
+                        "global wrong-turn failures that local Dijkstra "
+                        "can't recover from.")
+    p.add_argument("--hmm-obs-noise-m", type=float, default=50.0,
+                   help="Standard deviation of observation noise for HMM mode. "
+                        "Default 50m for cartoon-projection use; raise to "
+                        "100-150m for noisier projections.")
+    p.add_argument("--hmm-max-dist-m", type=float, default=200.0,
+                   help="HMM hard cutoff: candidate edges must lie within "
+                        "this many metres of each observation.")
 
 
 def _add_reconstruct_stats(sub: argparse._SubParsersAction) -> None:
@@ -225,9 +241,12 @@ def main(argv: list[str] | None = None) -> int:
             strict_threshold=args.strict_threshold,
             min_gcps=args.min_gcps,
             waypoint_step_m=args.waypoint_step_m,
+            mapmatch_mode=args.mapmatch_mode,
             mapmatch_k_paths=args.mapmatch_k_paths,
             mapmatch_rerank=args.mapmatch_rerank,
             mapmatch_use_via_nodes=args.via_nodes,
+            hmm_obs_noise_m=args.hmm_obs_noise_m,
+            hmm_max_dist_m=args.hmm_max_dist_m,
             enable_city_scale_fallback=not args.no_city_scale_fallback,
         )
         print(json.dumps(reconstruct_summary(outcomes), indent=2))

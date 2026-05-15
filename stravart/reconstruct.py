@@ -49,7 +49,7 @@ from .georef import (
     project_polyline,
 )
 from .gpx_export import GpxMetadata, build_gpx, build_gpx_multi_segment
-from .mapmatch import MatchedRoute, load_graph, map_match
+from .mapmatch import MatchedRoute, load_graph, map_match, map_match_dispatch
 from .ocr import OcrResult, candidate_pixel_anchors, fetch_image, ocr_image
 
 
@@ -318,9 +318,12 @@ def reconstruct(
     min_confidence: float = 0.4,
     strict_threshold: float = 0.6,
     waypoint_step_m: float = 30.0,
+    mapmatch_mode: str = "dijkstra",
     mapmatch_k_paths: int = 1,
     mapmatch_rerank: str = "shape",
     mapmatch_use_via_nodes: bool = False,
+    hmm_obs_noise_m: float = 50.0,
+    hmm_max_dist_m: float = 200.0,
     bbox_pad_m: float = 200.0,
     fidelity_buffer_m: float = 25.0,
     title_latlon: tuple[float, float] | None = None,
@@ -486,12 +489,15 @@ def reconstruct(
             via_nodes_arg = None
 
     try:
-        rec.matched = map_match(
+        rec.matched = map_match_dispatch(
             rec.geo_polyline, graph,
+            mode=mapmatch_mode,
             waypoint_step_m=waypoint_step_m,
             k_shortest_paths=mapmatch_k_paths,
             rerank=mapmatch_rerank,
             via_nodes=via_nodes_arg,
+            hmm_obs_noise_m=hmm_obs_noise_m,
+            hmm_max_dist_m=hmm_max_dist_m,
         )
     except Exception as exc:                                     # noqa: BLE001
         rec.failure = f"mapmatch: {exc!r}"
