@@ -88,6 +88,8 @@ def run_batch(
     strict_threshold: float = 0.6,
     min_gcps: int = 5,
     waypoint_step_m: float = 30.0,
+    mapmatch_k_paths: int = 1,
+    mapmatch_rerank: str = "shape",
     enable_city_scale_fallback: bool = True,
     progress_every: int = 5,
 ) -> list[ReconstructionOutcome]:
@@ -133,6 +135,8 @@ def run_batch(
                     strict_threshold=strict_threshold,
                     min_gcps=min_gcps,
                     waypoint_step_m=waypoint_step_m,
+                    mapmatch_k_paths=mapmatch_k_paths,
+                    mapmatch_rerank=mapmatch_rerank,
                     title_latlon=title_latlon,
                     title_confidence=title_conf,
                     gpx_metadata=GpxMetadata(

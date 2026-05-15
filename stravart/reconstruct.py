@@ -311,6 +311,8 @@ def reconstruct(
     min_confidence: float = 0.4,
     strict_threshold: float = 0.6,
     waypoint_step_m: float = 30.0,
+    mapmatch_k_paths: int = 1,
+    mapmatch_rerank: str = "shape",
     bbox_pad_m: float = 200.0,
     fidelity_buffer_m: float = 25.0,
     title_latlon: tuple[float, float] | None = None,
@@ -454,7 +456,12 @@ def reconstruct(
         rec.failure = f"mapmatch: graph load: {exc!r}"
         return rec
     try:
-        rec.matched = map_match(rec.geo_polyline, graph, waypoint_step_m=waypoint_step_m)
+        rec.matched = map_match(
+            rec.geo_polyline, graph,
+            waypoint_step_m=waypoint_step_m,
+            k_shortest_paths=mapmatch_k_paths,
+            rerank=mapmatch_rerank,
+        )
     except Exception as exc:                                     # noqa: BLE001
         rec.failure = f"mapmatch: {exc!r}"
         return rec

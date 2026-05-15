@@ -1,0 +1,14 @@
+{
+  "rid": 584,
+  "title": "TRAVELLING ELEPHANT, UK \ud83d\udc18\ud83c\uddec\ud83c\udde7",
+  "elapsed_s": 53.801485776901245,
+  "n_gcps": 5,
+  "rmse_m": 2.5049077609598998,
+  "fidelity": 0.19068353928205603,
+  "frechet_m": 685.0810961940836,
+  "confidence": 0.5018071078148345,
+  "reranked_segments": 0,
+  "waypoints_used": 329,
+  "n_projected_pts": 2710,
+  "n_snapped_pts": 506
+}

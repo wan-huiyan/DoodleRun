@@ -1,0 +1,57 @@
+[
+  {
+    "rid": 5,
+    "title": "MANCHESTER DOG",
+    "city_lat": 53.4424618,
+    "city_lon": -2.2324547,
+    "n_polyline": 1566,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 3832.1678321678323,
+    "scale_m_per_px": 6.993006993006993,
+    "out": "stravart/data/phase4b_diag/city_scale_00005.png"
+  },
+  {
+    "rid": 208,
+    "title": "BERLIN MUTT",
+    "city_lat": 52.5173885,
+    "city_lon": 13.3951309,
+    "n_polyline": 3171,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 2775.4318618042225,
+    "scale_m_per_px": 3.838771593090211,
+    "out": "stravart/data/phase4b_diag/city_scale_00208.png"
+  },
+  {
+    "rid": 800,
+    "title": "MUNICH LION",
+    "city_lat": 48.1371079,
+    "city_lon": 11.5753822,
+    "n_polyline": 2318,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 1795.8557175748274,
+    "scale_m_per_px": 3.0698388334612434,
+    "out": "stravart/data/phase4b_diag/city_scale_00800.png"
+  },
+  {
+    "rid": 1135,
+    "title": "ROTTERDAM HAS ADDED TWO TURTLES \ud83d\udc22\ud83d\udc22 \ud83d\ude07",
+    "city_lat": 51.9244424,
+    "city_lon": 4.47775,
+    "n_polyline": 2225,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 3926.7399267399264,
+    "scale_m_per_px": 3.663003663003663,
+    "out": "stravart/data/phase4b_diag/city_scale_01135.png"
+  },
+  {
+    "rid": 1359,
+    "title": "AMSTERDAM IS AJAX - AJAX IS AMSTERDAM",
+    "city_lat": 52.3730796,
+    "city_lon": 4.8924534,
+    "n_polyline": 849,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 1797.1014492753625,
+    "scale_m_per_px": 7.246376811594203,
+    "out": "stravart/data/phase4b_diag/city_scale_01359.png"
+  }
+]

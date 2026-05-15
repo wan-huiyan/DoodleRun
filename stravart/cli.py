@@ -113,7 +113,18 @@ def _add_reconstruct(sub: argparse._SubParsersAction) -> None:
                    help="Disable the Phase 4b centroid-anchored fallback. "
                         "Routes without OCR'd streets become failures.")
     p.add_argument("--waypoint-step-m", type=float, default=30.0,
-                   help="Spacing between map-match waypoints (metres)")
+                   help="Spacing between map-match waypoints (metres).")
+    p.add_argument("--mapmatch-k-paths", type=int, default=1,
+                   help="Top-K candidate paths per segment for shape-aware "
+                        "rerank. Default 1 (legacy Dijkstra). Set >1 to "
+                        "experiment with k-shortest-paths + Fréchet rerank "
+                        "— note this only helps when the OSM graph offers "
+                        "multiple comparable routes between waypoints, which "
+                        "is rare on dense city street networks.")
+    p.add_argument("--mapmatch-rerank", choices=["shape", "length"],
+                   default="shape",
+                   help="Pick best of K paths by 'shape' (Fréchet vs cartoon) "
+                        "or 'length' (legacy — shortest by edge length).")
 
 
 def _add_reconstruct_stats(sub: argparse._SubParsersAction) -> None:
@@ -206,6 +217,8 @@ def main(argv: list[str] | None = None) -> int:
             strict_threshold=args.strict_threshold,
             min_gcps=args.min_gcps,
             waypoint_step_m=args.waypoint_step_m,
+            mapmatch_k_paths=args.mapmatch_k_paths,
+            mapmatch_rerank=args.mapmatch_rerank,
             enable_city_scale_fallback=not args.no_city_scale_fallback,
         )
         print(json.dumps(reconstruct_summary(outcomes), indent=2))

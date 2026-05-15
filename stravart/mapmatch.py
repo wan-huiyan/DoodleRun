@@ -33,6 +33,7 @@ Overpass during graph download. Tests mock the graph object; no network.
 
 from __future__ import annotations
 
+import itertools
 import logging
 import math
 import os
@@ -40,6 +41,8 @@ from dataclasses import dataclass
 
 import networkx as nx
 import numpy as np
+
+from .fidelity_score import discrete_frechet_m
 
 
 logger = logging.getLogger(__name__)
@@ -92,7 +95,8 @@ def downsample_by_distance(
     coords: list[tuple[float, float]],
     *,
     step_m: float = 30.0,
-) -> list[tuple[float, float]]:
+    return_indices: bool = False,
+):
     """Reduce a dense lat/lon polyline to waypoints ~``step_m`` apart.
 
     Always keeps the first and last vertex. Walks the polyline forward,
@@ -100,22 +104,32 @@ def downsample_by_distance(
     Used to feed shortest-path segment endpoints — feeding every contour
     pixel through Dijkstra is wasteful and the per-pixel jitter dominates
     the snap step anyway.
+
+    When ``return_indices=True``, returns ``(waypoints, indices)`` where
+    ``indices[i]`` is the index into the original ``coords`` for
+    ``waypoints[i]``. Phase 4b's shape-aware map-match uses this to slice
+    the projected contour into the reference sub-segment between
+    consecutive waypoint pairs.
     """
     if not coords:
-        return []
+        return ([], []) if return_indices else []
     if len(coords) == 1:
-        return [coords[0]]
+        return ([coords[0]], [0]) if return_indices else [coords[0]]
 
     out = [coords[0]]
+    idxs = [0]
     accum = 0.0
-    for prev, curr in zip(coords, coords[1:]):
+    for i in range(1, len(coords)):
+        prev, curr = coords[i - 1], coords[i]
         accum += _haversine_m(prev[0], prev[1], curr[0], curr[1])
         if accum >= step_m:
             out.append(curr)
+            idxs.append(i)
             accum = 0.0
     if out[-1] != coords[-1]:
         out.append(coords[-1])
-    return out
+        idxs.append(len(coords) - 1)
+    return (out, idxs) if return_indices else out
 
 
 # ---------------------------------------------------- graph download
@@ -154,6 +168,7 @@ class MatchedRoute:
     waypoints_used: int                 # downsampled waypoints fed to Dijkstra
     snapped_pairs: int                  # consecutive (u, v) pairs Dijkstra ran on
     unreachable_segments: int           # segments where networkx couldn't connect
+    reranked_segments: int = 0          # segments where shape-rerank chose a non-shortest path
 
 
 def _node_xy(graph, node_id) -> tuple[float, float]:
@@ -185,22 +200,76 @@ def _path_length_m(graph, node_seq: list[int]) -> float:
     return total
 
 
+def _candidate_paths(graph, u: int, v: int, *, k: int) -> list[list[int]]:
+    """Top-K simple shortest paths from ``u`` to ``v``, weighted by ``length``.
+
+    Falls back to a single Dijkstra path if the simple-paths generator
+    raises (some MultiDiGraph corners). Returns at most ``k`` paths,
+    fewer if the graph doesn't offer that many alternatives.
+    """
+    try:
+        gen = nx.shortest_simple_paths(graph, u, v, weight="length")
+        return list(itertools.islice(gen, k))
+    except (nx.NetworkXNoPath, nx.NodeNotFound):
+        return []
+    except Exception:                                                # noqa: BLE001
+        # `shortest_simple_paths` requires the graph be simple in some
+        # NetworkX versions; fall back to single Dijkstra.
+        try:
+            return [nx.shortest_path(graph, u, v, weight="length")]
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return []
+
+
+def _path_shape_deviation_m(
+    graph,
+    node_seq: list[int],
+    reference: list[tuple[float, float]],
+) -> float:
+    """Discrete Fréchet distance between a node sequence and a reference polyline.
+
+    Both are converted to (lat, lon) lists; the existing shared-origin
+    Fréchet helper in :mod:`stravart.fidelity_score` handles the projection
+    to a local metric frame. Returns ``inf`` if either side is empty.
+    """
+    if not node_seq or not reference:
+        return float("inf")
+    path_latlon = [_node_xy(graph, n) for n in node_seq]
+    return discrete_frechet_m(path_latlon, reference)
+
+
 def map_match(
     coords: list[tuple[float, float]],
     graph,
     *,
     waypoint_step_m: float = 30.0,
+    k_shortest_paths: int = 1,
+    rerank: str = "shape",
 ) -> MatchedRoute:
     """Snap ``coords`` to streets in ``graph`` and return the routed polyline.
 
-    Algorithm:
-        * Downsample to waypoints every ``waypoint_step_m`` metres.
+    Algorithm (Phase 4b shape-aware path selection — opt-in):
+        * Downsample to waypoints every ``waypoint_step_m`` metres
+          (default 30 m, same as Phase 3 — the rerank-machinery is opt-in
+          via ``k_shortest_paths > 1`` because empirically dense waypoints
+          collapse the K=3 candidate set to 1 path per segment, leaving
+          nothing to rerank).
         * Snap each waypoint to its nearest OSM node (ox.nearest_nodes).
-        * Run Dijkstra between consecutive distinct snapped nodes, weighted
-          by edge length. Concatenate the per-segment node sequences,
-          deduping the boundary nodes.
-        * Skip segments whose endpoints are unreachable in the graph; count
-          them so the caller can flag low-confidence matches.
+        * For each consecutive snapped pair, generate the top
+          ``k_shortest_paths`` candidate paths weighted by edge length.
+        * When ``rerank="shape"`` and K > 1, **rerank candidates by
+          discrete Fréchet distance to the reference contour segment**
+          (the slice of the input ``coords`` between this waypoint pair).
+          The winner is the path whose street geometry best matches the
+          cartoon's shape — not the shortest one. This addresses the
+          "elephant trunk takes wrong turn" failure mode from PoC run #2.
+        * Concatenate per-segment node sequences, deduping boundary nodes.
+
+    Backwards compatibility:
+        * ``k_shortest_paths=1`` reduces to the original Dijkstra-only
+          behaviour.
+        * ``rerank="length"`` ignores the contour shape and picks
+          shortest-by-length even when K>1 (useful for ablation).
 
     Returns the snapped coordinate list, OSM node ids, total length, and
     diagnostics. Raises nothing on graph-misses; everything is reported.
@@ -214,7 +283,9 @@ def map_match(
 
     import osmnx as ox
 
-    waypoints = downsample_by_distance(coords, step_m=waypoint_step_m)
+    waypoints, wp_indices = downsample_by_distance(
+        coords, step_m=waypoint_step_m, return_indices=True,
+    )
     if len(waypoints) < 2:
         return MatchedRoute(
             coords=list(waypoints), node_ids=[], length_m=0.0,
@@ -229,25 +300,48 @@ def map_match(
     node_path: list[int] = []
     unreachable = 0
     pairs_run = 0
-    for u, v in zip(snapped, snapped[1:]):
+    reranked = 0
+    for i, (u, v) in enumerate(zip(snapped, snapped[1:])):
         if u == v:
             # Two waypoints both snapped to the same node — nothing to do.
             continue
         pairs_run += 1
-        try:
-            seg = nx.shortest_path(graph, u, v, weight="length")
-        except (nx.NetworkXNoPath, nx.NodeNotFound):
+        candidates = _candidate_paths(graph, u, v, k=max(1, k_shortest_paths))
+        if not candidates:
             unreachable += 1
             continue
+
+        if len(candidates) == 1 or rerank != "shape":
+            best = candidates[0]
+        else:
+            # Reference shape: the projected-contour sub-segment that this
+            # waypoint pair brackets. We use the ORIGINAL dense polyline,
+            # not the downsampled waypoints, because the shape detail lives
+            # in the bends between waypoints.
+            ref_start = wp_indices[i]
+            ref_end = wp_indices[i + 1]
+            reference = coords[ref_start : ref_end + 1]
+            if len(reference) < 2:
+                best = candidates[0]
+            else:
+                scored = [
+                    (_path_shape_deviation_m(graph, p, reference), p)
+                    for p in candidates
+                ]
+                scored.sort(key=lambda sp: sp[0])
+                best = scored[0][1]
+                if best is not candidates[0]:
+                    reranked += 1
+
         if not node_path:
-            node_path.extend(seg)
+            node_path.extend(best)
         else:
             # Skip the first node of seg if it equals the path's tail
             # (otherwise we'd double-count the boundary node).
-            if seg and seg[0] == node_path[-1]:
-                node_path.extend(seg[1:])
+            if best and best[0] == node_path[-1]:
+                node_path.extend(best[1:])
             else:
-                node_path.extend(seg)
+                node_path.extend(best)
 
     snapped_coords = [_node_xy(graph, n) for n in node_path]
     length = _path_length_m(graph, node_path)
@@ -258,4 +352,5 @@ def map_match(
         waypoints_used=len(waypoints),
         snapped_pairs=pairs_run,
         unreachable_segments=unreachable,
+        reranked_segments=reranked,
     )
