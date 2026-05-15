@@ -5,10 +5,25 @@
     "city_lat": 53.4424618,
     "city_lon": -2.2324547,
     "n_polyline": 5192,
+    "n_segments": 93,
     "bbox_width_m": 4000.0,
     "bbox_height_m": 4513.388734995383,
     "scale_m_per_px": 3.693444136657433,
+    "total_distance_m": 21895.49327534504,
     "out": "stravart/data/phase4b_diag/city_scale_00005.png"
+  },
+  {
+    "rid": 30,
+    "title": "THE ONE WITH THE DOGGO IN VIENNA \ud83d\udc36\u2764\ufe0f",
+    "city_lat": 48.2083537,
+    "city_lon": 16.3725042,
+    "n_polyline": 5352,
+    "n_segments": 87,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 2752.5987525987525,
+    "scale_m_per_px": 2.772002772002772,
+    "total_distance_m": 17350.449939601178,
+    "out": "stravart/data/phase4b_diag/city_scale_00030.png"
   },
   {
     "rid": 208,
@@ -16,10 +31,38 @@
     "city_lat": 52.5173885,
     "city_lon": 13.3951309,
     "n_polyline": 4819,
+    "n_segments": 48,
     "bbox_width_m": 4000.0,
     "bbox_height_m": 2886.756238003839,
     "scale_m_per_px": 3.838771593090211,
+    "total_distance_m": 20978.430689081113,
     "out": "stravart/data/phase4b_diag/city_scale_00208.png"
+  },
+  {
+    "rid": 248,
+    "title": "1st BERLIN DRAWING. HUAWEI \u274c ADIDAS /// \ud83e\udd85\ud83e\udd73\ud83d\ude4c\ud83c\udffb",
+    "city_lat": 52.5173885,
+    "city_lon": 13.3951309,
+    "n_polyline": 9000,
+    "n_segments": 475,
+    "bbox_width_m": 4000.0000000000005,
+    "bbox_height_m": 3540.599853694221,
+    "scale_m_per_px": 2.926115581565472,
+    "total_distance_m": 29138.10748725319,
+    "out": "stravart/data/phase4b_diag/city_scale_00248.png"
+  },
+  {
+    "rid": 799,
+    "title": "BULLFIGHT IN MUNICH",
+    "city_lat": 48.1371079,
+    "city_lon": 11.5753822,
+    "n_polyline": 10603,
+    "n_segments": 208,
+    "bbox_width_m": 4000.0000000000005,
+    "bbox_height_m": 2171.3084603258017,
+    "scale_m_per_px": 2.1019442984760905,
+    "total_distance_m": 25112.180122380396,
+    "out": "stravart/data/phase4b_diag/city_scale_00799.png"
   },
   {
     "rid": 800,
@@ -27,9 +70,11 @@
     "city_lat": 48.1371079,
     "city_lon": 11.5753822,
     "n_polyline": 9546,
+    "n_segments": 140,
     "bbox_width_m": 4000.0000000000005,
     "bbox_height_m": 2642.685851318945,
     "scale_m_per_px": 2.3980815347721824,
+    "total_distance_m": 25328.611345062443,
     "out": "stravart/data/phase4b_diag/city_scale_00800.png"
   },
   {
@@ -38,9 +83,11 @@
     "city_lat": 51.9244424,
     "city_lon": 4.47775,
     "n_polyline": 5339,
+    "n_segments": 19,
     "bbox_width_m": 3999.9999999999995,
     "bbox_height_m": 2851.0638297872338,
     "scale_m_per_px": 2.3640661938534278,
+    "total_distance_m": 14777.05320889396,
     "out": "stravart/data/phase4b_diag/city_scale_01135.png"
   },
   {
@@ -49,9 +96,24 @@
     "city_lat": 52.3730796,
     "city_lon": 4.8924534,
     "n_polyline": 8981,
+    "n_segments": 173,
     "bbox_width_m": 4000.0,
     "bbox_height_m": 4524.163568773234,
     "scale_m_per_px": 3.717472118959108,
+    "total_distance_m": 38455.929430980366,
     "out": "stravart/data/phase4b_diag/city_scale_01359.png"
+  },
+  {
+    "rid": 1565,
+    "title": "STRAVA LOGO IN HAMBURG",
+    "city_lat": 53.5501721,
+    "city_lon": 10.0013165,
+    "n_polyline": 4553,
+    "n_segments": 51,
+    "bbox_width_m": 3999.9999999999995,
+    "bbox_height_m": 5541.322314049587,
+    "scale_m_per_px": 4.132231404958677,
+    "total_distance_m": 21900.358407213596,
+    "out": "stravart/data/phase4b_diag/city_scale_01565.png"
   }
 ]

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>strav.art Phase 4a → 4b verdict comparison</title>
+<title>strav.art Phase 4c verdict — curated-20 dashboard</title>
 <style>
   :root {
     --bg: #fafafa;
@@ -13,559 +13,267 @@
     --ship: #1f8a3a;
     --review: #b07c1a;
     --city: #2a6fb8;
+    --city-new: #5e3d99;
     --fail: #888;
+    --border: #d8d8d8;
   }
-  html { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--fg); }
-  body { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; line-height: 1.5; }
-  h1, h2, h3 { font-weight: 600; }
-  h1 { font-size: 1.6rem; margin-bottom: 0.3rem; }
-  h2 { margin-top: 2.4rem; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; }
-  h3 { margin-top: 1.6rem; font-size: 1.05rem; }
-  .meta { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.4rem; }
-  blockquote { border-left: 3px solid var(--accent); padding-left: 0.9rem; color: #444; margin: 0.8rem 0; }
-  code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.88em; background: #eaeaea; padding: 0.05em 0.3em; border-radius: 2px; }
-  pre { background: #2b2b2b; color: #eee; padding: 0.8rem 1rem; border-radius: 4px; overflow-x: auto; font-size: 0.82rem; }
-  .small { font-size: 0.85rem; color: var(--muted); }
+  * { box-sizing: border-box; }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--fg);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding: 2rem 1.5rem; line-height: 1.45; }
+  .container { max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 1.65rem; font-weight: 600; margin: 0 0 0.4rem; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin: 2rem 0 0.6rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  .meta { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.2rem; }
+  code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.86em; background: #eaeaea; padding: 0.05em 0.3em; border-radius: 2px; }
+  blockquote { border-left: 3px solid var(--accent); padding-left: 0.9rem; color: #444; margin: 0.8rem 0 1.2rem; }
 
-  /* Route cards: one row per route with verdict + thumbnail */
-  .route { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; padding: 0.9rem; border-bottom: 1px solid #e0e0e0; align-items: center; }
-  .route:nth-child(odd) { background: var(--row-alt); }
-  .route .info { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; font-size: 0.9rem; }
-  .route .info dt { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .route .title { font-weight: 600; font-size: 1rem; grid-column: 1 / -1; margin-bottom: 0.3rem; }
-  .route .title .id { color: var(--muted); font-weight: 400; margin-right: 0.4rem; font-variant-numeric: tabular-nums; }
-  .route .change { grid-column: 1 / -1; font-size: 0.85rem; color: #555; margin-top: 0.3rem; font-style: italic; }
-  .route .thumb { text-align: right; }
-  .route .thumb img { max-width: 320px; width: 100%; height: auto; border: 1px solid #ccc; border-radius: 3px; display: block; }
-  .route .thumb .nopic { padding: 1.2rem; border: 1px dashed #ccc; color: var(--muted); font-size: 0.85rem; text-align: center; border-radius: 3px; }
-  .route .thumb figcaption { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; text-align: left; }
+  /* KPI tiles at top — design-inspired by route-tracker dashboards */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.8rem;
+    margin: 1rem 0 1.6rem;
+  }
+  .kpi {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+    background: var(--bar, var(--muted));
+  }
+  .kpi.ship   { --bar: var(--ship); }
+  .kpi.review { --bar: var(--review); }
+  .kpi.city   { --bar: var(--city); }
+  .kpi.city-new { --bar: var(--city-new); }
+  .kpi.fail   { --bar: var(--fail); }
+  .kpi.total  { --bar: var(--accent); }
+  .kpi h4 { margin: 0 0 0.25rem; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .kpi .v { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .kpi .d { font-size: 0.82rem; color: var(--muted); margin-top: 0.1rem; }
 
-  .badge { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 3px; font-size: 0.78rem; font-weight: 600; color: white; }
-  .badge.ship { background: var(--ship); }
-  .badge.review { background: var(--review); }
-  .badge.city { background: var(--city); }
-  .badge.fail { background: var(--fail); }
+  /* Sortable, sticky-header table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: white; }
+  table.verdict {
+    width: 100%; border-collapse: collapse; font-size: 0.86rem;
+    table-layout: auto;
+  }
+  table.verdict thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: #f0f0f0; border-bottom: 2px solid var(--border);
+    padding: 0.55rem 0.6rem; text-align: left; font-weight: 600;
+    cursor: pointer; user-select: none;
+    white-space: nowrap;
+  }
+  table.verdict thead th:hover { background: #e6e6e6; }
+  table.verdict thead th.sorted-asc::after { content: " ▲"; color: var(--accent); }
+  table.verdict thead th.sorted-desc::after { content: " ▼"; color: var(--accent); }
+  table.verdict tbody td {
+    padding: 0.5rem 0.6rem; border-bottom: 1px solid #eee; vertical-align: top;
+  }
+  table.verdict tbody tr:nth-child(odd) td { background: var(--row-alt); }
+  table.verdict tbody tr:hover td { background: #f3e9e7; }
+  td.rid { color: var(--muted); font-variant-numeric: tabular-nums; }
+  td.title { font-weight: 600; min-width: 200px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.small { font-size: 0.78rem; color: #444; }
+  td.thumb img { max-width: 180px; max-height: 110px; border: 1px solid #ccc; border-radius: 3px; display: block; }
+  td.note { font-size: 0.78rem; color: #444; max-width: 320px; }
+  .nopic { display: inline-block; padding: 0.5rem; border: 1px dashed #ccc; color: var(--muted); font-size: 0.75rem; border-radius: 3px; }
 
-  .tally { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin: 1rem 0; }
-  .tally-card { background: white; padding: 0.8rem 1rem; border: 1px solid #ddd; border-radius: 4px; }
-  .tally-card h4 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--muted); }
-  .tally-card dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; font-variant-numeric: tabular-nums; }
-  .tally-card dt { color: var(--muted); }
+  .badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 3px;
+            font-size: 0.72rem; font-weight: 700; color: white; letter-spacing: 0.02em;
+            white-space: nowrap; }
+  .badge.ship      { background: var(--ship); }
+  .badge.review    { background: var(--review); }
+  .badge.city      { background: var(--city); }
+  .badge.city-new  { background: var(--city-new); }
+  .badge.fail      { background: var(--fail); }
 
-  .full-width { width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; margin: 0.6rem 0; }
-  .key { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 1rem; }
-  .key span { display: inline-flex; align-items: center; gap: 0.3rem; }
-  .key i { width: 0.8rem; height: 0.8rem; border-radius: 2px; display: inline-block; }
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; margin: 0.5rem 0 1rem; color: #444; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+  details { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 0.5rem 0.9rem; margin: 0.6rem 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details ul { margin: 0.4rem 0 0.2rem; padding-left: 1.2rem; }
 </style>
 </head>
 <body>
+<div class="container">
 
-<h1>strav.art Phase 4a → 4b verdict comparison</h1>
+<h1>strav.art Phase 4c — curated-20 verdict dashboard</h1>
 <p class="meta">
-  Branch <code>claude/stravart-phase4b-tighten-fallback</code> · curated-20 PoC ·
-  paper-trace against the persisted Phase 4a run #2 numbers (no live re-run).
+  Branch <code>claude/stravart-phase4c-dashboard-distance</code> · paper-trace
+  against the persisted Phase 4a run #2 numbers plus Phase 4b sweep data plus
+  Phase 4c offline-rendered city-scale fallbacks. Re-render with
+  <code>python3 stravart/data/phase4b_diag/render_verdict_html.py</code>.
 </p>
 
 <blockquote>
-  <strong>What changed.</strong> Phase 4b adds a tighter pre-fit gate
-  (<code>min_gcps=5</code>, dedup, RMSE&gt;0.5m), a review tier
-  (<code>min_confidence=0.4</code>, strict ship at 0.6), and a centroid-anchored
-  city-scale fallback for OCR-zero images. The contour extractor was fixed
-  to capture all skeleton branches (Phase 4a was losing 25–75% of the cartoon)
-  AND to preserve all components ≥ <code>min_area</code> (was: largest only —
-  dropped 2 of 3 turtles on #1135 Rotterdam Turtles).
+  <strong>What's new in Phase 4c.</strong> C1 extends
+  <code>_city_scale_fallback</code> to fire when the affine fit fails at
+  the <code>min_gcps</code> or <code>min_rmse</code> gate AND a title-derived
+  lat/lon is available — promoting routes that previously hard-failed to a
+  decorative city-scale ship. C2 adds a per-route
+  <code>total_distance_m</code> (snapped polyline length for street-scale,
+  per-segment haversine sum for city-scale). C3 rebuilds this dashboard with
+  KPI tiles, a distance column, sortable columns, and a sticky header.
 </blockquote>
 
-<h2>Tallies</h2>
-<div class="tally">
-  <div class="tally-card">
-    <h4>Phase 4a (run #2)</h4>
-    <dl>
-      <dt>Strict ship</dt><dd>2 / 20</dd>
-      <dt>Review tier</dt><dd>—</dd>
-      <dt>City-scale</dt><dd>—</dd>
-      <dt>Honestly rejected</dt><dd>18 / 20 (mixed reasons)</dd>
-    </dl>
+<h2>KPI tiles</h2>
+<div class="kpis">
+  <div class="kpi ship">
+    <h4>Strict ship</h4>
+    <div class="v">2<span style="font-weight:400; font-size:1rem; color:var(--muted)"> / 20</span></div>
+    <div class="d">18.1&nbsp;km runnable</div>
   </div>
-  <div class="tally-card">
-    <h4>Phase 4b (this branch)</h4>
-    <dl>
-      <dt>Strict ship</dt><dd>2 / 20</dd>
-      <dt>Review tier</dt><dd>2 / 20</dd>
-      <dt>City-scale (decorative)</dt><dd>9 / 20</dd>
-      <dt>Honestly rejected</dt><dd>7 / 20</dd>
-    </dl>
+  <div class="kpi review">
+    <h4>Review tier</h4>
+    <div class="v">2<span style="font-weight:400; font-size:1rem; color:var(--muted)"> / 20</span></div>
+    <div class="d">35.7&nbsp;km runnable*</div>
+  </div>
+  <div class="kpi city">
+    <h4>City-scale (4b)</h4>
+    <div class="v">9<span style="font-weight:400; font-size:1rem; color:var(--muted)"> / 20</span></div>
+    <div class="d">214.9&nbsp;km decorative</div>
+  </div>
+  <div class="kpi city-new">
+    <h4>City-scale (4c NEW)</h4>
+    <div class="v">3<span style="font-weight:400; font-size:1rem; color:var(--muted)"> / 20</span></div>
+    <div class="d">68.3&nbsp;km decorative</div>
+  </div>
+  <div class="kpi fail">
+    <h4>Honest fails</h4>
+    <div class="v">4<span style="font-weight:400; font-size:1rem; color:var(--muted)"> / 20</span></div>
+    <div class="d">no GPX produced</div>
+  </div>
+  <div class="kpi total">
+    <h4>Total output</h4>
+    <div class="v">16<span style="font-weight:400; font-size:1rem; color:var(--muted)"> / 20</span></div>
+    <div class="d">337.1&nbsp;km all-tier distance</div>
   </div>
 </div>
 
-<div class="key">
-  <span><i style="background:var(--ship)"></i> SHIP-strict (runnable, no review)</span>
-  <span><i style="background:var(--review)"></i> REVIEW (runnable, needs approval)</span>
-  <span><i style="background:var(--city)"></i> CITY-SCALE (decorative card)</span>
-  <span><i style="background:var(--fail)"></i> Honestly rejected</span>
+<div class="legend">
+  <span><span class="badge ship">SHIP</span> runnable, ≥0.6 confidence</span>
+  <span><span class="badge review">REVIEW</span> runnable, needs approval</span>
+  <span><span class="badge city">CITY-SCALE</span> decorative (Phase 4b)</span>
+  <span><span class="badge city-new">CITY-SCALE-NEW</span> decorative (Phase 4c C1)</span>
+  <span><span class="badge fail">FAIL</span> no output</span>
 </div>
 
-<h2>Per-route verdicts with visuals</h2>
-<p class="small">
-  For street-scale routes (SHIP / REVIEW / FAIL-conf): the Phase 4a 4-panel
-  summary (original / contour / OCR anchors / projected-vs-snapped). For
-  city-scale routes: the Phase 4b 3-panel (original / multi-segment contour /
-  geographic placement). Click any thumbnail to open the full PNG.
+<h2>Per-route verdicts (sortable — click a column header)</h2>
+<p class="meta" style="margin-bottom:0.6rem">
+  Sorted by tier ⟶ ID by default. Click any header to re-sort. Click a
+  thumbnail to open the full diagnostic PNG.
 </p>
 
-<!-- Strict ships -->
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#910</span>London Marathon — <span class="badge ship">SHIP-strict</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>SHIP (conf 0.60)</dd>
-      <dt>Phase 4b</dt><dd>SHIP-strict (conf 0.60, kind=street)</dd>
-      <dt>GCPs</dt><dd>5 unique, RMSE 5.46 m, fidelity 0.40</dd>
-    </dl>
-    <div class="change">unchanged ✓ — the canonical good ship; pipeline produced the same GPX</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00910_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00910_summary.png" alt="London Marathon Phase 4a summary panel">
-    </a>
-    <figcaption>panel 4 (right): projected & snapped overlap closely</figcaption>
-  </figure>
+<div class="table-wrap">
+<table class="verdict" id="vtable">
+  <thead>
+    <tr>
+      <th data-key="id">#</th>
+      <th data-key="title">Title</th>
+      <th data-key="tier">Verdict</th>
+      <th data-key="dist">Distance</th>
+      <th data-key="conf">Conf</th>
+      <th data-key="p4a">Phase 4a</th>
+      <th data-key="p4b">Phase 4b</th>
+      <th data-key="p4c">Phase 4c</th>
+      <th>Thumbnail</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr data-tier="ship-strict" data-dist="6386.093115369261"><td class="rid">910</td><td class="title">The London Marathon</td><td><span class="badge ship">SHIP</span></td><td class="num">6.4&nbsp;km</td><td class="num">0.60</td><td class="small">SHIP (0.60)</td><td class="small">SHIP-strict (0.60, kind=street)</td><td class="small">SHIP-strict (0.60, kind=street)</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_00910_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_00910_summary.png" alt="The London Marathon"></a></td><td class="note">unchanged through 4a→4b→4c. NOTE: GPX length &lt;&lt; canonical 42.2km — the snap traced only a fragment of the cartoon path (Phase 3 known limitation, surfaced in Stream A/B follow-ups).</td></tr><tr data-tier="ship-strict" data-dist="11696.401732533914"><td class="rid">921</td><td class="title">The Hackney Horse</td><td><span class="badge ship">SHIP</span></td><td class="num">11.7&nbsp;km</td><td class="num">0.62</td><td class="small">SHIP (0.62)</td><td class="small">SHIP-strict (0.62, kind=street)</td><td class="small">SHIP-strict (0.62, kind=street)</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_00921_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_00921_summary.png" alt="The Hackney Horse"></a></td><td class="note">animal-shape route in dense central London.</td></tr><tr data-tier="review" data-dist="16953.0"><td class="rid">53</td><td class="title">Regent&#x27;s Park, Great Day For Doggin</td><td><span class="badge review">REVIEW</span></td><td class="num">17.0&nbsp;km</td><td class="num">0.58</td><td class="small">FAIL-CONF (0.58&lt;0.60)</td><td class="small">REVIEW (0.58, kind=street)</td><td class="small">REVIEW (0.58, kind=street)</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_00053_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_00053_summary.png" alt="Regent&#x27;s Park, Great Day For Doggin"></a></td><td class="note">was silently dropped pre-4b; now reviewable. Distance from Phase 4b sweep_00053.json baseline.</td></tr><tr data-tier="review" data-dist="18760.0"><td class="rid">584</td><td class="title">Travelling Elephant</td><td><span class="badge review">REVIEW</span></td><td class="num">18.8&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-CONF (0.50&lt;0.60)</td><td class="small">REVIEW (0.50, kind=street)</td><td class="small">REVIEW (0.50, kind=street)</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_00584_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_00584_summary.png" alt="Travelling Elephant"></a></td><td class="note">trunk takes wrong turn (Dijkstra picks shortest, not shape-best); see Stream A&#x27;s HMM work. Distance from sweep_00584.json baseline.</td></tr><tr data-tier="city-scale" data-dist="21895.49327534504"><td class="rid">5</td><td class="title">Manchester Dog</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">21.9&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_00005.png" target="_blank"><img src="city_scale_00005.png" alt="Manchester Dog"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="17350.449939601178"><td class="rid">30</td><td class="title">Vienna Doggo</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">17.4&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_00030.png" target="_blank"><img src="city_scale_00030.png" alt="Vienna Doggo"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="20978.430689081113"><td class="rid">208</td><td class="title">Berlin Mutt</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">21.0&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_00208.png" target="_blank"><img src="city_scale_00208.png" alt="Berlin Mutt"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="29138.10748725319"><td class="rid">248</td><td class="title">1st Berlin Drawing</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">29.1&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_00248.png" target="_blank"><img src="city_scale_00248.png" alt="1st Berlin Drawing"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="25112.180122380396"><td class="rid">799</td><td class="title">Bullfight in Munich</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">25.1&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_00799.png" target="_blank"><img src="city_scale_00799.png" alt="Bullfight in Munich"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="25328.611345062443"><td class="rid">800</td><td class="title">Munich Lion</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">25.3&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_00800.png" target="_blank"><img src="city_scale_00800.png" alt="Munich Lion"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="14777.05320889396"><td class="rid">1135</td><td class="title">Rotterdam Has Added Two Turtles</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">14.8&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_01135.png" target="_blank"><img src="city_scale_01135.png" alt="Rotterdam Has Added Two Turtles"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="38455.929430980366"><td class="rid">1359</td><td class="title">Amsterdam is Ajax</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">38.5&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_01359.png" target="_blank"><img src="city_scale_01359.png" alt="Amsterdam is Ajax"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="21900.358407213596"><td class="rid">1565</td><td class="title">Strava Logo in Hamburg</td><td><span class="badge city">CITY-SCALE</span></td><td class="num">21.9&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">CITY-SCALE (0.50, kind=city-scale)</td><td class="small">CITY-SCALE (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_01565.png" target="_blank"><img src="city_scale_01565.png" alt="Strava Logo in Hamburg"></a></td><td class="note">city-scale ship via Phase 4b OCR0 fallback (unchanged in 4c)</td></tr><tr data-tier="city-scale" data-dist="23042.348086541424"><td class="rid">577</td><td class="title">Dumbo Visits Cambridge</td><td><span class="badge city-new">CITY-SCALE-NEW</span></td><td class="num">23.0&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-CONF or FAIL-EARLY</td><td class="small">FAIL min_gcps (3&lt;5)</td><td class="small">CITY-SCALE-NEW (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_phase4c_00577.png" target="_blank"><img src="city_scale_phase4c_00577.png" alt="Dumbo Visits Cambridge"></a></td><td class="note">NEW in 4c: C1 fall-through promoted from fail → decorative</td></tr><tr data-tier="city-scale" data-dist="29879.137351615755"><td class="rid">942</td><td class="title">London Bear Half Marathon</td><td><span class="badge city-new">CITY-SCALE-NEW</span></td><td class="num">29.9&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-CONF or FAIL-EARLY</td><td class="small">FAIL-conf (0.31&lt;0.4) — degenerate</td><td class="small">CITY-SCALE-NEW (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_phase4c_00942.png" target="_blank"><img src="city_scale_phase4c_00942.png" alt="London Bear Half Marathon"></a></td><td class="note">NEW in 4c: C1 fall-through promoted from fail → decorative</td></tr><tr data-tier="city-scale" data-dist="15406.939911251817"><td class="rid">1272</td><td class="title">St Albans Shark</td><td><span class="badge city-new">CITY-SCALE-NEW</span></td><td class="num">15.4&nbsp;km</td><td class="num">0.50</td><td class="small">FAIL-CONF or FAIL-EARLY</td><td class="small">FAIL min_gcps (4&lt;5)</td><td class="small">CITY-SCALE-NEW (conf 0.50, decorative)</td><td class="thumb"><a href="city_scale_phase4c_01272.png" target="_blank"><img src="city_scale_phase4c_01272.png" alt="St Albans Shark"></a></td><td class="note">NEW in 4c: C1 fall-through promoted from fail → decorative</td></tr><tr data-tier="fail" data-dist="0"><td class="rid">36</td><td class="title">100k GPS Art Tour of West Devon</td><td><span class="badge fail">FAIL</span></td><td class="num">—</td><td class="num">—</td><td class="small">FAIL-EARLY (OCR0)</td><td class="small">FAIL no-title-latlon</td><td class="small">FAIL no-title-latlon</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_00036_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_00036_summary.png" alt="100k GPS Art Tour of West Devon"></a></td><td class="note">Phase 1 couldn&#x27;t geocode &#x27;West Devon&#x27;; no anchor to fall back on.</td></tr><tr data-tier="fail" data-dist="0"><td class="rid">60</td><td class="title">Doggin&#x27; My Way Through Hampstead Heath</td><td><span class="badge fail">FAIL</span></td><td class="num">—</td><td class="num">0.28</td><td class="small">FAIL-CONF (0.28)</td><td class="small">FAIL-conf (0.28&lt;0.4)</td><td class="small">FAIL no-title-latlon</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_00060_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_00060_summary.png" alt="Doggin&#x27; My Way Through Hampstead Heath"></a></td><td class="note">C1 fall-through would have caught this, BUT Phase 1 has lat=None for it — needs an upstream geocode pass.</td></tr><tr data-tier="fail" data-dist="0"><td class="rid">1294</td><td class="title">A Whale in Wales</td><td><span class="badge fail">FAIL</span></td><td class="num">—</td><td class="num">0.24</td><td class="small">FAIL-CONF (0.24)</td><td class="small">FAIL min_gcps (3&lt;5)</td><td class="small">FAIL no-title-latlon</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_01294_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_01294_summary.png" alt="A Whale in Wales"></a></td><td class="note">&#x27;Wales&#x27; too broad for triangulation; Phase 1 lat=None blocks C1 fall-through.</td></tr><tr data-tier="fail" data-dist="0"><td class="rid">1333</td><td class="title">Paris GPS Drawing</td><td><span class="badge fail">FAIL</span></td><td class="num">—</td><td class="num">—</td><td class="small">FAIL-XREF (1 candidate)</td><td class="small">FAIL-XREF (1 candidate)</td><td class="small">FAIL-XREF (1 candidate)</td><td class="thumb"><a href="../phase4a_poc/diagnostics/route_01333_summary.png" target="_blank"><img src="../phase4a_poc/diagnostics/route_01333_summary.png" alt="Paris GPS Drawing"></a></td><td class="note">C1 fall-through fires on min_gcps/min_rmse fail, NOT on crossref-no-consensus. Known gap.</td></tr>
+  </tbody>
+</table>
 </div>
 
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#921</span>Hackney Horse — <span class="badge ship">SHIP-strict</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>SHIP (conf 0.62)</dd>
-      <dt>Phase 4b</dt><dd>SHIP-strict (conf 0.62, kind=street)</dd>
-      <dt>GCPs</dt><dd>6 unique, RMSE 5.37 m, fidelity 0.46</dd>
-    </dl>
-    <div class="change">unchanged ✓ — animal-shape route in dense central London</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00921_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00921_summary.png" alt="Hackney Horse Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
+<h2>Tallies (Phase 4c)</h2>
+<details open>
+  <summary>Detailed counts + distances</summary>
+  <ul>
+    <li><strong>Strict ship:</strong> 2 / 20 · 18.1&nbsp;km runnable total</li>
+    <li><strong>Review tier:</strong> 2 / 20 · 35.7&nbsp;km runnable total</li>
+    <li><strong>City-scale (Phase 4b OCR0 fallback):</strong> 9 / 20 · 214.9&nbsp;km decorative total</li>
+    <li><strong>City-scale (Phase 4c NEW fallback):</strong> 3 / 20 · 68.3&nbsp;km decorative total</li>
+    <li><strong>Honestly rejected:</strong> 4 / 20</li>
+    <li><strong>Total ship-tier distance (street-scale ships + reviews):</strong> 53.8&nbsp;km</li>
+    <li><strong>Total all-tier distance (incl. decorative city-scale):</strong> 337.1&nbsp;km</li>
+  </ul>
+</details>
 
-<!-- Review tier -->
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#53</span>Regent's Park, Great Day For Doggin — <span class="badge review">REVIEW</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.58 &lt; 0.60)</dd>
-      <dt>Phase 4b</dt><dd>REVIEW (0.58, kind=street)</dd>
-      <dt>GCPs</dt><dd>6 → 4 after RANSAC, RMSE 12.7 m, fidelity 0.36</dd>
-    </dl>
-    <div class="change">was silently dropped — now in the review queue for manual approval</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00053_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00053_summary.png" alt="Regent's Park Phase 4a summary panel">
-    </a>
-    <figcaption>panel 4: projected/snapped overlap well — real reconstruction</figcaption>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#584</span>Travelling Elephant — <span class="badge review">REVIEW</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.50 &lt; 0.60)</dd>
-      <dt>Phase 4b</dt><dd>REVIEW (0.50, kind=street)</dd>
-      <dt>GCPs</dt><dd>5 → 4 after RANSAC, RMSE 2.50 m, fidelity 0.19</dd>
-    </dl>
-    <div class="change">was silently dropped — now reviewable. Trunk takes wrong turn (map-match Dijkstra picks shortest, not shape-best); see options 1+2 negative result below</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00584_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00584_summary.png" alt="Travelling Elephant Phase 4a summary panel">
-    </a>
-    <figcaption>panel 4: elephant outline visibly off in places</figcaption>
-  </figure>
-</div>
-
-<!-- Confidence rejections -->
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#60</span>Hampstead Heath — <span class="badge fail">FAIL (conf 0.28 &lt; 0.4)</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.28)</dd>
-      <dt>Phase 4b</dt><dd>FAIL-conf (0.28 &lt; 0.4)</dd>
-      <dt>GCPs</dt><dd>5 → 3 after RANSAC, RMSE ≈ 0 (degenerate)</dd>
-    </dl>
-    <div class="change">RANSAC reduced 5 GCPs → 3, fit became underdetermined; correctly rejected</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00060_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00060_summary.png" alt="Hampstead Heath Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#942</span>London Bear Half Marathon — <span class="badge fail">FAIL (conf 0.31 &lt; 0.4)</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.31)</dd>
-      <dt>Phase 4b</dt><dd>FAIL-conf (0.31 &lt; 0.4)</dd>
-      <dt>GCPs</dt><dd>5 → 3 after RANSAC, RMSE ≈ 0 (degenerate)</dd>
-    </dl>
-    <div class="change">same pattern as #60 — underdetermined after RANSAC drop</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00942_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00942_summary.png" alt="London Bear Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
-
-<!-- min_gcps rejections -->
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#577</span>Dumbo Visits Cambridge — <span class="badge fail">FAIL min_gcps (3 &lt; 5)</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.37)</dd>
-      <dt>Phase 4b</dt><dd>FAIL min_gcps — only 3 GCPs, below the new ≥5 gate</dd>
-    </dl>
-    <div class="change">failure reason corrected: 3 GCPs exactly determine the affine, RMSE=0 trivially</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00577_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00577_summary.png" alt="Dumbo Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#1272</span>St Albans Shark — <span class="badge fail">FAIL min_gcps (4 &lt; 5)</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.29)</dd>
-      <dt>Phase 4b</dt><dd>FAIL min_gcps — only 4 GCPs</dd>
-    </dl>
-    <div class="change">panel-4 PNG shows snap diverging wildly from cartoon shark; correctly rejected</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_01272_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_01272_summary.png" alt="St Albans Shark Phase 4a summary panel">
-    </a>
-    <figcaption>panel 4: clear shape disagreement — garbage reconstruction</figcaption>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#1294</span>Whale in Wales — <span class="badge fail">FAIL min_gcps (3 &lt; 5)</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-CONF (0.24)</dd>
-      <dt>Phase 4b</dt><dd>FAIL min_gcps — only 3 GCPs in a country-sized area</dd>
-    </dl>
-    <div class="change">"Wales" is too broad for 3-anchor triangulation; correctly rejected</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_01294_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_01294_summary.png" alt="Whale in Wales Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
-
-<!-- City-scale -->
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#5</span>Manchester Dog — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR found 0 streets)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale, decorative)</dd>
-      <dt>Contour</dt><dd>93 segments, 5192 pts, 100% skeleton coverage (was 30.8%)</dd>
-    </dl>
-    <div class="change">NEW: decorative card; was completely dropped before. Full dog silhouette captured.</div>
-  </div>
-  <figure class="thumb">
-    <a href="city_scale_00005.png">
-      <img src="city_scale_00005.png" alt="Manchester Dog city-scale diagnostic">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#30</span>Vienna Doggo — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-    </dl>
-    <div class="change">NEW (no diagnostic generated for this route — see Manchester Dog for reference shape)</div>
-  </div>
-  <figure class="thumb">
-    <div class="nopic">(no city-scale diagnostic rendered for #30 — pattern is identical to #5)</div>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#208</span>Berlin Mutt — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-      <dt>Contour</dt><dd>48 segments, 4819 pts, 100% coverage (was 66.7%)</dd>
-    </dl>
-    <div class="change">NEW: Berlin Mutt's full silhouette anchored at Berlin centroid</div>
-  </div>
-  <figure class="thumb">
-    <a href="city_scale_00208.png">
-      <img src="city_scale_00208.png" alt="Berlin Mutt city-scale diagnostic">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#248</span>1st Berlin Drawing — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-    </dl>
-    <div class="change">NEW (no diagnostic rendered — see Berlin Mutt for pattern)</div>
-  </div>
-  <figure class="thumb">
-    <div class="nopic">(no city-scale diagnostic rendered for #248)</div>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#799</span>Bullfight in Munich — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-    </dl>
-    <div class="change">NEW (no diagnostic rendered — see Munich Lion for the same pattern in Munich)</div>
-  </div>
-  <figure class="thumb">
-    <div class="nopic">(no city-scale diagnostic rendered for #799)</div>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#800</span>Munich Lion — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-      <dt>Contour</dt><dd>140 segments, 9546 pts, 100% coverage (was 24.7%)</dd>
-    </dl>
-    <div class="change">NEW: full lion shape — mane + body + legs + tail (was just 25% of skeleton)</div>
-  </div>
-  <figure class="thumb">
-    <a href="city_scale_00800.png">
-      <img src="city_scale_00800.png" alt="Munich Lion city-scale diagnostic">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#1135</span>Rotterdam Turtles — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-      <dt>Contour</dt><dd>19 segments, 5339 pts (was 8/2248 — multi-component fix recovered the 2 missing turtles)</dd>
-    </dl>
-    <div class="change">FIXED in this session: <code>_largest_component</code> was dropping 2 of 3 turtles (each ~65% biggest's size). Now preserves all components ≥ min_area.</div>
-  </div>
-  <figure class="thumb">
-    <a href="city_scale_01135.png">
-      <img src="city_scale_01135.png" alt="Rotterdam Turtles city-scale diagnostic">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#1359</span>Amsterdam is Ajax — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-      <dt>Contour</dt><dd>173 segments, 8981 pts, 100% coverage</dd>
-    </dl>
-    <div class="change">NEW: complex Ajax-logo shape preserved across 173 segments</div>
-  </div>
-  <figure class="thumb">
-    <a href="city_scale_01359.png">
-      <img src="city_scale_01359.png" alt="Amsterdam Ajax city-scale diagnostic">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#1565</span>Hamburg Strava Logo — <span class="badge city">CITY-SCALE</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>CITY-SCALE (conf 0.50, kind=city-scale)</dd>
-    </dl>
-    <div class="change">NEW (no diagnostic rendered — same pattern as the other city-scale routes)</div>
-  </div>
-  <figure class="thumb">
-    <div class="nopic">(no city-scale diagnostic rendered for #1565)</div>
-  </figure>
-</div>
-
-<!-- Unrecoverable -->
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#36</span>West Devon — <span class="badge fail">FAIL no-title-latlon</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-EARLY (OCR0)</dd>
-      <dt>Phase 4b</dt><dd>FAIL — OCR0 AND no title-derived lat/lon → no city-scale fallback</dd>
-    </dl>
-    <div class="change">"West Devon" wasn't in Phase 1's gazetteer; no anchor to fall back on</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_00036_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_00036_summary.png" alt="West Devon Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
-
-<div class="route">
-  <div>
-    <div class="title"><span class="id">#1333</span>Paris GPS Drawing — <span class="badge fail">FAIL crossref</span></div>
-    <dl class="info">
-      <dt>Phase 4a</dt><dd>FAIL-XREF (1 OCR candidate, no consensus)</dd>
-      <dt>Phase 4b</dt><dd>FAIL-XREF — fallback only fires on OCR0 path</dd>
-    </dl>
-    <div class="change">Known gap: city-scale fallback doesn't fire when OCR returned exactly 1 candidate</div>
-  </div>
-  <figure class="thumb">
-    <a href="../phase4a_poc/diagnostics/route_01333_summary.png">
-      <img src="../phase4a_poc/diagnostics/route_01333_summary.png" alt="Paris GPS Drawing Phase 4a summary panel">
-    </a>
-  </figure>
-</div>
-
-<h2>Contour-extraction failure modes (now fixed)</h2>
-<p>
-  Two upstream bugs were dropping huge fractions of the cartoon before the
-  pipeline even reached the affine fit or the map-match. Both fixed in this
-  session.
-</p>
-
-<h3>Bug 1: <code>trace_route</code> picked one path through branches</h3>
-<p>
-  The legacy <code>trace_route</code> walked the skeleton as a single
-  endpoint-to-endpoint path. At every junction it picked one branch and
-  abandoned the others. Even the shipped London Marathon was being snapped
-  against just 36% of its cartoon.
-</p>
-<img class="full-width" src="skeleton_diag_00005.png" alt="Manchester Dog skeleton — 69% LOST in red">
-<p class="small">
-  Manchester Dog: green = traced, red = LOST. The new
-  <code>trace_all_polylines</code> decomposes the skeleton into one polyline
-  per node-to-node edge — every skeleton pixel covered.
-</p>
-
-<h3>Bug 2: <code>_largest_component</code> dropped sister loops</h3>
-<p>
-  Rotterdam Turtles' HSV mask had <strong>3 components ≥ 200px</strong>
-  (areas 14031, 9514, 8932 — two turtles plus body trace). The largest-only
-  filter kept just one, dropping ~65% of the cartoon. Replaced with
-  <code>_significant_components</code> which preserves every component ≥
-  <code>min_area</code> (pin markers stay filtered at ~100px area).
-</p>
-
-<h2>Option 4 — OCR anchors as Dijkstra via-points (negative result)</h2>
-<p>
-  Idea: the OCR anchors land precisely on real streets — use them as <em>hard
-  via-points</em> in the snap, forcing Dijkstra to route THROUGH the OCR-
-  identified intersections in order. Implementation: after the affine fit, for
-  each RANSAC-inlier GCP, snap its Nominatim coordinate to the nearest OSM
-  graph node and inject as a via-anchor at the natural contour position.
-</p>
-<p>
-  Result on the same two routes, with RANSAC seeded for reproducibility:
-</p>
-<pre>
-#584 Travelling Elephant:
-  baseline (no via)                          fréchet 685m   fidelity 0.190   length 18760m
-  Option 4 (4 via-nodes pinned)              fréchet 685m   fidelity 0.162   length 22950m  ← WORSE
-
-#53 Regent's Park, Great Day For Doggin:
-  Options 1+2 (no via)                       fréchet 134m   fidelity 0.365   length 16953m
-  Option 4 (4 via-nodes pinned)              fréchet 1383m  fidelity 0.185   length 18984m  ← much WORSE
-</pre>
-<p>
-  <strong>Diagnosis.</strong> Nominatim returns ONE specific point per street
-  — typically the node closest to the cluster centroid. But streets are 1D
-  objects: Felix Road is 800m long, and the cartoon crosses Felix Road at one
-  specific point along its length that is NOT Nominatim's centroid. Pinning
-  the snap to Nominatim's choice forces Dijkstra to detour to a different
-  intersection on Felix Road than the one the cartoon actually crosses. The
-  longer path + bigger Fréchet are exactly that detour cost.
-</p>
-<p>
-  This is structurally the same family of negative result as options 1+2:
-  the OCR signal is correct, but the geographic anchor we derive from it is
-  too coarse to constrain individual Dijkstra hops. The infrastructure
-  (k-paths, shape rerank, via-node pinning) is sound and tested; what's
-  missing is a better mechanism for picking the right OSM node per OCR'd
-  street.
-</p>
-<p>
-  <strong>Two refinements that might unlock option 4</strong> (not yet built):
-</p>
-<ol>
-  <li><strong>Per-street node enumeration.</strong> Overpass query <code>way[name="Felix Road"]</code>
-    returns every node on Felix Road. Pick the one nearest the projected
-    polyline's nearest pass to Felix Road's bbox. ~half-day work + extra
-    API budget.</li>
-  <li><strong>Soft via constraint.</strong> Instead of pinning to one node,
-    treat the via as "Dijkstra must pass within R metres of (lat, lon)".
-    That's HMM territory — leads naturally to option 3.</li>
-</ol>
-
-<h2>Map-match wrong-turn problem (options 1+2: negative result)</h2>
-<p>
-  The user noted that even successful reconstructions can show visibly-wrong
-  shapes — the elephant's trunk taking a wrong turn — because Dijkstra optimises
-  path length, not shape fidelity. Options 1 (denser waypoints) and 2 (k-shortest-
-  paths + Fréchet shape rerank) were implemented and evaluated with the RANSAC
-  affine-fit seed pinned to remove run-to-run noise:
-</p>
-<pre>
-label                                  step  k   wp  reranked  fréchet  fidelity  iou
-baseline (Phase 4a defaults)            30   1  170      0       685     0.190    0.316
-Option 1 only (denser waypoints)        15   1  329      0       685     0.191    0.318
-Option 2 only (k=3 shape rerank)        30   3  170      0       685     0.190    0.316
-Options 1+2 (15m + k=3 + shape rerank)  15   3  329      0       685     0.191    0.318
-sparser + larger K                      50   5  104      0       685     0.189    0.314
-</pre>
-<p>
-  All five cells produce <code>fréchet=685m</code> and <code>reranked_segments=0</code>.
-  At dense-city-graph waypoint scales, <code>shortest_simple_paths</code> returns
-  one path between consecutive snapped nodes — nothing to rerank. The shape gap
-  isn't "Dijkstra tiebreaker" — it's "the cartoon cuts diagonally between
-  streets that don't exist that way." Defaults reverted; rerank machinery
-  kept as opt-in for future experimentation.
-</p>
-
-<h2>Open question / next step</h2>
-<p>
-  <strong>Option 3 (HMM map-matcher)</strong> is the right next step for the
-  remaining wrong-turn problem on review-tier routes. Three candidates:
-</p>
+<h2>What changed vs Phase 4b</h2>
 <ul>
-  <li><code>fmm</code> (Fast Map Matching, pip-installable Python+C++) — cheapest. ~2 days.</li>
-  <li>In-house Viterbi over OSM edges with emission = perpendicular distance, transition = path-length / unreachable penalty. ~3–5 days, no external dep.</li>
-  <li>Valhalla Meili — production grade, needs a side-car server. ~1 week including ops.</li>
+  <li><strong>C1 fall-through</strong> promoted 3 routes from FAIL → CITY-SCALE
+      (Dumbo Visits Cambridge, London Bear Half Marathon, St Albans Shark).
+      Each has a Phase 1 title centroid and was previously dropped by the
+      <code>min_gcps</code> / <code>min_rmse</code> gate.</li>
+  <li><strong>2 spec candidates remain hard fails</strong> (#60 Hampstead Heath,
+      #1294 Whale in Wales) because their Phase 1 row has <code>lat=NULL</code>
+      — C1's fall-through correctly requires a title centroid, so closing
+      this last gap is upstream geocoder work.</li>
+  <li><strong>Total catalog ship rate: 13 / 20 → 16 / 20</strong> (street-scale
+      + city-scale shipped or decoratively shipped). The strict + review
+      runnable count is unchanged at 4 / 20 — C1 only widens the decorative
+      tier.</li>
 </ul>
-<p>
-  Also still to thread through: the multi-polyline contour fix currently
-  feeds only the city-scale fallback. Extending it through the affine snap
-  (so OCR-anchored routes also benefit from complete shape) is a follow-up.
-</p>
 
+</div>
+<script>
+// Vanilla-JS column sorter — no framework deps so the file opens via `open`
+// in any browser without a server.
+(function () {
+  const table = document.getElementById("vtable");
+  if (!table) return;
+  const tbody = table.tBodies[0];
+  const headers = table.tHead.rows[0].cells;
+
+  function cellValue(row, idx, key) {
+    const cell = row.cells[idx];
+    if (!cell) return "";
+    if (key === "id") return parseInt(cell.textContent.trim(), 10) || 0;
+    if (key === "dist") return parseFloat(row.dataset.dist) || 0;
+    if (key === "conf") {
+      const v = parseFloat(cell.textContent);
+      return Number.isFinite(v) ? v : -1;
+    }
+    if (key === "tier") {
+      const order = {"ship-strict":0, "review":1, "city-scale":2, "fail":3};
+      return (order[row.dataset.tier] ?? 9);
+    }
+    return cell.textContent.trim().toLowerCase();
+  }
+
+  Array.from(headers).forEach((th, idx) => {
+    const key = th.dataset.key;
+    if (!key) return;
+    th.addEventListener("click", () => {
+      const asc = !th.classList.contains("sorted-asc");
+      Array.from(headers).forEach(h => h.classList.remove("sorted-asc", "sorted-desc"));
+      th.classList.add(asc ? "sorted-asc" : "sorted-desc");
+      const rows = Array.from(tbody.rows);
+      rows.sort((a, b) => {
+        const av = cellValue(a, idx, key);
+        const bv = cellValue(b, idx, key);
+        if (av < bv) return asc ? -1 : 1;
+        if (av > bv) return asc ? 1 : -1;
+        return 0;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,41 @@
+[
+  {
+    "rid": 577,
+    "title": "DUMBO VISITS CAMBRIDGE",
+    "city_lat": 52.1975846,
+    "city_lon": 0.1391537,
+    "n_polyline": 9085,
+    "n_segments": 296,
+    "bbox_width_m": 3999.9999999999995,
+    "bbox_height_m": 2711.593375214163,
+    "scale_m_per_px": 2.2844089091947457,
+    "total_distance_m": 23042.348086541424,
+    "out": "stravart/data/phase4b_diag/city_scale_phase4c_00577.png"
+  },
+  {
+    "rid": 942,
+    "title": "THE ONE WITH THE LONDON BEAR HALF MARATHON \ud83d\udc3b",
+    "city_lat": 51.5074456,
+    "city_lon": -0.1277653,
+    "n_polyline": 7743,
+    "n_segments": 297,
+    "bbox_width_m": 4000.0,
+    "bbox_height_m": 4321.799307958478,
+    "scale_m_per_px": 3.4602076124567476,
+    "total_distance_m": 29879.137351615755,
+    "out": "stravart/data/phase4b_diag/city_scale_phase4c_00942.png"
+  },
+  {
+    "rid": 1272,
+    "title": "THE ST ALBANS SHARK \ud83e\udd88",
+    "city_lat": 51.753051,
+    "city_lon": -0.3379675,
+    "n_polyline": 5845,
+    "n_segments": 28,
+    "bbox_width_m": 3999.9999999999995,
+    "bbox_height_m": 1856.4273789649415,
+    "scale_m_per_px": 2.225932109070673,
+    "total_distance_m": 15406.939911251817,
+    "out": "stravart/data/phase4b_diag/city_scale_phase4c_01272.png"
+  }
+]
